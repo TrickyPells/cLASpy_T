@@ -28,12 +28,16 @@
 # --- DEPENDENCIES ---
 # --------------------
 
+import pickle
+import joblib
+
 import numpy as np
 import pandas as pd
 
 from sklearn.preprocessing import StandardScaler, RobustScaler, MinMaxScaler
-from sklearn.model_selection import train_test_split, GridSearchCV
-from sklearn.model_selection import cross_val_score, cross_val_predict, StratifiedShuffleSplit
+from sklearn.model_selection import train_test_split
+from sklearn.model_selection import GridSearchCV
+from sklearn.model_selection import cross_val_score, StratifiedShuffleSplit
 from sklearn.svm import LinearSVC
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.ensemble import GradientBoostingClassifier
@@ -115,10 +119,10 @@ def format_dataset(path_raw_data, raw_classif=None):
 def split_dataset(data_values, target_values, train_ratio=0.8, test_ratio=0.2, threshold=500000):
     """
     Split the input data and target in data_train, data_test, target_train and target_test.
-    Check the length of the dataset. If length > 500 kpts, trainset = 400 kpts and testset = 100 kpts.
+    Check the length of the dataset. If length > threshold, train_size = train_ratio * threshold pts
+    and test_size = test_ratio * threshold pts.
     :param data_values: the np.ndarray with the data features.
     :param target_values: the np.ndarray with the target.
-    :param rd_state: (optional) random_state.
     :param train_ratio: (optional) Ratio of the size of training dataset.
     :param test_ratio: (optional) Ratio of the size of testing dataset.
     :param threshold: (optional) Number of samples beyond which the dataset is splitted with two integers,
@@ -142,6 +146,10 @@ def split_dataset(data_values, target_values, train_ratio=0.8, test_ratio=0.2, t
     # Convert target_train and target_test column-vectors as 1d array
     target_train = target_train.reshape(train_size)
     target_test = target_test.reshape(test_size)
+
+    print(" Done.")
+    print("\tNumber of used points: {} pts".format(train_size+test_size))
+    print("\tSize of train|test datasets: {} pts | {} pts".format(train_size, test_size))
 
     return data_train, data_test, target_train, target_test
 
@@ -188,7 +196,7 @@ def check_parameters(classifier, fit_params):
             temp_dict = {key: fit_params[key]}
             classifier.set_params(**temp_dict)
         except ValueError:
-            print("\nValueError: Invalid parameter '{}' for {}, "
+            print("ValueError: Invalid parameter '{}' for {}, "
                   "it has been ignored!".format(str(key), clf_name))
 
     return classifier
@@ -204,7 +212,7 @@ def set_random_forest(fit_params=None):
     if isinstance(fit_params, dict):
         fit_params['random_state'] = 0
         classifier = RandomForestClassifier()
-        classifier = check_parameters(classifier, fit_params)
+        classifier = check_parameters(classifier, fit_params)  # Check and set parameters
 
     else:
         classifier = RandomForestClassifier(n_estimators=100,
@@ -284,18 +292,32 @@ def set_mlp_classifier(fit_params=None):
     return classifier
 
 
-def training_with_grid(learning_algo, training_data, training_target, param_grid=None):
+def training_gridsearch(classifier, training_data, training_target, param_grid=None):
     """
     Train model with GridSearchCV meta-estimator according the chosen learning algorithm.
-    :param learning_algo: Set the algorithm to train the model.
+    :param classifier: Set the algorithm to train the model.
     :param training_data: The training dataset.
     :param training_target: The targets corresponding to the training dataset.
     :param param_grid: The parameters for the GridSearchCV.
     :return:
     """
+    # Set cross_validation method with train_size 80% and validation_size 20%
+    cross_val = StratifiedShuffleSplit(n_splits=5, train_size=0.8, test_size=0.2, random_state=0)
+
+    # Set the GridSearchCV
+    print("\tSearching best parameters...")
+    classifier = GridSearchCV(classifier, param_grid=param_grid, n_jobs=-1, cv=cross_val)
+
+    # Training the model to find the best parameters
+    classifier.fit(training_data, training_target)
+    results = pd.DataFrame(classifier.cv_results_)
+    print("\tThe best score: {0:.4f}".format(classifier.best_score_))
+    print("\tThe best parameters: {}".format(classifier.best_params_))
+
+    return classifier, results
 
 
-def training_with_nogrid(classifier, training_data, training_target):
+def training_nogridsearch(classifier, training_data, training_target):
     """
     Train model with cross-validation according the chosen classifier.
     :param classifier: Set the algorithm to train the model.
@@ -313,7 +335,7 @@ def training_with_nogrid(classifier, training_data, training_target):
     # Set the classifier with training_data and target
     classifier.fit(training_data, training_target)
 
-    return classifier
+    return classifier, training_scores
 
 # -------------------------
 # --------- MAIN ----------
@@ -322,28 +344,26 @@ def training_with_nogrid(classifier, training_data, training_target):
 
 if __name__ == '__main__':
     # Learning algorithm 'rf', 'gb', 'svm', 'ann'
-    algo = 'ann'
+    algo = 'rf'
     parameters = {"loss": 'deviance',
                   "n_estimators": 50,
                   "max_depth": 3,
                   "min_samples_leaf": 1000,
                   "n_jobs": -1,
-                  "random_state": 0}
+                  "random_state": 0,
+                  "max_iter": 500}
 
     # With or without GridSearchCV
-    grid = False
+    grid = True
+
+    param_grid = {'n_estimators': [10, 50, 100, 500],
+                  'max_depth': [5, 8, 11, 14],
+                  'min_samples_leaf': [10, 100, 1000]}
+
     # path to the CSV file
-    raw_data = "D:/PostDoc/Python/DataTest/20150603_Classif_plus_Geom_50kpts.csv"
+    # raw_data = "X:/THESE/PostDoc/Python/DataTest/20150603_Classif_plus_Geom_50kpts.csv"
+    raw_data = "X:/THESE/PostDoc/Python/DataTest/20150603_targeted_nantest_10kpts.csv"  # Test file with many nan values
     # raw_data = "D:/PostDoc/Python/DataTest/20150603_targeted_nantest_10kpts.csv"  # Test file with many nan values
-
-    # Format the data as data / XY / Z / target DataFrames
-    data, xy_coord, z_height, target = format_dataset(raw_data, raw_classif='lassif')
-
-    # Scale the dataset
-    data = scale_dataset(data, method='Standard')
-
-    # Create samples for training and testing
-    X_train_val, X_test, y_train_val, y_test = split_dataset(data.values, target.values)
 
     # Set the chosen learning classifier
     if algo is 'rf':
@@ -353,13 +373,38 @@ if __name__ == '__main__':
     elif algo is 'svm':
         clf = set_linear_svc(parameters)
     elif algo is 'ann':
-        clf = set_mlp_classifier()
+        clf = set_mlp_classifier(parameters)
+    else:
+        raise ValueError("No-valid classifier was selected !")
+
+    # Format the data as data / XY / Z / target DataFrames
+    print("1. Format data as pandas.Dataframe...", end='')
+    data, xy_coord, z_height, target = format_dataset(raw_data, raw_classif='lassif')
+    print(" Done.")
+
+    # Scale the dataset
+    print("2. Scaling and splitting the data...", end='')
+    data = scale_dataset(data, method='Standard')
+
+    # Create samples for training and testing
+    X_train_val, X_test, y_train_val, y_test = split_dataset(data.values, target.values)
 
     # What type of training
     if grid:
-        print('Training with grid')
+        print('3. Training the model with GridSearchCV...')
+        model, grid_results = training_gridsearch(clf, X_train_val, y_train_val, param_grid=param_grid)
+        print("\tModel trained!")
+
     else:
         # Train model with cross_val and train_val datasets
-        model = training_with_nogrid(clf, X_train_val, y_train_val)
-        print(model)
+        print("3. Training the model...")
+        model, cv_results = training_nogridsearch(clf, X_train_val, y_train_val)
+        print("\tModel trained!")
+
+    print("4. Score model with test_dataset: {0:.4f}".format(model.score(X_test, y_test)))
+
+    # Save model and results
+    save_path = '.'.join(raw_data.split('.')[:-1])
+    joblib.dump(model, str(save_path + '_model.joblib'))
+    grid_results.to_csv(str(save_path + '_results.csv'), index=False)
 
