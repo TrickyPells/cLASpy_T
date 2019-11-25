@@ -28,10 +28,8 @@
 # --- DEPENDENCIES ---
 # --------------------
 
-import pickle
 import joblib
 
-import numpy as np
 import pandas as pd
 
 from sklearn.preprocessing import StandardScaler, RobustScaler, MinMaxScaler
@@ -39,6 +37,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.model_selection import GridSearchCV
 from sklearn.model_selection import cross_val_score, StratifiedShuffleSplit
 from sklearn.svm import LinearSVC
+from sklearn.kernel_approximation import Nystroem
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.ensemble import GradientBoostingClassifier
 from sklearn.neural_network import MLPClassifier
@@ -71,7 +70,7 @@ def format_dataset(path_raw_data, raw_classif=None):
     elif 'x' in fields_name:
         index_x = fields_name.index('x')
     else:
-        print("There is no X field !")
+        index_x = None
 
     # Search Y coordinate
     if 'Y' in fields_name:
@@ -79,7 +78,7 @@ def format_dataset(path_raw_data, raw_classif=None):
     elif 'y' in fields_name:
         index_y = fields_name.index('y')
     else:
-        print("There is no Y field !")
+        index_y = None
 
     # Search Z coordinate
     if 'Z' in fields_name:
@@ -87,11 +86,19 @@ def format_dataset(path_raw_data, raw_classif=None):
     elif 'z' in fields_name:
         index_z = fields_name.index('z')
     else:
-        print("There is no Z field !")
+        index_z = None
 
-    # Create DataFrame with X and Y coordinates and DataFrame with Z
-    coord = frame.iloc[:, [index_x, index_y]]
-    hght = frame.iloc[:, [index_z]]  # Create DataFrame with Z coordinate
+    # Create DataFrame with X and Y coordinates
+    if index_x is not None and index_y is not None:
+        coord = frame.iloc[:, [index_x, index_y]]
+    else:
+        raise ValueError("There is no X or Y field, or both!")
+
+    # Create DataFrame with Z coordinate
+    if index_z is not None:
+        hght = frame.iloc[:, [index_z]]
+    else:
+        raise ValueError("There is no Z field!")
 
     # Create dataFrame of targets
     trgt = frame.loc[:, ['target']]
@@ -182,7 +189,8 @@ def scale_dataset(data_to_scale, method='Standard'):
 
 def check_parameters(classifier, fit_params):
     """
-    Check if the given parameters match with the given classifier.
+    Check if the given parameters match with the given classifier
+    and set the classifier with the well defined parameters.
     :param classifier: The given classifier.
     :param fit_params: Parameters to check in dict.
     :return: classifier: The setting up classifier.
@@ -197,9 +205,60 @@ def check_parameters(classifier, fit_params):
             classifier.set_params(**temp_dict)
         except ValueError:
             print("ValueError: Invalid parameter '{}' for {}, "
-                  "it has been ignored!".format(str(key), clf_name))
+                  "it was skipped!".format(str(key), clf_name))
 
     return classifier
+
+
+def check_grid_params(classifier, grid_params):
+    """
+    Check if the given grid_params match with the given classifier.
+    :param classifier: The given classifier.
+    :param grid_params: Grid parameters to check in dict.
+    :return: well_params: Grid parameters with only the well defined parameters.
+    """
+    # Get the type of classifier
+    clf_name = str(type(classifier)).split('.')[-1][:-2]
+
+    # Get the list of valid parameters from the classifier
+    param_names = classifier._get_param_names()
+
+    # Check if grid_params is None or empty
+    well_params = dict()  # dictionary with only good parameters
+    if grid_params is None or not bool(grid_params):
+        params_isfull = False
+        grid_params = well_params
+    else:
+        params_isfull = True
+
+    # Check if the keys of grid_params are in list of valid parameters
+    if params_isfull:
+        for key in grid_params.keys():
+            if key in param_names:
+                well_params[key] = grid_params[key]
+            else:
+                print("GridSearchCV: Invalid parameter '{}' for {}, it was skipped!".format(str(key), clf_name))
+
+    # Check if well_params is None or empty dict and set predefined parameters
+    if well_params is None or not bool(well_params):
+        if clf_name == 'RandomForestClassifier':
+            well_params = {'n_estimators': [10, 50, 100, 500],
+                           'max_depth': [5, 8, 11, 14],
+                           'min_samples_leaf': [100, 500, 1000]}
+        elif clf_name == 'GradientBoostingClassifier':
+            well_params = {'loss': ('deviance', 'exponential'),
+                           'n_estimators': [10, 50, 100, 500],
+                           'max_depth': [5, 8, 11, 14],
+                           'min_samples_leaf': [100, 500, 1000]}
+        elif clf_name == 'LinearSVC':
+            well_params = {'penalty': ('l1', 'l2'),
+                           'C': [0.01, 1.0, 100, 1000]}
+        elif clf_name == 'MLPClassifier':
+            well_params = {'hidden_layer_sizes': [(25, 25), (25, 25, 25), (25, 50, 25)],
+                           'activation': ('identity', 'logistic', 'tanh', 'relu'),
+                           'alpha': [0.000001, 0.0001, 0.01, 1.0, ]}
+
+    return well_params
 
 
 def set_random_forest(fit_params=None):
@@ -292,13 +351,13 @@ def set_mlp_classifier(fit_params=None):
     return classifier
 
 
-def training_gridsearch(classifier, training_data, training_target, param_grid=None):
+def training_gridsearch(classifier, training_data, training_target, grid_params=None):
     """
     Train model with GridSearchCV meta-estimator according the chosen learning algorithm.
     :param classifier: Set the algorithm to train the model.
     :param training_data: The training dataset.
     :param training_target: The targets corresponding to the training dataset.
-    :param param_grid: The parameters for the GridSearchCV.
+    :param grid_params: The parameters for the GridSearchCV.
     :return:
     """
     # Set cross_validation method with train_size 80% and validation_size 20%
@@ -306,7 +365,7 @@ def training_gridsearch(classifier, training_data, training_target, param_grid=N
 
     # Set the GridSearchCV
     print("\tSearching best parameters...")
-    classifier = GridSearchCV(classifier, param_grid=param_grid, n_jobs=-1, cv=cross_val)
+    classifier = GridSearchCV(classifier, param_grid=grid_params, n_jobs=-1, cv=cross_val, verbose=1)
 
     # Training the model to find the best parameters
     classifier.fit(training_data, training_target)
@@ -343,12 +402,20 @@ def training_nogridsearch(classifier, training_data, training_target):
 
 
 if __name__ == '__main__':
+    # path to the CSV file
+    # raw_data = "X:/THESE/PostDoc/Python/DataTest/20150603_Classif_plus_Geom_50kpts.csv"
+    raw_data = "D:/PostDoc/Python/DataTest/20150603_Classif_plus_Geom_50kpts.csv"
+    # raw_data = "X:/THESE/PostDoc/Python/DataTest/20150603_targeted_nantest_10kpts.csv"  # Test file with nan values
+    # raw_data = "D:/PostDoc/Python/DataTest/20150603_targeted_nantest_10kpts.csv"  # Test file with many nan values
+
+    # Path to the saved model and results
+    save_path = '.'.join(raw_data.split('.')[:-1])
+
     # Learning algorithm 'rf', 'gb', 'svm', 'ann'
-    algo = 'rf'
-    parameters = {"loss": 'deviance',
-                  "n_estimators": 50,
+    algo = 'gb'
+    parameters = {"n_estimators": 50,
                   "max_depth": 3,
-                  "min_samples_leaf": 1000,
+                  "min_samples_leaf": 500,
                   "n_jobs": -1,
                   "random_state": 0,
                   "max_iter": 500}
@@ -358,12 +425,7 @@ if __name__ == '__main__':
 
     param_grid = {'n_estimators': [10, 50, 100, 500],
                   'max_depth': [5, 8, 11, 14],
-                  'min_samples_leaf': [10, 100, 1000]}
-
-    # path to the CSV file
-    # raw_data = "X:/THESE/PostDoc/Python/DataTest/20150603_Classif_plus_Geom_50kpts.csv"
-    raw_data = "X:/THESE/PostDoc/Python/DataTest/20150603_targeted_nantest_10kpts.csv"  # Test file with many nan values
-    # raw_data = "D:/PostDoc/Python/DataTest/20150603_targeted_nantest_10kpts.csv"  # Test file with many nan values
+                  'min_samples_leaf': [10, 100, 500]}
 
     # Set the chosen learning classifier
     if algo is 'rf':
@@ -375,9 +437,11 @@ if __name__ == '__main__':
     elif algo is 'ann':
         clf = set_mlp_classifier(parameters)
     else:
-        raise ValueError("No-valid classifier was selected !")
+        raise ValueError("Any valid classifier was selected !")
 
-    # Format the data as data / XY / Z / target DataFrames
+    param_grid = check_grid_params(clf, grid_params=param_grid)
+
+    # Format the data as data / XY / Z / target DataFrames and remove raw_classification from some LAS files.
     print("1. Format data as pandas.Dataframe...", end='')
     data, xy_coord, z_height, target = format_dataset(raw_data, raw_classif='lassif')
     print(" Done.")
@@ -389,22 +453,24 @@ if __name__ == '__main__':
     # Create samples for training and testing
     X_train_val, X_test, y_train_val, y_test = split_dataset(data.values, target.values)
 
+    # kernel approximation for SVM
+    if algo is 'svm':
+        feature_map_nystroem = Nystroem(gamma=.2, n_components=100, random_state=0)
+        X_train_val = feature_map_nystroem.fit_transform(X_train_val)
+        X_test = feature_map_nystroem.fit_transform(X_test)
+
     # What type of training
     if grid:
         print('3. Training the model with GridSearchCV...')
-        model, grid_results = training_gridsearch(clf, X_train_val, y_train_val, param_grid=param_grid)
+        model, grid_results = training_gridsearch(clf, X_train_val, y_train_val, grid_params=param_grid)
+        grid_results.to_csv(str(save_path + '_results.csv'), index=False)
         print("\tModel trained!")
 
     else:
-        # Train model with cross_val and train_val datasets
-        print("3. Training the model...")
+        print("3. Training the model with cross validation...")
         model, cv_results = training_nogridsearch(clf, X_train_val, y_train_val)
         print("\tModel trained!")
 
     print("4. Score model with test_dataset: {0:.4f}".format(model.score(X_test, y_test)))
 
-    # Save model and results
-    save_path = '.'.join(raw_data.split('.')[:-1])
     joblib.dump(model, str(save_path + '_model.joblib'))
-    grid_results.to_csv(str(save_path + '_results.csv'), index=False)
-
