@@ -123,7 +123,7 @@ def format_dataset(path_raw_data, raw_classif=None):
     return features_data, coord, hght, trgt
 
 
-def split_dataset(data_values, target_values, train_ratio=0.8, test_ratio=0.2, threshold=500000):
+def split_dataset(data_values, target_values, train_ratio=0.8, test_ratio=0.2, threshold=0.5):
     """
     Split the input data and target in data_train, data_test, target_train and target_test.
     Check the length of the dataset. If length > threshold, train_size = train_ratio * threshold pts
@@ -136,6 +136,16 @@ def split_dataset(data_values, target_values, train_ratio=0.8, test_ratio=0.2, t
     for train_size and test_size. The threshold is paired with train_ratio and test_ratio.
     :return: data_train, data_test, target_train and target_test as np.ndarray.
     """
+    # Rescale threshold
+    threshold = int(threshold * 1000000)
+
+    # Check if train_ratio + test_ratio =< 1.0
+    if train_ratio > 1.0:
+        train_ratio = 0.8
+
+    if train_ratio + test_ratio > 1.0:
+        test_ratio = 1.0 - train_ratio
+
     # Check if dataset > 500 kpts
     n_samples = len(data_values[:, 0])
     if n_samples > threshold:
@@ -170,11 +180,11 @@ def scale_dataset(data_to_scale, method='Standard'):
     """
     # Perform the data scaling according the chosen method
     if method is 'Standard':
-        scaler = StandardScaler()
+        scaler = StandardScaler()  # Scale data with mean and std
     elif method is 'Robust':
-        scaler = RobustScaler()
+        scaler = RobustScaler()  # Scale data with median and interquartile
     elif method is 'MinMax':
-        scaler = MinMaxScaler()
+        scaler = MinMaxScaler()  # Scale data between 0-1 for each feature and translate (mean=0)
     else:
         scaler = StandardScaler()
         print("\nWARNING:"
