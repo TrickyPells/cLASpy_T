@@ -34,7 +34,9 @@ import sys
 import yaml
 import argparse
 
+from common import *
 from training import *
+from predict import *
 from datetime import datetime
 
 
@@ -93,6 +95,13 @@ parser.add_argument("-s", "--scaler",
                          "    See the preprocessing documentation of scikit-learn.",
                     type=str, choices=['Standard', 'Robust', 'MinMax'])
 
+parser.add_argument("--scoring",
+                    help="set scorer to GridSearchCV or cross_val_score according\n"
+                         "    to sckikit-learn documentation.",
+                    type=str, default='accuracy',
+                    metavar="['accuracy', balanced_accuracy', 'average_precision',"
+                            " 'precision', 'recall', ...]")
+
 parser.add_argument("--test_ratio",
                     help="set the test ratio as float [0.0-1.0] to split into train and test data.\n"
                          "    If train_ratio + test_ratio > 1\n"
@@ -145,7 +154,7 @@ else:
 
 # Is it TRAINING or PREDICTIONS
 if not args.model_to_import:
-
+    mod = 'training'
     # With or without GridSearchCV
     grid = False
     if args.grid_search:
@@ -158,13 +167,12 @@ if not args.model_to_import:
 
     param_grid = check_grid_params(clf, grid_params=param_grid)
 
-    # Format the data as data / XY / Z / target DataFrames and remove raw_classification from some LAS files.
-    print("1. Format data as pandas.Dataframe...", end='')
-    data, xy_coord, z_height, target = format_dataset(raw_data, raw_classif='lassif')
-    print(" Done.")
+    # Format the data XY & Z & target DataFrames and remove raw_classification from some LAS files.
+    data, xy_coord, z_height, target = format_dataset(raw_data,
+                                                      mode=mod,
+                                                      raw_classif='lassif')
 
     # Scale the dataset 'Standard', 'Robust', 'MinMaxScaler'
-    print("2. Scaling and splitting the data...", end='')
     data = scale_dataset(data, method='Standard')
 
     # Create samples for training and testing
@@ -181,18 +189,29 @@ if not args.model_to_import:
 
     # What type of training
     if grid:
-        print('3. Training the model with GridSearchCV...')
-        model, grid_results = training_gridsearch(clf, X_train_val, y_train_val, grid_params=param_grid)
+        model, grid_results = training_gridsearch(clf, X_train_val, y_train_val,
+                                                  grid_params=param_grid,
+                                                  scoring=args.scoring)
         grid_results.to_csv(str(save_path + '_results.csv'), index=False)
-        print("\tModel trained!")
 
     else:
-        print("3. Training the model with cross validation...")
-        model, cv_results = training_nogridsearch(clf, X_train_val, y_train_val)
-        print("\tModel trained!")
+        model, cv_results = training_nogridsearch(clf, X_train_val, y_train_val,
+                                                  scoring=args.scoring)
 
-    print("4. Score model with test_dataset: {0:.4f}".format(model.score(X_test, y_test)))
+    # Get score with test_data and save model
+    print("5. Score model with test_dataset: {0:.4f}".format(model.score(X_test, y_test)))
+    save_model(model, save_path)
 
-    joblib.dump(model, str(save_path + '_model.joblib'))
+else:
+    mod = 'predict'
 
-# else
+    # Format the data XY & Z as DataFrames and remove raw_classification from some LAS files.
+    data, xy_coord, z_height, target = format_dataset(raw_data,
+                                                      mode=mod,
+                                                      raw_classif='lassif')
+
+    # Scale the dataset 'Standard', 'Robust', 'MinMaxScaler'
+    data = scale_dataset(data, method='Standard')
+
+    # Load the trained model
+    model = load_model(args.model_to_import)
