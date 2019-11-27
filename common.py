@@ -30,8 +30,10 @@
 
 import joblib
 
+import numpy as np
 import pandas as pd
 
+from datetime import datetime
 from sklearn.preprocessing import StandardScaler, RobustScaler, MinMaxScaler
 
 
@@ -159,3 +161,49 @@ def scale_dataset(data_to_scale, method='Standard'):
 
     print(" Done.")
     return data_scaled
+
+
+def save_conf_mat(conf_mat, file_name):
+    """
+    Save the confusion matrix into a CSV file.
+    :param conf_mat: The confusion matrix to save as a numpy.array.
+    :param file_name: The path and name of the file.
+    """
+    # Change type array(int) as array(float)
+    conf_mat = np.array(conf_mat).astype(float)
+
+    # Timestamp for file creation
+    create_time = datetime.now().strftime("%y%m%d_%H%M%S")
+    conf_mat_name = str(file_name + "_cfmx_" + create_time + ".csv")
+
+    n_rows_cols = conf_mat.shape[0]
+    rows_sums = np.sum(conf_mat, axis=1)
+    cols_sums = np.sum(conf_mat, axis=0)
+
+    # Compute the recalls
+    recalls = list()
+    for row in range(0, n_rows_cols):
+        recalls.append((float(conf_mat[row, row]) / float(rows_sums[row])))
+
+    conf_mat_up = np.insert(conf_mat, n_rows_cols, recalls, axis=1)
+
+    # Compute the precision
+    precisions = list()
+    for col in range(0, n_rows_cols):
+        precisions.append(float(conf_mat[col, col]) / float(cols_sums[col]))
+
+    # Compute overall accuracy
+    precisions.append(float(np.trace(conf_mat) / float(np.sum(conf_mat))))
+    conf_mat_up = np.insert(conf_mat_up, n_rows_cols, precisions, axis=0)
+
+    # Save the new confusion matrix
+    conf_mat_up = pd.DataFrame(conf_mat_up)
+
+    # print("\nCONFUSION MATRIX:")
+    # print(conf_mat_up)
+
+    conf_mat_up.to_csv(conf_mat_name, sep=',')
+
+    # Give the final path and name of the model
+    print("Confusion Matix path: {}".format('/'.join(conf_mat_name.split('/')[:-1])))
+    print("Confusion Matrix file: {}".format(conf_mat_name.split('/')[-1]))

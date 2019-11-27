@@ -33,12 +33,10 @@ import joblib
 import pandas as pd
 
 from datetime import datetime
-from sklearn.preprocessing import StandardScaler, RobustScaler, MinMaxScaler
 from sklearn.model_selection import train_test_split
 from sklearn.model_selection import GridSearchCV
 from sklearn.model_selection import cross_val_score, StratifiedShuffleSplit
 from sklearn.svm import LinearSVC
-from sklearn.kernel_approximation import Nystroem
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.ensemble import GradientBoostingClassifier
 from sklearn.neural_network import MLPClassifier
@@ -46,6 +44,7 @@ from sklearn.neural_network import MLPClassifier
 # -------------------------
 # ------ FUNCTIONS --------
 # -------------------------
+
 
 def split_dataset(data_values, target_values, train_ratio=0.8, test_ratio=0.2, threshold=0.5):
     """
@@ -150,7 +149,7 @@ def check_grid_params(classifier, grid_params):
                 print("GridSearchCV: Invalid parameter '{}' for {}, it was skipped!".format(str(key), clf_name))
 
     # Check if well_params is None or empty dict and set predefined parameters
-    if well_params is None or not bool(well_params): # If well_params is None or empty
+    if well_params is None or not bool(well_params):  # If well_params is None or empty
         if clf_name == 'RandomForestClassifier':
             well_params = {'n_estimators': [10, 50, 100, 500],
                            'max_depth': [5, 8, 11, 14],
@@ -185,7 +184,7 @@ def set_random_forest(fit_params=None):
 
     else:
         classifier = RandomForestClassifier(n_estimators=100,
-                                            max_depth=5,
+                                            max_depth=8,
                                             min_samples_leaf=500,
                                             n_jobs=-1,
                                             random_state=0)
@@ -206,7 +205,7 @@ def set_gradient_boosting(fit_params=None):
         classifier = check_parameters(classifier, fit_params)
     else:
         classifier = GradientBoostingClassifier(loss='deviance',
-                                                n_estimators=10,
+                                                n_estimators=100,
                                                 max_depth=3,
                                                 min_samples_leaf=1000,
                                                 random_state=0)
@@ -261,13 +260,14 @@ def set_mlp_classifier(fit_params=None):
     return classifier
 
 
-def training_gridsearch(classifier, training_data, training_target, grid_params=None, scoring='accuracy'):
+def training_gridsearch(classifier, training_data, training_target, grid_params=None, n_jobs=-1, scoring='accuracy'):
     """
     Train model with GridSearchCV meta-estimator according the chosen learning algorithm.
     :param classifier: Set the algorithm to train the model.
     :param training_data: The training dataset.
     :param training_target: The targets corresponding to the training dataset.
     :param grid_params: The parameters for the GridSearchCV.
+    :param n_jobs: Number of CPU used.
     :param scoring: Set the scorer according scikit-learn documentation.
     :return: classifier, results: Classifier with best parameters and results from grid search.
     """
@@ -283,7 +283,7 @@ def training_gridsearch(classifier, training_data, training_target, grid_params=
     print("\tSearching best parameters...")
     classifier = GridSearchCV(classifier,
                               param_grid=grid_params,
-                              n_jobs=-1,
+                              n_jobs=n_jobs,
                               cv=cross_val,
                               scoring=scoring,
                               verbose=1)
@@ -298,12 +298,13 @@ def training_gridsearch(classifier, training_data, training_target, grid_params=
     return classifier, results
 
 
-def training_nogridsearch(classifier, training_data, training_target, scoring='accuracy'):
+def training_nogridsearch(classifier, training_data, training_target, n_jobs=-1, scoring='accuracy'):
     """
     Train model with cross-validation according the chosen classifier.
     :param classifier: Set the algorithm to train the model.
     :param training_data: The training dataset.
     :param training_target: The targets corresponding to the training dataset.
+    :param n_jobs: Number of CPU used.
     :param scoring: Set the scorer according scikit-learn documentation.
     :return: model, training_scores: The training model and the scores of n_splits training.
     """
@@ -315,15 +316,17 @@ def training_nogridsearch(classifier, training_data, training_target, scoring='a
     # Get the training scores
     training_scores = cross_val_score(classifier, training_data, training_target,
                                       cv=cross_val,
-                                      n_jobs=-1,
-                                      scoring=scoring)
+                                      n_jobs=n_jobs,
+                                      scoring=scoring,
+                                      verbose=1)
 
-    print("Training model scores performed with cross-validation:\n{}\n".format(training_scores))
+    print("\n\tTraining model scores with cross-validation:\n\t{}\n".format(training_scores))
 
     # Set the classifier with training_data and target
+    print("\tRefitting the model with all given data...", end='')
     classifier.fit(training_data, training_target)
 
-    print("\tModel trained!")
+    print(" Model trained!\n")
 
     return classifier, training_scores
 
@@ -339,8 +342,8 @@ def save_model(model_to_save, file_name):
     # model_file_name = str(file_name + "_model_" + create_time + ".joblib")
     model_file_name = str(file_name + "_" + create_time + ".model")
     joblib.dump(model_to_save, model_file_name)
-    print("Model saved: {}".format(model_file_name))
-
+    print("Model path: {}".format('/'.join(model_file_name.split('/')[:-1])))
+    print("Model file: {}".format(model_file_name.split('/')[-1]))
 
 # -------------------------
 # --------- MAIN ----------

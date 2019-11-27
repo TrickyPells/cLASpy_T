@@ -28,17 +28,15 @@
 # --- DEPENDENCIES ---
 # --------------------
 
-import os
-import subprocess
-import sys
 import yaml
 import argparse
 
 from common import *
 from training import *
 from predict import *
-from datetime import datetime
 
+from sklearn.metrics import confusion_matrix
+from sklearn.kernel_approximation import Nystroem
 
 # -------------------------
 # ------ FUNCTIONS --------
@@ -67,7 +65,7 @@ parser.add_argument("csv_data_file",
                     help="the CSV file with needed data:\n"
                          "    [WINDOWS]: 'C:/path/to/the/data.file'\n"
                          "    [UNIX]: '/path/to/the/data.file'",
-                    metavar="[\"/path/to.file\"]")
+                    type=str, metavar="[/path/to.file]")
 
 parser.add_argument("-g", "--grid_search",
                     help="perform the training with GridSearchCV",
@@ -77,18 +75,22 @@ parser.add_argument("-k", "--param_grid",
                     help="pass the grid parameters as list(sep=' ') in dict.\n"
                          "    If empty, GridSearchCV uses presets.\n"
                          "    Example: \"{'n_estimators': [50, 100, 500] , 'loss': ['deviance', 'exponential']}\"\n",
-                    type=str, metavar="[\"dict\"]")
+                    type=str, metavar="[=\"dict\"]")
 
 parser.add_argument("-m", "--model_to_import",
                     help="the model file to import to make predictions:\n"
                          "    [WINDOWS]: 'C:/path/to/the/training/model.file'\n"
                          "    [UNIX]: '/path/to/the/training/model.file'",
-                    type=str, metavar="[\"/path/to.file\"]")
+                    type=str, metavar="[=\"/path/to.file\"]")
+
+parser.add_argument("-n", "--n_jobs",
+                    help="set the number of CPU used, '-1' means all CPU available.",
+                    type=int, metavar="[1, 2,..., -1]")
 
 parser.add_argument("-p", "--parameters",
                     help="the parameters to set up the classifier as dict.\n"
                          "    Example: \"{'n_estimators': 50, 'max_depth': 5, 'max_iter': 500}\"",
-                    type=str, metavar="[\"dict\"]")
+                    type=str, metavar="[=\"dict\"]")
 
 parser.add_argument("-s", "--scaler",
                     help="method to scale the data before training.\n"
@@ -99,7 +101,7 @@ parser.add_argument("--scoring",
                     help="set scorer to GridSearchCV or cross_val_score according\n"
                          "    to sckikit-learn documentation.",
                     type=str, default='accuracy',
-                    metavar="['accuracy', balanced_accuracy', 'average_precision',"
+                    metavar="[='accuracy', balanced_accuracy', 'average_precision',"
                             " 'precision', 'recall', ...]")
 
 parser.add_argument("--test_ratio",
@@ -129,8 +131,11 @@ args = parser.parse_args()
 # path to the CSV file
 raw_data = args.csv_data_file
 
+# Change '\' in '/'
+raw_data = '/'.join(raw_data.split('\\'))
+
 # Path to the saved model and results
-save_path = '.'.join(raw_data.split('.')[:-1])
+save_path = '_'.join(['.'.join(raw_data.split('.')[:-1]), args.algorithm])
 
 # Learning algorithm 'rf', 'gb', 'svm', 'ann'
 algo = args.algorithm
@@ -141,18 +146,18 @@ if args.parameters:
     parameters = yaml.safe_load(args.parameters)
 
 # Set the chosen learning classifier
-if algo is 'rf':
+if algo == 'rf':
     clf = set_random_forest(parameters)
-elif algo is 'gb':
+elif algo == 'gb':
     clf = set_gradient_boosting(parameters)
-elif algo is 'svm':
+elif algo == 'svm':
     clf = set_linear_svc(parameters)
-elif algo is 'ann':
+elif algo == 'ann':
     clf = set_mlp_classifier(parameters)
 else:
     raise ValueError("Any valid classifier was selected !")
 
-# Is it TRAINING or PREDICTIONS
+# Is it TRAINING or PREDICTIONS ?
 if not args.model_to_import:
     mod = 'training'
     # With or without GridSearchCV
@@ -192,6 +197,7 @@ if not args.model_to_import:
         model, grid_results = training_gridsearch(clf, X_train_val, y_train_val,
                                                   grid_params=param_grid,
                                                   scoring=args.scoring)
+
         grid_results.to_csv(str(save_path + '_results.csv'), index=False)
 
     else:
@@ -199,8 +205,13 @@ if not args.model_to_import:
                                                   scoring=args.scoring)
 
     # Get score with test_data and save model
-    print("5. Score model with test_dataset: {0:.4f}".format(model.score(X_test, y_test)))
+    print("5. Score model with the test dataset: {0:.4f}".format(model.score(X_test, y_test)))
     save_model(model, save_path)
+
+    # Get predictions on test dataset with this model
+    y_pred = model.predict(X_test)
+    conf_mat = confusion_matrix(y_test, y_pred)
+    save_conf_mat(conf_mat, save_path)
 
 else:
     mod = 'predict'
