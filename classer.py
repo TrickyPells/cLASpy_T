@@ -28,6 +28,7 @@
 # --- DEPENDENCIES ---
 # --------------------
 
+import os
 import yaml
 import argparse
 
@@ -35,7 +36,8 @@ from common import *
 from training import *
 from predict import *
 
-from sklearn.metrics import confusion_matrix
+from datetime import datetime
+from sklearn.metrics import confusion_matrix, classification_report
 from sklearn.kernel_approximation import Nystroem
 
 # -------------------------
@@ -65,7 +67,7 @@ parser.add_argument("csv_data_file",
                     help="the CSV file with needed data:\n"
                          "    [WINDOWS]: 'C:/path/to/the/data.file'\n"
                          "    [UNIX]: '/path/to/the/data.file'",
-                    type=str, metavar="[/path/to.file]")
+                    type=str, metavar="/path/to.file")
 
 parser.add_argument("-g", "--grid_search",
                     help="perform the training with GridSearchCV",
@@ -131,11 +133,15 @@ args = parser.parse_args()
 # path to the CSV file
 raw_data = args.csv_data_file
 
-# Change '\' in '/'
-raw_data = '/'.join(raw_data.split('\\'))
-
-# Path to the saved model and results
-save_path = '_'.join(['.'.join(raw_data.split('.')[:-1]), args.algorithm])
+# Create a folder to store model, results, confusion matrix and grid results
+print("Create a new folder to store the results files...", end='')
+raw_data = '/'.join(raw_data.split('\\'))  # Change '\' in '/'
+folder_path = '.'.join(raw_data.split('.')[:-1])  # remove extension so give folder path
+try:
+    os.mkdir(folder_path)  # Using file path to make new folder
+    print(" Done.")
+except (TypeError, FileExistsError):
+    print(" Folder already exists.")
 
 # Learning algorithm 'rf', 'gb', 'svm', 'ann'
 algo = args.algorithm
@@ -156,6 +162,9 @@ elif algo == 'ann':
     clf = set_mlp_classifier(parameters)
 else:
     raise ValueError("Any valid classifier was selected !")
+
+# Timestamp for files created
+create_time = datetime.now().strftime("%y%m%d_%H%M%S")  # Timestamp for file creation
 
 # Is it TRAINING or PREDICTIONS ?
 if not args.model_to_import:
@@ -178,10 +187,10 @@ if not args.model_to_import:
                                                       raw_classif='lassif')
 
     # Scale the dataset 'Standard', 'Robust', 'MinMaxScaler'
-    data = scale_dataset(data, method='Standard')
+    data_trans = scale_dataset(data, method='Standard')
 
     # Create samples for training and testing
-    X_train_val, X_test, y_train_val, y_test = split_dataset(data.values, target.values,
+    X_train_val, X_test, y_train_val, y_test = split_dataset(data_trans.values, target.values,
                                                              train_ratio=args.train_ratio,
                                                              test_ratio=args.test_ratio,
                                                              threshold=args.threshold)
@@ -198,20 +207,44 @@ if not args.model_to_import:
                                                   grid_params=param_grid,
                                                   scoring=args.scoring)
 
-        grid_results.to_csv(str(save_path + '_results.csv'), index=False)
+        grid_results_file = str(folder_path + '/' + str(algo) + '_grd_srch_' + create_time + '.csv')
+        grid_results.to_csv(grid_results_file, index=True)
 
     else:
         model, cv_results = training_nogridsearch(clf, X_train_val, y_train_val,
                                                   scoring=args.scoring)
 
-    # Get score with test_data and save model
+    # Save model
     print("5. Score model with the test dataset: {0:.4f}".format(model.score(X_test, y_test)))
-    save_model(model, save_path)
+    model_file = str(folder_path + '/' + str(algo))
+    model_filename = str(model_file + "_" + create_time + ".model")
+    save_model(model, model_filename)
 
-    # Get predictions on test dataset with this model
-    y_pred = model.predict(X_test)
-    conf_mat = confusion_matrix(y_test, y_pred)
-    save_conf_mat(conf_mat, save_path)
+    # Save and give confusion matrix
+    y_test_pred = model.predict(X_test)
+    conf_mat = confusion_matrix(y_test, y_test_pred)
+    conf_mat_name = str(model_file + "_cnf_mt_" + create_time + ".csv")
+    save_conf_mat(conf_mat, conf_mat_name)
+
+    # Save and give classification report
+    report_class = classification_report(y_test, y_test_pred)
+    f = open(str(model_file + '_classif_report_' + create_time + '.csv'), "w")
+    f.write(report_class)
+    f.close()
+    print("\n{}".format(report_class))
+
+    # Save classifaction result as point cloud file with all data
+    print("6. Make predictions for the entire dataset...", end='')
+    y_pred = model.predict(data_trans.values)
+    classif_filename = str(model_file + '_classification_' + create_time + '.csv')
+    save_classification(y_pred, classif_filename,
+                        xy_fields=xy_coord,
+                        z_field=z_height,
+                        data_fields=data,
+                        target_field=target)
+    print(" Done and save.")
+    print("   Overall accuracy with entire dataset: "
+          "{}".format(model.score(data_trans.values, target.values)))
 
 else:
     mod = 'predict'
@@ -222,7 +255,7 @@ else:
                                                       raw_classif='lassif')
 
     # Scale the dataset 'Standard', 'Robust', 'MinMaxScaler'
-    data = scale_dataset(data, method='Standard')
+    data_trans = scale_dataset(data, method='Standard')
 
     # Load the trained model
     model = load_model(args.model_to_import)

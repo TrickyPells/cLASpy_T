@@ -28,18 +28,15 @@
 # --- DEPENDENCIES ---
 # --------------------
 
-import joblib
-
 import numpy as np
 import pandas as pd
 
-from datetime import datetime
 from sklearn.preprocessing import StandardScaler, RobustScaler, MinMaxScaler
-
 
 # -------------------------
 # ------ FUNCTIONS --------
 # -------------------------
+
 
 def format_dataset(path_raw_data, mode='training', raw_classif=None):
     """
@@ -103,7 +100,6 @@ def format_dataset(path_raw_data, mode='training', raw_classif=None):
         if 'target' in fields_name:
             trgt = frame.loc[:, ['target']]
         else:
-            trgt = None
             raise ValueError("A 'target' field is mandatory for training!")
     else:
         if 'target' in fields_name:
@@ -145,21 +141,21 @@ def scale_dataset(data_to_scale, method='Standard'):
     print("2. Scaling the data...", end='')
     # Perform the data scaling according the chosen method
     if method is 'Standard':
-        scaler = StandardScaler()  # Scale data with mean and std
+        method = StandardScaler()  # Scale data with mean and std
     elif method is 'Robust':
-        scaler = RobustScaler()  # Scale data with median and interquartile
+        method = RobustScaler()  # Scale data with median and interquartile
     elif method is 'MinMax':
-        scaler = MinMaxScaler()  # Scale data between 0-1 for each feature and translate (mean=0)
+        method = MinMaxScaler()  # Scale data between 0-1 for each feature and translate (mean=0)
     else:
-        scaler = StandardScaler()
+        method = StandardScaler()
         print("\nWARNING:"
               "\nScaling method '{}' was not recognized. Replaced by 'StandardScaler' method.\n".format(str(method)))
 
-    scaler.fit(data_to_scale)
-    data_scaled = scaler.transform(data_to_scale)
+    method.fit(data_to_scale)
+    data_scaled = method.transform(data_to_scale)
     data_scaled = pd.DataFrame.from_records(data_scaled, columns=data_to_scale.columns.values.tolist())
-
     print(" Done.")
+    
     return data_scaled
 
 
@@ -171,10 +167,6 @@ def save_conf_mat(conf_mat, file_name):
     """
     # Change type array(int) as array(float)
     conf_mat = np.array(conf_mat).astype(float)
-
-    # Timestamp for file creation
-    create_time = datetime.now().strftime("%y%m%d_%H%M%S")
-    conf_mat_name = str(file_name + "_cfmx_" + create_time + ".csv")
 
     n_rows_cols = conf_mat.shape[0]
     rows_sums = np.sum(conf_mat, axis=1)
@@ -197,13 +189,59 @@ def save_conf_mat(conf_mat, file_name):
     conf_mat_up = np.insert(conf_mat_up, n_rows_cols, precisions, axis=0)
 
     # Save the new confusion matrix
-    conf_mat_up = pd.DataFrame(conf_mat_up)
+    conf_mat_up = pd.DataFrame(conf_mat_up).round(decimals=3)
 
-    # print("\nCONFUSION MATRIX:")
-    # print(conf_mat_up)
+    print("\nCONFUSION MATRIX:")
+    print(conf_mat_up)
 
-    conf_mat_up.to_csv(conf_mat_name, sep=',')
+    conf_mat_up.to_csv(file_name, sep=',')
 
     # Give the final path and name of the model
-    print("Confusion Matix path: {}".format('/'.join(conf_mat_name.split('/')[:-1])))
-    print("Confusion Matrix file: {}".format(conf_mat_name.split('/')[-1]))
+    print("Confusion Matix path: {}".format('/'.join(file_name.split('/')[:-1])))
+    print("Confusion Matrix file: {}".format(file_name.split('/')[-1]))
+
+
+def save_classification(target_pred, file_name, xy_fields=None,
+                        z_field=None, data_fields=None, target_field=None):
+    """
+    Save the report of the classsification algorithms with test dataset.
+    :param target_pred: The point cloud classified.
+    :param file_name: The path and name of the file.
+    :param xy_fields: The X and Y fields from the raw_data.
+    :param z_field: The Z field from the raw_data
+    :param data_fields: The data fields from the raw_data.
+    :param target_field: The target field from the raw_data.
+    :return:
+    """
+    # Reduce precision number to 4 for data_fields
+    if isinstance(data_fields, pd.DataFrame):
+        data_fields = data_fields.round(decimals=4)
+
+    # Set the np.array of target_pred pd.Dataframe
+    if target_pred.shape[0] > 1:
+        target_pred = pd.DataFrame(target_pred, columns=['PredTarget'])
+    elif target_pred.shape[1] > 1:
+        target_pred = pd.DataFrame(target_pred)
+    else:
+        raise ValueError("The predicted target field is empty!")
+
+    # Set the list of DataFrames
+    final_classif_list = list()
+
+    # Fill the DataFrame
+    if xy_fields is not None:
+        final_classif_list.append(xy_fields)
+
+    if z_field is not None:
+        final_classif_list.append(z_field)
+
+    if data_fields is not None:
+        final_classif_list.append(data_fields)
+
+    if target_field is not None:
+        final_classif_list.append(target_field)
+
+    final_classif_list.append(target_pred)
+    final_classif = pd.concat(final_classif_list, axis=1)
+
+    final_classif.to_csv(file_name, sep=',', header=True, index=False)

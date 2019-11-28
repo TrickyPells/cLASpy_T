@@ -30,12 +30,10 @@
 
 import joblib
 
-import pandas as pd
-
-
 # -------------------------
 # ------ FUNCTIONS --------
 # -------------------------
+
 
 def load_model(path_to_model):
     """
@@ -50,8 +48,6 @@ def load_model(path_to_model):
         loaded_model = joblib.load(path_to_model)
     else:
         raise TypeError("Variable 'model_to_import' must be a string!")
-    print(" Done!")
+    print(" Done.")
 
     return loaded_model
-
-

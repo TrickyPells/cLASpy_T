@@ -32,7 +32,6 @@ import joblib
 
 import pandas as pd
 
-from datetime import datetime
 from sklearn.model_selection import train_test_split
 from sklearn.model_selection import GridSearchCV
 from sklearn.model_selection import cross_val_score, StratifiedShuffleSplit
@@ -337,13 +336,9 @@ def save_model(model_to_save, file_name):
     :param model_to_save: The model to save.
     :param file_name: The path and name of the file.
     """
-    # Timestamp for file creation
-    create_time = datetime.now().strftime("%y%m%d_%H%M%S")
-    # model_file_name = str(file_name + "_model_" + create_time + ".joblib")
-    model_file_name = str(file_name + "_" + create_time + ".model")
-    joblib.dump(model_to_save, model_file_name)
-    print("Model path: {}".format('/'.join(model_file_name.split('/')[:-1])))
-    print("Model file: {}".format(model_file_name.split('/')[-1]))
+    joblib.dump(model_to_save, file_name)
+    print("Model path: {}".format('/'.join(file_name.split('/')[:-1])))
+    print("Model file: {}".format(file_name.split('/')[-1]))
 
 # -------------------------
 # --------- MAIN ----------
