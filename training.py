@@ -30,6 +30,7 @@
 
 import joblib
 
+import numpy as np
 import pandas as pd
 
 from sklearn.model_selection import train_test_split
@@ -285,7 +286,8 @@ def training_gridsearch(classifier, training_data, training_target, grid_params=
                               n_jobs=n_jobs,
                               cv=cross_val,
                               scoring=scoring,
-                              verbose=1)
+                              verbose=1,
+                              error_score=np.nan)
 
     # Training the model to find the best parameters
     classifier.fit(training_data, training_target)

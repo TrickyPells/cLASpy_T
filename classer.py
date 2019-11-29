@@ -190,6 +190,9 @@ if not args.model_to_import:
                                                       mode=mod,
                                                       raw_classif='lassif')
 
+    # Get the feature names
+    feature_names = data.columns.values.tolist()
+
     # Scale the dataset 'Standard', 'Robust', 'MinMaxScaler'
     data_trans = scale_dataset(data, method=args.scaler)
 
@@ -225,11 +228,15 @@ if not args.model_to_import:
     # Save model
     model_filename = str(training_model_file + '_' + create_time + "_" + args.scaler + ".model")
     save_model(model, model_filename)
+    if algo == 'rf' or algo == 'gb':
+        feature_filename = str(training_model_file + '_' + create_time + '_feat_importance.png')
+        save_feature_importance(model, feature_names, feature_filename)
 
+    print("\n6. Creating confusion matrix...")
     # Save and give confusion matrix
     y_test_pred = model.predict(X_test)
     conf_mat = confusion_matrix(y_test, y_test_pred)
-    conf_mat_name = str(training_model_file + '_' + create_time + "_cnf_mt" + ".csv")
+    conf_mat_name = str(training_model_file + '_' + create_time + "_cnf_mt.csv")
     save_conf_mat(conf_mat, conf_mat_name)
 
     # Save and give classification report

@@ -31,6 +31,7 @@
 import numpy as np
 import pandas as pd
 
+from matplotlib import pyplot as plt
 from sklearn.preprocessing import StandardScaler, RobustScaler, MinMaxScaler
 
 # -------------------------
@@ -247,3 +248,36 @@ def save_predictions(target_pred, file_name, xy_fields=None,
     final_classif = pd.concat(final_classif_list, axis=1)
 
     final_classif.to_csv(file_name, sep=',', header=True, index=False)
+
+
+def save_feature_importance(model, feature_names, feature_filename):
+    """
+    Save the feature importances of RandomForest or GradientBoosting models into file.
+    :param model: The RandomForest or GradientBoostingClassifier
+    :param feature_names: The names of the features.
+    :param feature_filename: The filename and path of the feature importance figure file.
+    :return:
+    """
+    # Get the feature importances
+    importances = model.feature_importances_
+
+    # Create feature_imp_dict
+    feature_imp_dict = dict()
+    for key, imp in zip(feature_names, importances):
+        feature_imp_dict[key] = imp
+
+    # Alphabetic order for feature_names
+    feature_names = sorted(feature_names)
+    importances_sorted = list()
+    for key in feature_names:
+        importances_sorted.append(feature_imp_dict[key])
+
+    # Plot the feature importances of the forest
+    plt.figure()
+    plt.title("Feature Importances")
+    plt.barh(feature_names, importances_sorted, color='b')
+    plt.xlabel("Feature importances")
+    # plt.yticks(indices, feature_names)
+    plt.ylim([-1, len(feature_names)])
+    plt.ylabel("Features")
+    plt.savefig(feature_filename, bbox_inches="tight")
