@@ -42,12 +42,12 @@ def load_model(path_to_model):
     :return: loaded_model
     """
 
-    print("2. The model is loading...", end='')
+    print("3. Loading model...", end='')
     # Check if path_to_model variable is str and load model
     if isinstance(path_to_model, str):
         loaded_model = joblib.load(path_to_model)
     else:
-        raise TypeError("Variable 'model_to_import' must be a string!")
+        raise TypeError("Argument 'model_to_import' must be a string!")
     print(" Done.")
 
     return loaded_model

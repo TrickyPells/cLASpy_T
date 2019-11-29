@@ -97,7 +97,7 @@ parser.add_argument("-p", "--parameters",
 parser.add_argument("-s", "--scaler",
                     help="method to scale the data before training.\n"
                          "    See the preprocessing documentation of scikit-learn.",
-                    type=str, choices=['Standard', 'Robust', 'MinMax'])
+                    type=str, choices=['Standard', 'Robust', 'MinMax'], default='Standard')
 
 parser.add_argument("--scoring",
                     help="set scorer to GridSearchCV or cross_val_score according\n"
@@ -163,6 +163,10 @@ elif algo == 'ann':
 else:
     raise ValueError("Any valid classifier was selected !")
 
+# Prefix of the model_filename
+training_model_file = str(folder_path + '/training_' + str(algo))
+predict_model_file = str(folder_path + '/predict_' + str(algo))
+
 # Timestamp for files created
 create_time = datetime.now().strftime("%y%m%d_%H%M%S")  # Timestamp for file creation
 
@@ -187,7 +191,7 @@ if not args.model_to_import:
                                                       raw_classif='lassif')
 
     # Scale the dataset 'Standard', 'Robust', 'MinMaxScaler'
-    data_trans = scale_dataset(data, method='Standard')
+    data_trans = scale_dataset(data, method=args.scaler)
 
     # Create samples for training and testing
     X_train_val, X_test, y_train_val, y_test = split_dataset(data_trans.values, target.values,
@@ -207,55 +211,87 @@ if not args.model_to_import:
                                                   grid_params=param_grid,
                                                   scoring=args.scoring)
 
-        grid_results_file = str(folder_path + '/' + str(algo) + '_grd_srch_' + create_time + '.csv')
+        grid_results_file = str(folder_path + '/' + str(algo) + '_' + create_time + '_grd_srch_' + '.csv')
         grid_results.to_csv(grid_results_file, index=True)
 
     else:
         model, cv_results = training_nogridsearch(clf, X_train_val, y_train_val,
                                                   scoring=args.scoring)
 
-    # Save model
     print("5. Score model with the test dataset: {0:.4f}".format(model.score(X_test, y_test)))
-    model_file = str(folder_path + '/' + str(algo))
-    model_filename = str(model_file + "_" + create_time + ".model")
+
+    # Save model
+    model_filename = str(training_model_file + '_' + create_time + "_" + args.scaler + ".model")
     save_model(model, model_filename)
 
     # Save and give confusion matrix
     y_test_pred = model.predict(X_test)
     conf_mat = confusion_matrix(y_test, y_test_pred)
-    conf_mat_name = str(model_file + "_cnf_mt_" + create_time + ".csv")
+    conf_mat_name = str(training_model_file + '_' + create_time + "_cnf_mt" + ".csv")
     save_conf_mat(conf_mat, conf_mat_name)
 
     # Save and give classification report
     report_class = classification_report(y_test, y_test_pred)
-    f = open(str(model_file + '_classif_report_' + create_time + '.csv'), "w")
+    f = open(str(training_model_file + '_' + create_time + '_classif_report' + '.csv'), "w")
     f.write(report_class)
     f.close()
     print("\n{}".format(report_class))
 
-    # Save classifaction result as point cloud file with all data
-    print("6. Make predictions for the entire dataset...", end='')
-    y_pred = model.predict(data_trans.values)
-    classif_filename = str(model_file + '_classification_' + create_time + '.csv')
-    save_classification(y_pred, classif_filename,
-                        xy_fields=xy_coord,
-                        z_field=z_height,
-                        data_fields=data,
-                        target_field=target)
-    print(" Done and save.")
-    print("   Overall accuracy with entire dataset: "
-          "{}".format(model.score(data_trans.values, target.values)))
+    # # Save classifaction result as point cloud file with all data
+    #  print("6. Make predictions for the entire dataset...", end='')
+    #  y_pred = model.predict(data_trans.values)
+    #  classif_filename = str(model_file + '_classification_' + create_time + '.csv')
+    #  save_classification(y_pred, classif_filename,
+    #                      xy_fields=xy_coord,
+    #                      z_field=z_height,
+    #                      data_fields=data,
+    #                      target_field=target)
+    #  print(" Done and save.")
+    #  print("   Overall accuracy with entire dataset: "
+    #        "{}".format(model.score(data_trans.values, target.values)))
 
 else:
     mod = 'predict'
 
-    # Format the data XY & Z as DataFrames and remove raw_classification from some LAS files.
+    # Format data XY & Z as DataFrames and remove raw_classification from some LAS files.
     data, xy_coord, z_height, target = format_dataset(raw_data,
                                                       mode=mod,
                                                       raw_classif='lassif')
 
-    # Scale the dataset 'Standard', 'Robust', 'MinMaxScaler'
-    data_trans = scale_dataset(data, method='Standard')
+    # Get model and scaling parameters
+    scaler_method = '.'.join(args.model_to_import.split('.')[:-1]).split('_')[-1]
 
-    # Load the trained model
+    # Scale the dataset 'Standard', 'Robust', 'MinMaxScaler'
+    data_trans = scale_dataset(data, method=scaler_method)
+
+    # Load trained model
     model = load_model(args.model_to_import)
+
+    # Predic target of input data
+    print("6. Make predictions for the entire dataset...")
+    y_pred = model.predict(data_trans.values)
+
+    # Save classifaction result as point cloud file with all data
+    predic_filename = str(predict_model_file + '_' + create_time + '_predictions.csv')
+    if target is not None:
+        # Save and give confusion matrix
+        conf_mat = confusion_matrix(target.values, y_pred)
+        conf_mat_name = str(predict_model_file + '_' + create_time + "_cnf_mt.csv")
+        save_conf_mat(conf_mat, conf_mat_name)
+
+        # Save and give classification report
+        report_class = classification_report(target.values, y_pred)
+        f = open(str(predict_model_file + '_' + create_time + '_classif_report.csv'), "w")
+        f.write(report_class)
+        f.close()
+        print("\n{}".format(report_class))
+
+        print("\tOverall accuracy with entire dataset: "
+              "{}".format(model.score(data_trans.values, target.values)))
+
+    save_predictions(y_pred, predic_filename,
+                     xy_fields=xy_coord,
+                     z_field=z_height,
+                     data_fields=data,
+                     target_field=target)
+    print("\nPredictions done and saved.")
