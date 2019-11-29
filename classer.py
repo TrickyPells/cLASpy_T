@@ -87,7 +87,7 @@ parser.add_argument("-m", "--model_to_import",
 
 parser.add_argument("-n", "--n_jobs",
                     help="set the number of CPU used, '-1' means all CPU available.",
-                    type=int, metavar="[1, 2,..., -1]")
+                    type=int, metavar="[1, 2,..., -1]", default=-1)
 
 parser.add_argument("-p", "--parameters",
                     help="the parameters to set up the classifier as dict.\n"
@@ -209,14 +209,16 @@ if not args.model_to_import:
     if grid:
         model, grid_results = training_gridsearch(clf, X_train_val, y_train_val,
                                                   grid_params=param_grid,
-                                                  scoring=args.scoring)
+                                                  scoring=args.scoring,
+                                                  n_jobs=args.n_jobs)
 
         grid_results_file = str(folder_path + '/' + str(algo) + '_' + create_time + '_grd_srch_' + '.csv')
         grid_results.to_csv(grid_results_file, index=True)
 
     else:
         model, cv_results = training_nogridsearch(clf, X_train_val, y_train_val,
-                                                  scoring=args.scoring)
+                                                  scoring=args.scoring,
+                                                  n_jobs=args.n_jobs)
 
     print("5. Score model with the test dataset: {0:.4f}".format(model.score(X_test, y_test)))
 
