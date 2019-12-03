@@ -153,37 +153,28 @@ if args.parameters:
 
 # Set the chosen learning classifier
 if algo == 'rf':
-    clf = set_random_forest(parameters)
+    clf = set_random_forest(fit_params=parameters, n_jobs=args.n_jobs)
 elif algo == 'gb':
-    clf = set_gradient_boosting(parameters)
+    clf = set_gradient_boosting(fit_params=parameters)
 elif algo == 'svm':
-    clf = set_linear_svc(parameters)
+    clf = set_linear_svc(fit_params=parameters)
 elif algo == 'ann':
-    clf = set_mlp_classifier(parameters)
+    clf = set_mlp_classifier(fit_params=parameters)
 else:
     raise ValueError("Any valid classifier was selected !")
-
-# Prefix of the model_filename
-training_model_file = str(folder_path + '/training_' + str(algo))
-predict_model_file = str(folder_path + '/predict_' + str(algo))
 
 # Timestamp for files created
 create_time = datetime.now().strftime("%y%m%d_%H%M%S")  # Timestamp for file creation
 
+# Prefix of the model_filename
+training_model_file = str(folder_path + '/training_' + str(algo) + '_' + str(create_time))
+predict_model_file = str(folder_path + '/predict_' + str(algo) + '_' + str(create_time))
+
 # Is it TRAINING or PREDICTIONS ?
 if not args.model_to_import:
     mod = 'training'
-    # With or without GridSearchCV
-    grid = False
-    if args.grid_search:
-        grid = True
 
-    # Check param_grid exists
-    param_grid = None
-    if args.param_grid:
-        param_grid = yaml.safe_load(args.param_grid)
-
-    param_grid = check_grid_params(clf, grid_params=param_grid)
+    report_filename = str(training_model_file + '_report.txt')
 
     # Format the data XY & Z & target DataFrames and remove raw_classification from some LAS files.
     data, xy_coord, z_height, target = format_dataset(raw_data,
@@ -202,6 +193,15 @@ if not args.model_to_import:
                                                              test_ratio=args.test_ratio,
                                                              threshold=args.threshold)
 
+    # Create the report file
+    with open(report_filename, 'w', encoding='utf-8') as report:
+        report.write('Report of ' + str(algo) + ' training\nDatetime: ' + str(create_time) + '\n')
+        report.write('\nFeatures:\n' + '\n'.join(feature_names) + '\n')
+        report.write('\nScaling method: ' + str(args.scaler) + '\n')
+        report.write('\nSize of train and test dataset:'
+                     '\nTrain size: ' + str(len(y_train_val)) + ' pts'
+                     '\nTest size: ' + str(len(y_test)) + ' pts\n')
+
     # kernel approximation for SVM
     if algo is 'svm':
         feature_map_nystroem = Nystroem(gamma=.2, n_components=100, random_state=0)
@@ -209,63 +209,74 @@ if not args.model_to_import:
         X_test = feature_map_nystroem.fit_transform(X_test)
 
     # What type of training
-    if grid:
+    if args.grid_search:  # Training with GridSearchCV
+
+        # Check param_grid exists
+        param_grid = None
+        if args.param_grid:
+            param_grid = yaml.safe_load(args.param_grid)
+        param_grid = check_grid_params(clf, grid_params=param_grid)
+
         model, grid_results = training_gridsearch(clf, X_train_val, y_train_val,
                                                   grid_params=param_grid,
                                                   scoring=args.scoring,
                                                   n_jobs=args.n_jobs)
 
-        grid_results_file = str(folder_path + '/' + str(algo) + '_' + create_time + '_grd_srch_' + '.csv')
-        grid_results.to_csv(grid_results_file, index=True)
+        with open(report_filename, 'a', encoding='utf-8') as report:
+            report.write('\nResults of the GridSearchCV:\n')
+            report.write(grid_results.to_string(index=False))
+            report.write('\n')
 
-    else:
+    else:  # Training with Cross Validation
         model, cv_results = training_nogridsearch(clf, X_train_val, y_train_val,
                                                   scoring=args.scoring,
                                                   n_jobs=args.n_jobs)
 
-    print("5. Score model with the test dataset: {0:.4f}".format(model.score(X_test, y_test)))
+        with open(report_filename, 'a', encoding='utf-8') as report:
+            report.write('Results of the Cross-Validation:\n')
+            report.write(pd.DataFrame(cv_results).to_string(index=False, header=False))
+            report.write('\n')
+    print("\n5. Score model with the test dataset: {0:.4f}".format(model.score(X_test, y_test)))
 
     # Save model
-    model_filename = str(training_model_file + '_' + create_time + "_" + args.scaler + ".model")
+    model_filename = str(training_model_file + '_' + args.scaler + '.model')
     save_model(model, model_filename)
-    if algo == 'rf' or algo == 'gb':
-        feature_filename = str(training_model_file + '_' + create_time + '_feat_importance.png')
-        save_feature_importance(model, feature_names, feature_filename)
+    if not args.grid_search:
+        if algo == 'rf' or algo == 'gb':
+            feature_filename = str(training_model_file + '_feat_importance.png')
+            save_feature_importance(model, feature_names, feature_filename)
 
-    print("\n6. Creating confusion matrix...")
-    # Save and give confusion matrix
+    # Save confusion matrix
+    print("\n6. Creating confusion matrix:")
     y_test_pred = model.predict(X_test)
     conf_mat = confusion_matrix(y_test, y_test_pred)
-    conf_mat_name = str(training_model_file + '_' + create_time + "_cnf_mt.csv")
-    save_conf_mat(conf_mat, conf_mat_name)
+    conf_mat = precision_recall(conf_mat)  # return Dataframe
+    with open(report_filename, 'a', encoding='utf-8') as report:
+        report.write('\nConfusion Matrix:\n')
+        report.write(conf_mat.to_string())
+        report.write('\n')
+    print("\n{}".format(conf_mat))
 
-    # Save and give classification report
+    # Save classification report
+    print("\n7. Creating classification report:")
     report_class = classification_report(y_test, y_test_pred)
-    f = open(str(training_model_file + '_' + create_time + '_classif_report' + '.csv'), "w")
-    f.write(report_class)
-    f.close()
-    print("\n{}".format(report_class))
-
-    # # Save classifaction result as point cloud file with all data
-    #  print("6. Make predictions for the entire dataset...", end='')
-    #  y_pred = model.predict(data_trans.values)
-    #  classif_filename = str(model_file + '_classification_' + create_time + '.csv')
-    #  save_classification(y_pred, classif_filename,
-    #                      xy_fields=xy_coord,
-    #                      z_field=z_height,
-    #                      data_fields=data,
-    #                      target_field=target)
-    #  print(" Done and save.")
-    #  print("   Overall accuracy with entire dataset: "
-    #        "{}".format(model.score(data_trans.values, target.values)))
+    with open(report_filename, 'a', encoding='utf-8') as report:
+        report.write('\nClassification Report:\n')
+        report.write(report_class)
+    print("\n{}\nFinished!".format(report_class))
 
 else:
     mod = 'predict'
+
+    report_filename = str(predict_model_file + '_report.txt')
 
     # Format data XY & Z as DataFrames and remove raw_classification from some LAS files.
     data, xy_coord, z_height, target = format_dataset(raw_data,
                                                       mode=mod,
                                                       raw_classif='lassif')
+
+    # Get the feature names
+    feature_names = data.columns.values.tolist()
 
     # Get model and scaling parameters
     scaler_method = '.'.join(args.model_to_import.split('.')[:-1]).split('_')[-1]
@@ -273,31 +284,44 @@ else:
     # Scale the dataset 'Standard', 'Robust', 'MinMaxScaler'
     data_trans = scale_dataset(data, method=scaler_method)
 
+    # Create report file for predictions
+    with open(report_filename, 'w', encoding='utf-8') as report:
+        report.write('Report of ' + str(algo) + ' predictions\nDatetime: ' + str(create_time) + '\n')
+        report.write('\nFeatures:\n' + '\n'.join(feature_names))
+        report.write('\nScaling method: ' + str(scaler_method))
+        report.write('\nNumber of points to classify: ' + str(len(z_height)) + ' pts\n')
+
     # Load trained model
     model = load_model(args.model_to_import)
 
     # Predic target of input data
-    print("6. Make predictions for the entire dataset...")
+    print("4. Make predictions for the entire dataset...")
     y_pred = model.predict(data_trans.values)
 
-    # Save classifaction result as point cloud file with all data
-    predic_filename = str(predict_model_file + '_' + create_time + '_predictions.csv')
     if target is not None:
-        # Save and give confusion matrix
+        # Save confusion matrix
+        print("\n5. Creating confusion matrix:")
         conf_mat = confusion_matrix(target.values, y_pred)
-        conf_mat_name = str(predict_model_file + '_' + create_time + "_cnf_mt.csv")
-        save_conf_mat(conf_mat, conf_mat_name)
+        conf_mat = precision_recall(conf_mat)  # return Dataframe
+        with open(report_filename, 'a', encoding='utf-8') as report:
+            report.write('\nConfusion Matrix:\n')
+            report.write(conf_mat.to_string())
+            report.write('\n')
+        print("\n{}".format(conf_mat))
 
-        # Save and give classification report
+        # Save classification report
+        print("\n6. Creating classification report:")
         report_class = classification_report(target.values, y_pred)
-        f = open(str(predict_model_file + '_' + create_time + '_classif_report.csv'), "w")
-        f.write(report_class)
-        f.close()
+        with open(report_filename, 'a', encoding='utf-8') as report:
+            report.write('\nClassification Report:\n')
+            report.write(report_class)
         print("\n{}".format(report_class))
 
         print("\tOverall accuracy with entire dataset: "
               "{}".format(model.score(data_trans.values, target.values)))
 
+    # Save classifaction result as point cloud file with all data
+    predic_filename = str(predict_model_file + '_predictions.csv')
     save_predictions(y_pred, predic_filename,
                      xy_fields=xy_coord,
                      z_field=z_height,

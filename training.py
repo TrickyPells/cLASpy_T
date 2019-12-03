@@ -170,10 +170,11 @@ def check_grid_params(classifier, grid_params):
     return well_params
 
 
-def set_random_forest(fit_params=None):
+def set_random_forest(fit_params=None, n_jobs=-1):
     """
     Set the learning algorithm as RandomForestClassier.
     :param fit_params: A dict with the parameters to set up.
+    :param n_jobs: The number of CPU used.
     :return: classifier: the desired classifier with the required parameters
     """
     # Set the classifier
@@ -186,7 +187,7 @@ def set_random_forest(fit_params=None):
         classifier = RandomForestClassifier(n_estimators=100,
                                             max_depth=8,
                                             min_samples_leaf=500,
-                                            n_jobs=-1,
+                                            n_jobs=n_jobs,
                                             random_state=0)
 
     return classifier

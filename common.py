@@ -160,11 +160,11 @@ def scale_dataset(data_to_scale, method='Standard'):
     return data_scaled
 
 
-def save_conf_mat(conf_mat, file_name):
+def precision_recall(conf_mat):
     """
-    Save the confusion matrix into a CSV file.
-    :param conf_mat: The confusion matrix to save as a numpy.array.
-    :param file_name: The path and name of the file.
+    Compute precision, recal and global accuracy from confusion matrix.
+    :param conf_mat: The confusion matrix as a numpy.array.
+   :return conf_mat_up: Confusion matrix wth precision, recall and global accuracy
     """
     # Change type array(int) as array(float)
     conf_mat = np.array(conf_mat).astype(float)
@@ -176,30 +176,32 @@ def save_conf_mat(conf_mat, file_name):
     # Compute the recalls
     recalls = list()
     for row in range(0, n_rows_cols):
-        recalls.append((float(conf_mat[row, row]) / float(rows_sums[row])))
-
+        try:
+            recalls.append((float(conf_mat[row, row]) / float(rows_sums[row])))
+        except ZeroDivisionError:
+            recalls.append(np.nan)
     conf_mat_up = np.insert(conf_mat, n_rows_cols, recalls, axis=1)
 
     # Compute the precision
     precisions = list()
     for col in range(0, n_rows_cols):
-        precisions.append(float(conf_mat[col, col]) / float(cols_sums[col]))
+        try:
+            precisions.append(float(conf_mat[col, col]) / float(cols_sums[col]))
+        except ZeroDivisionError:
+            precisions.append(np.nan)
 
     # Compute overall accuracy
-    precisions.append(float(np.trace(conf_mat) / float(np.sum(conf_mat))))
+    try:
+        precisions.append(float(np.trace(conf_mat) / float(np.sum(conf_mat))))
+    except ZeroDivisionError:
+        precisions.append(np.nan)
+
     conf_mat_up = np.insert(conf_mat_up, n_rows_cols, precisions, axis=0)
 
     # Save the new confusion matrix
     conf_mat_up = pd.DataFrame(conf_mat_up).round(decimals=3)
 
-    # print("\nCONFUSION MATRIX:")
-    # print(conf_mat_up)
-
-    conf_mat_up.to_csv(file_name, sep=',')
-
-    # Give the final path and name of the model
-    print("Confusion Matix path: {}".format('/'.join(file_name.split('/')[:-1])))
-    print("Confusion Matrix file: {}".format(file_name.split('/')[-1]))
+    return conf_mat_up
 
 
 def save_predictions(target_pred, file_name, xy_fields=None,
