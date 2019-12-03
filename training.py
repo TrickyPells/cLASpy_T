@@ -151,20 +151,19 @@ def check_grid_params(classifier, grid_params):
     # Check if well_params is None or empty dict and set predefined parameters
     if well_params is None or not bool(well_params):  # If well_params is None or empty
         if clf_name == 'RandomForestClassifier':
-            well_params = {'n_estimators': [10, 50, 100, 500],
-                           'max_depth': [5, 8, 11, 14],
+            well_params = {'n_estimators': [50, 100, 500],
+                           'max_depth': [8, 11, 14],
                            'min_samples_leaf': [100, 500, 1000]}
         elif clf_name == 'GradientBoostingClassifier':
-            well_params = {'loss': ('deviance', 'exponential'),
-                           'n_estimators': [10, 50, 100, 500],
-                           'max_depth': [5, 8, 11, 14],
+            well_params = {'n_estimators': [50, 100, 500],
+                           'max_depth': [8, 11, 14],
                            'min_samples_leaf': [100, 500, 1000]}
         elif clf_name == 'LinearSVC':
             well_params = {'penalty': ('l1', 'l2'),
-                           'C': [0.01, 1.0, 100, 1000]}
+                           'C': [0.01, 1.0, 100]}
         elif clf_name == 'MLPClassifier':
             well_params = {'hidden_layer_sizes': [(25, 25), (25, 25, 25), (25, 50, 25)],
-                           'activation': ('identity', 'logistic', 'tanh', 'relu'),
+                           'activation': ('tanh', 'relu'),
                            'alpha': [0.0001, 0.01, 1.0]}
 
     return well_params
