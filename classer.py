@@ -317,10 +317,8 @@ else:
             report.write(report_class)
         print("\n{}".format(report_class))
 
-        print("\tOverall accuracy with entire dataset: "
-              "{}".format(model.score(data_trans.values, target.values)))
-
     # Save classifaction result as point cloud file with all data
+    print("\n7. Save classified point cloud as CSV file:")
     predic_filename = str(predict_model_file + '_predictions.csv')
     save_predictions(y_pred, predic_filename,
                      xy_fields=xy_coord,

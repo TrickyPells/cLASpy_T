@@ -246,6 +246,7 @@ def set_mlp_classifier(fit_params=None):
     # Set the classifier
     if isinstance(fit_params, dict):
         fit_params['random_state'] = 0
+        fit_params['max_iter'] = 10000
         classifier = MLPClassifier()
         classifier = check_parameters(classifier, fit_params)
 
@@ -254,7 +255,7 @@ def set_mlp_classifier(fit_params=None):
                                    activation='relu',
                                    solver='adam',
                                    alpha=0.0001,
-                                   max_iter=200,
+                                   max_iter=10000,
                                    random_state=0)
 
     return classifier
