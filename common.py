@@ -218,7 +218,7 @@ def save_predictions(target_pred, file_name, xy_fields=None,
     """
     # Set the np.array of target_pred pd.Dataframe
     if target_pred.shape[0] > 1:
-        target_pred = pd.DataFrame(target_pred, columns=['PredTarget'])
+        target_pred = pd.DataFrame(target_pred, columns=['Predictions'])
     elif target_pred.shape[1] > 1:
         target_pred = pd.DataFrame(target_pred)
     else:
