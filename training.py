@@ -60,7 +60,7 @@ def split_dataset(data_values, target_values, train_ratio=0.8, test_ratio=0.2, t
     :return: data_train, data_test, target_train and target_test as np.ndarray.
     """
 
-    print("3. Splitting the data...", end='')
+    print("\n3. Splitting the data...", end='')
     # Rescale threshold
     threshold = int(threshold * 1000000)
 
@@ -273,7 +273,7 @@ def training_gridsearch(classifier, training_data, training_target, grid_params=
     :return: classifier, results: Classifier with best parameters and results from grid search.
     """
 
-    print('4. Training the model with GridSearchCV...')
+    print('\n4. Training the model with GridSearchCV...')
     # Set cross_validation method with train_size 80% and validation_size 20%
     cross_val = StratifiedShuffleSplit(n_splits=5,
                                        train_size=0.8,
@@ -311,7 +311,7 @@ def training_nogridsearch(classifier, training_data, training_target, n_jobs=-1,
     :return: model, training_scores: The training model and the scores of n_splits training.
     """
 
-    print("4. Training the model with cross validation...")
+    print("\n4. Training the model with cross validation...")
     # Set cross_validation method with train_size 80% and validation_size 20%
     cross_val = StratifiedShuffleSplit(n_splits=5, train_size=0.8, test_size=0.2, random_state=0)
 

@@ -48,7 +48,7 @@ def format_dataset(path_raw_data, mode='training', raw_classif=None):
     :return: features_data, coord, height and target as DataFrames.
     """
 
-    print("1. Formatting data as pandas.Dataframe...", end='')
+    print("\n1. Formatting data as pandas.Dataframe...", end='')
     # Load data into DataFrame
     frame = pd.read_csv(path_raw_data, header='infer')
 
@@ -139,7 +139,7 @@ def scale_dataset(data_to_scale, method='Standard'):
     :return: The training and testing datasets: data_train_scaled, data_test_scaled.
     """
 
-    print("2. Scaling data...", end='')
+    print("\n2. Scaling data...", end='')
     # Perform the data scaling according the chosen method
     if method == 'Standard':
         method = StandardScaler()  # Scale data with mean and std

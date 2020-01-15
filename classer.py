@@ -61,7 +61,7 @@ parser.add_argument("algorithm",
                          "    'gb': GradientBoostingClassifier\n"
                          "    'svm': LinearSVC\n"
                          "    'ann': MLPClassifier\n",
-                    type=str, choices=['rf', 'gb', 'svm', 'ann'])
+                    type=str, choices=['rf','gb','svm','ann'])
 
 parser.add_argument("csv_data_file",
                     help="the CSV file with needed data:\n"
@@ -74,9 +74,11 @@ parser.add_argument("-g", "--grid_search",
                     action="store_true")
 
 parser.add_argument("-k", "--param_grid",
-                    help="pass the grid parameters as list(sep=' ') in dict.\n"
+                    help="pass the grid parameters as list(sep=',') in dict. NO SPACE\n"
                          "    If empty, GridSearchCV uses presets.\n"
-                         "    Example: \"{'n_estimators': [50, 100, 500] , 'loss': ['deviance', 'exponential']}\"\n",
+                         "    Example: -k=\"{'n_estimators':[50,100,500],'loss':['deviance','exponential'],"
+                         "    'hidden_layer_sizes':[[100,100],[50,100,50]]}\"\n"
+                         "    Wrong pameters will be ignored\n",
                     type=str, metavar="[=\"dict\"]")
 
 parser.add_argument("-m", "--model_to_import",
@@ -87,24 +89,24 @@ parser.add_argument("-m", "--model_to_import",
 
 parser.add_argument("-n", "--n_jobs",
                     help="set the number of CPU used, '-1' means all CPU available.",
-                    type=int, metavar="[1, 2,..., -1]", default=-1)
+                    type=int, metavar="[1,2,...,-1]", default=-1)
 
 parser.add_argument("-p", "--parameters",
                     help="the parameters to set up the classifier as dict.\n"
-                         "    Example: \"{'n_estimators': 50, 'max_depth': 5, 'max_iter': 500}\"",
+                         "    Example: -p=\"{'n_estimators':50,'max_depth':5,'max_iter':500}\"",
                     type=str, metavar="[=\"dict\"]")
 
 parser.add_argument("-s", "--scaler",
                     help="method to scale the data before training.\n"
                          "    See the preprocessing documentation of scikit-learn.",
-                    type=str, choices=['Standard', 'Robust', 'MinMax'], default='Standard')
+                    type=str, choices=['Standard','Robust','MinMax'], default='Standard')
 
 parser.add_argument("--scoring",
                     help="set scorer to GridSearchCV or cross_val_score according\n"
                          "    to sckikit-learn documentation.",
                     type=str, default='accuracy',
-                    metavar="[='accuracy', balanced_accuracy', 'average_precision',"
-                            " 'precision', 'recall', ...]")
+                    metavar="[='accuracy','balanced_accuracy','average_precision',"
+                            "'precision','recall',...]")
 
 parser.add_argument("--test_ratio",
                     help="set the test ratio as float [0.0-1.0] to split into train and test data.\n"
@@ -134,7 +136,7 @@ args = parser.parse_args()
 raw_data = args.csv_data_file
 
 # Create a folder to store model, results, confusion matrix and grid results
-print("Create a new folder to store the results files...", end='')
+print("\nCreate a new folder to store the results files...", end='')
 raw_data = '/'.join(raw_data.split('\\'))  # Change '\' in '/'
 folder_path = '.'.join(raw_data.split('.')[:-1])  # remove extension so give folder path
 try:
