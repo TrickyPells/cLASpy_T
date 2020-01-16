@@ -132,11 +132,16 @@ args = parser.parse_args()
 # --------- MAIN ----------
 # -------------------------
 
+# Introduction
+print("\n####### POINT CLOUD CLASSIFICATION #######\n"
+      "Algorithm used: {}\n"
+      "Path to CSV file: {}\n".format(args.algorithm, args.csv_data_file))
+
 # path to the CSV file
 raw_data = args.csv_data_file
 
 # Create a folder to store model, results, confusion matrix and grid results
-print("\nCreate a new folder to store the results files...", end='')
+print("Create a new folder to store the results files...", end='')
 raw_data = '/'.join(raw_data.split('\\'))  # Change '\' in '/'
 folder_path = '.'.join(raw_data.split('.')[:-1])  # remove extension so give folder path
 try:
@@ -243,10 +248,12 @@ if not args.model_to_import:
     # Save model
     model_filename = str(training_model_file + '_' + args.scaler + '.model')
     save_model(model, model_filename)
-    if not args.grid_search:
-        if algo == 'rf' or algo == 'gb':
-            feature_filename = str(training_model_file + '_feat_importance.png')
-            save_feature_importance(model, feature_names, feature_filename)
+
+    # Importance of each feature in RF and GB
+    # if not args.grid_search:
+    #    if algo == 'rf' or algo == 'gb':
+    #        feature_filename = str(training_model_file + '_feat_importance.png')
+    #        save_feature_importance(model, feature_names, feature_filename)
 
     # Save confusion matrix
     print("\n6. Creating confusion matrix:")
