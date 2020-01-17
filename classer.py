@@ -252,7 +252,7 @@ if not args.model_to_import:
     save_model(model, model_filename)
 
     # Get the model parameters to print them in report
-    applied_parameters = ["{}: {}".format(param, model.get_params()[param]) for param in clf.get_params()]
+    applied_parameters = ["{}: {}".format(param, model.get_params()[param]) for param in model.get_params()]
     with open(report_filename, 'a', encoding='utf-8') as report:
         report.write('\nParameters:\n' + '\n'.join(applied_parameters) + '\n')
 
@@ -317,7 +317,7 @@ else:
     y_pred = model.predict(data_trans.values)
 
     # Get the model parameters to print them in report
-    applied_parameters = ["{}: {}".format(param, model.get_params()[param]) for param in clf.get_params()]
+    applied_parameters = ["{}: {}".format(param, model.get_params()[param]) for param in model.get_params()]
     with open(report_filename, 'a', encoding='utf-8') as report:
         report.write('\nParameters:\n' + '\n'.join(applied_parameters) + '\n')
 
