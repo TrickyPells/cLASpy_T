@@ -132,13 +132,13 @@ args = parser.parse_args()
 # --------- MAIN ----------
 # -------------------------
 
+# path to the CSV file
+raw_data = args.csv_data_file
+
 # Introduction
 print("\n####### POINT CLOUD CLASSIFICATION #######\n"
       "Algorithm used: {}\n"
-      "Path to CSV file: {}\n".format(args.algorithm, args.csv_data_file))
-
-# path to the CSV file
-raw_data = args.csv_data_file
+      "Path to CSV file: {}\n".format(args.algorithm, raw_data))
 
 # Create a folder to store model, results, confusion matrix and grid results
 print("Create a new folder to store the results files...", end='')
@@ -171,16 +171,18 @@ else:
     raise ValueError("Any valid classifier was selected !")
 
 # Timestamp for files created
-create_time = datetime.now().strftime("%y%m%d_%H%M%S")  # Timestamp for file creation
+create_time = datetime.now()
+timestamp = create_time.strftime("%y%m%d_%H%M%S")  # Timestamp for file creation
 
 # Prefix of the model_filename
-training_model_file = str(folder_path + '/training_' + str(algo) + '_' + str(create_time))
-predict_model_file = str(folder_path + '/predict_' + str(algo) + '_' + str(create_time))
+training_model_file = str(folder_path + '/training_' + str(algo) + '_' + str(timestamp))
+predict_model_file = str(folder_path + '/predict_' + str(algo) + '_' + str(timestamp))
 
 # Is it TRAINING or PREDICTIONS ?
 if not args.model_to_import:
     mod = 'training'
 
+    # Set the name of the report file
     report_filename = str(training_model_file + '_report.txt')
 
     # Format the data XY & Z & target DataFrames and remove raw_classification from some LAS files.
@@ -202,7 +204,7 @@ if not args.model_to_import:
 
     # Create the report file
     with open(report_filename, 'w', encoding='utf-8') as report:
-        report.write('Report of ' + str(algo) + ' training\nDatetime: ' + str(create_time) + '\n')
+        report.write('Report of ' + str(algo) + ' training\nDatetime: ' + str(timestamp) + '\n')
         report.write('\nFeatures:\n' + '\n'.join(feature_names) + '\n')
         report.write('\nScaling method: ' + str(args.scaler) + '\n')
         report.write('\nSize of train and test dataset:'
@@ -211,7 +213,7 @@ if not args.model_to_import:
 
     # kernel approximation for SVM
     if algo is 'svm':
-        feature_map_nystroem = Nystroem(gamma=.2, n_components=100, random_state=0)
+        feature_map_nystroem = Nystroem(gamma=.2, n_components=50, random_state=0)
         X_train_val = feature_map_nystroem.fit_transform(X_train_val)
         X_test = feature_map_nystroem.fit_transform(X_test)
 
@@ -249,6 +251,11 @@ if not args.model_to_import:
     model_filename = str(training_model_file + '_' + args.scaler + '.model')
     save_model(model, model_filename)
 
+    # Get the model parameters to print them in report
+    applied_parameters = ["{}: {}".format(param, model.get_params()[param]) for param in clf.get_params()]
+    with open(report_filename, 'a', encoding='utf-8') as report:
+        report.write('\nParameters:\n' + '\n'.join(applied_parameters) + '\n')
+
     # Importance of each feature in RF and GB
     if not args.grid_search:
         if algo == 'rf' or algo == 'gb':
@@ -268,11 +275,13 @@ if not args.model_to_import:
 
     # Save classification report
     print("\n7. Creating classification report:")
+    spent_time = datetime.now() - create_time
     report_class = classification_report(y_test, y_test_pred)
     with open(report_filename, 'a', encoding='utf-8') as report:
         report.write('\nClassification Report:\n')
         report.write(report_class)
-    print("\n{}\nFinished!".format(report_class))
+        report.write('\nModel trained in {}'.format(spent_time))
+    print("\n{}\n\nModel trained in {} sec".format(report_class, spent_time))
 
 else:
     mod = 'predict'
@@ -293,19 +302,24 @@ else:
     # Scale the dataset 'Standard', 'Robust', 'MinMaxScaler'
     data_trans = scale_dataset(data, method=scaler_method)
 
+    # Load trained model
+    model = load_model(args.model_to_import)
+
     # Create report file for predictions
     with open(report_filename, 'w', encoding='utf-8') as report:
-        report.write('Report of ' + str(algo) + ' predictions\nDatetime: ' + str(create_time) + '\n')
+        report.write('Report of ' + str(algo) + ' predictions\nDatetime: ' + str(timestamp) + '\n')
         report.write('\nFeatures:\n' + '\n'.join(feature_names))
         report.write('\nScaling method: ' + str(scaler_method))
         report.write('\nNumber of points to classify: ' + str(len(z_height)) + ' pts\n')
 
-    # Load trained model
-    model = load_model(args.model_to_import)
-
     # Predic target of input data
-    print("4. Make predictions for the entire dataset...")
+    print("\n4. Make predictions for the entire dataset...")
     y_pred = model.predict(data_trans.values)
+
+    # Get the model parameters to print them in report
+    applied_parameters = ["{}: {}".format(param, model.get_params()[param]) for param in clf.get_params()]
+    with open(report_filename, 'a', encoding='utf-8') as report:
+        report.write('\nParameters:\n' + '\n'.join(applied_parameters) + '\n')
 
     if target is not None:
         # Save confusion matrix
@@ -320,11 +334,13 @@ else:
 
         # Save classification report
         print("\n6. Creating classification report:")
+        spent_time = datetime.now() - create_time
         report_class = classification_report(target.values, y_pred)
         with open(report_filename, 'a', encoding='utf-8') as report:
             report.write('\nClassification Report:\n')
             report.write(report_class)
-        print("\n{}".format(report_class))
+            report.write('\nPredictions done in {}'.format(spent_time))
+        print("\n{}\n\nPredictions done in {} sec".format(report_class, spent_time))
 
     # Save classifaction result as point cloud file with all data
     print("\n7. Save classified point cloud as CSV file:")
