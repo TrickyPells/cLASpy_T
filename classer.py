@@ -256,11 +256,11 @@ if not args.model_to_import:
     with open(report_filename, 'a', encoding='utf-8') as report:
         report.write('\nParameters:\n' + '\n'.join(applied_parameters) + '\n')
 
-    # Importance of each feature in RF and GB
-    if not args.grid_search:
-        if algo == 'rf' or algo == 'gb':
-            feature_filename = str(training_model_file + '_feat_importance.png')
-            save_feature_importance(model, feature_names, feature_filename)
+    # # Importance of each feature in RF and GB
+    # if not args.grid_search:
+    #     if algo == 'rf' or algo == 'gb':
+    #         feature_filename = str(training_model_file + '_feat_importance.png')
+    #         save_feature_importance(model, feature_names, feature_filename)
 
     # Save confusion matrix
     print("\n6. Creating confusion matrix:")
