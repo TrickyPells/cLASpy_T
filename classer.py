@@ -169,15 +169,15 @@ create_time = datetime.now()
 timestamp = create_time.strftime("%Y%m%d_%H%M%S")  # Timestamp for file creation
 
 # Prefix of the model_filename
-training_model_file = str(folder_path + '/training_' + str(args.algorithm) + '_' + str(timestamp))
-predict_model_file = str(folder_path + '/predict_' + str(args.algorithm) + '_' + str(timestamp))
+training_model_file = str(folder_path + '/train_' + str(args.algorithm) + '_' + str(timestamp))
+predict_model_file = str(folder_path + '/pred_' + str(args.algorithm) + '_' + str(timestamp))
 
 # Format input data according mode training or predict
 if not args.model_to_import:
     mod = 'training'
 
     # Set the name of the report file
-    report_filename = str(training_model_file + '_report.txt')
+    report_filename = str(training_model_file + '.txt')
 
     # Format the data XY & Z & target DataFrames and remove raw_classification from LAS files.
     data, xy_coord, z_height, target = format_dataset(raw_data,
@@ -186,7 +186,7 @@ if not args.model_to_import:
 else:
     mod = 'predict'
 
-    report_filename = str(predict_model_file + '_report.txt')
+    report_filename = str(predict_model_file + '.txt')
 
     # Format data XY & Z as DataFrames and remove raw_classification from some LAS files.
     data, xy_coord, z_height, target = format_dataset(raw_data,
@@ -344,7 +344,7 @@ else:
 
     # Save classifaction result as point cloud file with all data
     print("\n7. Save classified point cloud as CSV file:")
-    predic_filename = str(predict_model_file + '_predictions.csv')
+    predic_filename = str(predict_model_file + '.csv')
     save_predictions(y_pred, predic_filename,
                      xy_fields=xy_coord,
                      z_field=z_height,
