@@ -41,7 +41,7 @@ from sklearn.metrics import confusion_matrix, classification_report
 from sklearn.kernel_approximation import Nystroem
 
 # -------------------------
-# ------ FUNCTIONS --------
+# ---- ARGUMENT_PARSER ----
 # -------------------------
 
 parser = argparse.ArgumentParser(description="This library performs machine learning algorithms to classify\n"
@@ -74,7 +74,7 @@ parser.add_argument("-g", "--grid_search",
                     action="store_true")
 
 parser.add_argument("-k", "--param_grid",
-                    help="pass the grid parameters as list(sep=',') in dict. NO SPACE\n"
+                    help="set the parameters to pass at the GridSearch as list(sep=',') in dict. NO SPACE\n"
                          "    If empty, GridSearchCV uses presets.\n"
                          "    Example: -k=\"{'n_estimators':[50,100,500],'loss':['deviance','exponential'],"
                          "    'hidden_layer_sizes':[[100,100],[50,100,50]]}\"\n"
@@ -92,12 +92,12 @@ parser.add_argument("-n", "--n_jobs",
                     type=int, metavar="[1,2,...,-1]", default=-1)
 
 parser.add_argument("-p", "--parameters",
-                    help="the parameters to set up the classifier as dict.\n"
+                    help="set the parameters to pass at the classifier, as dict.\n"
                          "    Example: -p=\"{'n_estimators':50,'max_depth':5,'max_iter':500}\"",
                     type=str, metavar="[=\"dict\"]")
 
 parser.add_argument("-s", "--scaler",
-                    help="method to scale the data before training.\n"
+                    help="set method to scale the data before training.\n"
                          "    See the preprocessing documentation of scikit-learn.",
                     type=str, choices=['Standard','Robust','MinMax'], default='Standard')
 
@@ -114,10 +114,10 @@ parser.add_argument("--test_ratio",
                          "    then test_ratio = 1 - train_ratio",
                     type=float, default=0.2, metavar="[0.0-1.0]")
 
-parser.add_argument("--threshold",
-                    help="set the threshold, in Million points, for large dataset.\n"
-                         "    If data length > threshold:\n"
-                         "    then train + test length = threshold",
+parser.add_argument("--samples",
+                    help="set the number of samples, in Million points, for large dataset.\n"
+                         "    If data length > samples:\n"
+                         "    then train + test length = samples",
                     type=float, default=0.5, metavar="[in M points]")
 
 parser.add_argument("--train_ratio",
@@ -150,22 +150,19 @@ try:
 except (TypeError, FileExistsError):
     print(" Folder already exists.")
 
-# Learning algorithm 'rf', 'gb', 'svm', 'ann'
-algo = args.algorithm
-
 # Check parameters exists
 parameters = None
 if args.parameters:
     parameters = yaml.safe_load(args.parameters)
 
 # Set the chosen learning classifier
-if algo == 'rf':
+if args.algorithm == 'rf':
     clf = set_random_forest(fit_params=parameters, n_jobs=args.n_jobs)
-elif algo == 'gb':
+elif args.algorithm == 'gb':
     clf = set_gradient_boosting(fit_params=parameters)
-elif algo == 'svm':
+elif args.algorithm == 'svm':
     clf = set_linear_svc(fit_params=parameters)
-elif algo == 'ann':
+elif args.algorithm == 'ann':
     clf = set_mlp_classifier(fit_params=parameters)
 else:
     raise ValueError("Any valid classifier was selected !")
@@ -175,44 +172,55 @@ create_time = datetime.now()
 timestamp = create_time.strftime("%y%m%d_%H%M%S")  # Timestamp for file creation
 
 # Prefix of the model_filename
-training_model_file = str(folder_path + '/training_' + str(algo) + '_' + str(timestamp))
-predict_model_file = str(folder_path + '/predict_' + str(algo) + '_' + str(timestamp))
+training_model_file = str(folder_path + '/training_' + str(args.algorithm) + '_' + str(timestamp))
+predict_model_file = str(folder_path + '/predict_' + str(args.algorithm) + '_' + str(timestamp))
 
-# Is it TRAINING or PREDICTIONS ?
+# Format input data according mode training or predict
 if not args.model_to_import:
     mod = 'training'
 
     # Set the name of the report file
     report_filename = str(training_model_file + '_report.txt')
 
-    # Format the data XY & Z & target DataFrames and remove raw_classification from some LAS files.
+    # Format the data XY & Z & target DataFrames and remove raw_classification from LAS files.
+    data, xy_coord, z_height, target = format_dataset(raw_data,
+                                                      mode=mod,
+                                                      raw_classif='lassif')
+else:
+    mod = 'predict'
+
+    report_filename = str(predict_model_file + '_report.txt')
+
+    # Format data XY & Z as DataFrames and remove raw_classification from some LAS files.
     data, xy_coord, z_height, target = format_dataset(raw_data,
                                                       mode=mod,
                                                       raw_classif='lassif')
 
-    # Get the feature names
-    feature_names = data.columns.values.tolist()
+# Get the feature names
+feature_names = data.columns.values.tolist()
 
-    # Scale the dataset 'Standard', 'Robust', 'MinMaxScaler'
+# Scale formatted data
+if not args.model_to_import:
+    # Scale the dataset as 'Standard', 'Robust' or 'MinMaxScaler'
     data_trans = scale_dataset(data, method=args.scaler)
 
     # Create samples for training and testing
     X_train_val, X_test, y_train_val, y_test = split_dataset(data_trans.values, target.values,
                                                              train_ratio=args.train_ratio,
                                                              test_ratio=args.test_ratio,
-                                                             threshold=args.threshold)
+                                                             samples=args.samples)
 
     # Create the report file
     with open(report_filename, 'w', encoding='utf-8') as report:
-        report.write('Report of ' + str(algo) + ' training\nDatetime: ' + str(timestamp) + '\n')
+        report.write('Report of ' + str(args.algorithm) + ' training\nDatetime: ' + str(timestamp) + '\n')
         report.write('\nFeatures:\n' + '\n'.join(feature_names) + '\n')
         report.write('\nScaling method: ' + str(args.scaler) + '\n')
-        report.write('\nSize of train and test dataset:'
+        report.write('\nSize of train and test dataset'
                      '\nTrain size: ' + str(len(y_train_val)) + ' pts'
-                     '\nTest size: ' + str(len(y_test)) + ' pts\n')
+                                                                '\nTest size: ' + str(len(y_test)) + ' pts\n')
 
     # kernel approximation for SVM
-    if algo is 'svm':
+    if args.algorithm is 'svm':
         feature_map_nystroem = Nystroem(gamma=.2, n_components=50, random_state=0)
         X_train_val = feature_map_nystroem.fit_transform(X_train_val)
         X_test = feature_map_nystroem.fit_transform(X_test)
@@ -245,6 +253,7 @@ if not args.model_to_import:
             report.write('Results of the Cross-Validation:\n')
             report.write(pd.DataFrame(cv_results).to_string(index=False, header=False))
             report.write('\n')
+
     print("\n5. Score model with the test dataset: {0:.4f}".format(model.score(X_test, y_test)))
 
     # Save model
@@ -258,7 +267,7 @@ if not args.model_to_import:
 
     # # Importance of each feature in RF and GB
     # if not args.grid_search:
-    #     if algo == 'rf' or algo == 'gb':
+    #     if args.algorithm == 'rf' or args.algorithm == 'gb':
     #         feature_filename = str(training_model_file + '_feat_importance.png')
     #         save_feature_importance(model, feature_names, feature_filename)
 
@@ -283,19 +292,8 @@ if not args.model_to_import:
         report.write('\nModel trained in {}'.format(spent_time))
     print("\n{}\n\nModel trained in {} sec".format(report_class, spent_time))
 
+
 else:
-    mod = 'predict'
-
-    report_filename = str(predict_model_file + '_report.txt')
-
-    # Format data XY & Z as DataFrames and remove raw_classification from some LAS files.
-    data, xy_coord, z_height, target = format_dataset(raw_data,
-                                                      mode=mod,
-                                                      raw_classif='lassif')
-
-    # Get the feature names
-    feature_names = data.columns.values.tolist()
-
     # Get model and scaling parameters
     scaler_method = '.'.join(args.model_to_import.split('.')[:-1]).split('_')[-1]
 
@@ -307,7 +305,7 @@ else:
 
     # Create report file for predictions
     with open(report_filename, 'w', encoding='utf-8') as report:
-        report.write('Report of ' + str(algo) + ' predictions\nDatetime: ' + str(timestamp) + '\n')
+        report.write('Report of ' + str(args.algorithm) + ' predictions\nDatetime: ' + str(timestamp) + '\n')
         report.write('\nFeatures:\n' + '\n'.join(feature_names))
         report.write('\nScaling method: ' + str(scaler_method))
         report.write('\nNumber of points to classify: ' + str(len(z_height)) + ' pts\n')

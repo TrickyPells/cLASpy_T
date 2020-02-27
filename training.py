@@ -46,23 +46,23 @@ from sklearn.neural_network import MLPClassifier
 # -------------------------
 
 
-def split_dataset(data_values, target_values, train_ratio=0.8, test_ratio=0.2, threshold=0.5):
+def split_dataset(data_values, target_values, train_ratio=0.8, test_ratio=0.2, samples=0.5):
     """
     Split the input data and target in data_train, data_test, target_train and target_test.
-    Check the length of the dataset. If length > threshold, train_size = train_ratio * threshold pts
-    and test_size = test_ratio * threshold pts.
+    Check the length of the dataset. If length > samples, train_size = train_ratio * samples pts
+    and test_size = test_ratio * samples pts.
     :param data_values: the np.ndarray with the data features.
     :param target_values: the np.ndarray with the target.
     :param train_ratio: (optional) Ratio of the size of training dataset.
     :param test_ratio: (optional) Ratio of the size of testing dataset.
-    :param threshold: (optional) Number of samples beyond which the dataset is splitted with two integers,
-    for train_size and test_size. The threshold is paired with train_ratio and test_ratio.
+    :param samples: (optional) Number of samples beyond which the dataset is splitted with two integers,
+    for train_size and test_size. The samples is paired with train_ratio and test_ratio.
     :return: data_train, data_test, target_train and target_test as np.ndarray.
     """
 
     print("\n3. Splitting the data...", end='')
-    # Rescale threshold
-    threshold = int(threshold * 1000000)
+    # Rescale samples
+    samples = int(samples * 1000000)
 
     # Check if train_ratio + test_ratio =< 1.0
     if train_ratio > 1.0:
@@ -73,9 +73,9 @@ def split_dataset(data_values, target_values, train_ratio=0.8, test_ratio=0.2, t
 
     # Check if dataset > 500 kpts
     n_samples = len(data_values[:, 0])
-    if n_samples > threshold:
-        train_size = int(train_ratio * threshold)
-        test_size = int(test_ratio * threshold)
+    if n_samples > samples:
+        train_size = int(train_ratio * samples)
+        test_size = int(test_ratio * samples)
     else:
         train_size = int(train_ratio * n_samples)
         test_size = int(test_ratio * n_samples)

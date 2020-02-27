@@ -29,6 +29,7 @@
 # --------------------
 
 import joblib
+import pandas as pd
 
 # -------------------------
 # ------ FUNCTIONS --------
@@ -52,3 +53,51 @@ def load_model(path_to_model):
     print(" Done.")
 
     return loaded_model
+
+
+def save_predictions(target_pred, file_name, xy_fields=None,
+                     z_field=None, data_fields=None, target_field=None):
+    """
+    Save the report of the classsification algorithms with test dataset.
+    :param target_pred: The point cloud classified.
+    :param file_name: The path and name of the file.
+    :param xy_fields: The X and Y fields from the raw_data.
+    :param z_field: The Z field from the raw_data
+    :param data_fields: The data fields from the raw_data.
+    :param target_field: The target field from the raw_data.
+    :return:
+    """
+    # Set the np.array of target_pred pd.Dataframe
+    if target_pred.shape[0] > 1:
+        target_pred = pd.DataFrame(target_pred, columns=['Predictions'])
+    elif target_pred.shape[1] > 1:
+        target_pred = pd.DataFrame(target_pred)
+    else:
+        raise ValueError("The predicted target field is empty!")
+
+    # Set the list of DataFrames
+    final_classif_list = list()
+
+    # Fill the DataFrame
+    if xy_fields is not None:
+        if isinstance(xy_fields, pd.DataFrame):
+            xy_fields = xy_fields.round(decimals=4)
+        final_classif_list.append(xy_fields)
+
+    if z_field is not None:
+        if isinstance(z_field, pd.DataFrame):
+            z_field = z_field.round(decimals=4)
+        final_classif_list.append(z_field)
+
+    if data_fields is not None:
+        if isinstance(data_fields, pd.DataFrame):
+            data_fields = data_fields.round(decimals=4)
+        final_classif_list.append(data_fields)
+
+    if target_field is not None:
+        final_classif_list.append(target_field)
+
+    final_classif_list.append(target_pred)
+    final_classif = pd.concat(final_classif_list, axis=1)
+
+    final_classif.to_csv(file_name, sep=',', header=True, index=False)
