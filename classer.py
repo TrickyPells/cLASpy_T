@@ -131,17 +131,14 @@ args = parser.parse_args()
 # -------------------------
 # --------- MAIN ----------
 # -------------------------
-
-# path to the CSV file
-raw_data = args.csv_data_file
-
 # Introduction
 print("\n####### POINT CLOUD CLASSIFICATION #######\n"
       "Algorithm used: {}\n"
-      "Path to CSV file: {}\n".format(args.algorithm, raw_data))
+      "Path to CSV file: {}\n".format(args.algorithm, args.csv_data_file))
 
 # Create a folder to store model, results, confusion matrix and grid results
 print("Create a new folder to store the results files...", end='')
+raw_data = args.csv_data_file
 raw_data = '/'.join(raw_data.split('\\'))  # Change '\' in '/'
 folder_path = '.'.join(raw_data.split('.')[:-1])  # remove extension so give folder path
 try:
@@ -169,7 +166,7 @@ else:
 
 # Timestamp for files created
 create_time = datetime.now()
-timestamp = create_time.strftime("%y%m%d_%H%M%S")  # Timestamp for file creation
+timestamp = create_time.strftime("%Y%m%d_%H%M%S")  # Timestamp for file creation
 
 # Prefix of the model_filename
 training_model_file = str(folder_path + '/training_' + str(args.algorithm) + '_' + str(timestamp))
@@ -212,12 +209,14 @@ if not args.model_to_import:
 
     # Create the report file
     with open(report_filename, 'w', encoding='utf-8') as report:
-        report.write('Report of ' + str(args.algorithm) + ' training\nDatetime: ' + str(timestamp) + '\n')
+        report.write('Report of ' + str(args.algorithm) + ' training\n' +
+                     '\nFile: ' + str(args.csv_data_file) +
+                     '\nDatetime: ' + str(create_time.strftime("%Y/%m/%d %H:%M:%S")) + '\n')
         report.write('\nFeatures:\n' + '\n'.join(feature_names) + '\n')
         report.write('\nScaling method: ' + str(args.scaler) + '\n')
         report.write('\nSize of train and test dataset'
-                     '\nTrain size: ' + str(len(y_train_val)) + ' pts'
-                                                                '\nTest size: ' + str(len(y_test)) + ' pts\n')
+                     '\nTrain size: ' + str(len(y_train_val)) + ' pts' +
+                     '\nTest size: ' + str(len(y_test)) + ' pts\n')
 
     # kernel approximation for SVM
     if args.algorithm is 'svm':
@@ -290,7 +289,7 @@ if not args.model_to_import:
         report.write('\nClassification Report:\n')
         report.write(report_class)
         report.write('\nModel trained in {}'.format(spent_time))
-    print("\n{}\n\nModel trained in {} sec".format(report_class, spent_time))
+    print("\n{}\n\nModel trained in {}".format(report_class, spent_time))
 
 
 else:
@@ -305,7 +304,10 @@ else:
 
     # Create report file for predictions
     with open(report_filename, 'w', encoding='utf-8') as report:
-        report.write('Report of ' + str(args.algorithm) + ' predictions\nDatetime: ' + str(timestamp) + '\n')
+        report.write('Report of ' + str(args.algorithm) + ' predictions\n' +
+                     '\nFile: ' + str(args.csv_data_file) +
+                     '\nModel:' + str(args.model_to_import) +
+                     '\nDatetime: ' + str(create_time.strftime("%Y/%m/%d %H:%M:%S")) + '\n')
         report.write('\nFeatures:\n' + '\n'.join(feature_names))
         report.write('\nScaling method: ' + str(scaler_method))
         report.write('\nNumber of points to classify: ' + str(len(z_height)) + ' pts\n')
@@ -338,7 +340,7 @@ else:
             report.write('\nClassification Report:\n')
             report.write(report_class)
             report.write('\nPredictions done in {}'.format(spent_time))
-        print("\n{}\n\nPredictions done in {} sec".format(report_class, spent_time))
+        print("\n{}\n\nPredictions done in {}".format(report_class, spent_time))
 
     # Save classifaction result as point cloud file with all data
     print("\n7. Save classified point cloud as CSV file:")
