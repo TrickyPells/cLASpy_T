@@ -168,30 +168,35 @@ else:
 create_time = datetime.now()
 timestamp = create_time.strftime("%Y%m%d_%H%M%S")  # Timestamp for file creation
 
-# Prefix of the model_filename
-training_model_file = str(folder_path + '/train_' + str(args.algorithm) + '_' + str(timestamp))
-predict_model_file = str(folder_path + '/pred_' + str(args.algorithm) + '_' + str(timestamp))
-
 # Format input data according mode training or predict
 if not args.model_to_import:
-    mod = 'training'
-
-    # Set the name of the report file
-    report_filename = str(training_model_file + '.txt')
-
-    # Format the data XY & Z & target DataFrames and remove raw_classification from LAS files.
-    data, xy_coord, z_height, target = format_dataset(raw_data,
-                                                      mode=mod,
-                                                      raw_classif='lassif')
+    mod = 'train'
 else:
-    mod = 'predict'
+    mod = 'pred'
 
-    report_filename = str(predict_model_file + '.txt')
+# Format the data XY & Z & target DataFrames and remove raw_classification from LAS files.
+data, xy_coord, z_height, target = format_dataset(raw_data, mode=mod, raw_classif='lassif')
 
-    # Format data XY & Z as DataFrames and remove raw_classification from some LAS files.
-    data, xy_coord, z_height, target = format_dataset(raw_data,
-                                                      mode=mod,
-                                                      raw_classif='lassif')
+# Set the name of the report file
+if args.samples:
+    if len(z_height) * args.samples > 999999:
+        nbr_of_pts = str(int(len(z_height) * args.samples / 1000000))
+        nbr_of_pts += 'Mpts_'
+    else:
+        nbr_of_pts = str(int(len(z_height) * args.samples / 1000))
+        nbr_of_pts += 'kpts_'
+else:
+    if len(z_height) > 999999:
+        nbr_of_pts = str(int(len(z_height) / 1000000))
+        nbr_of_pts += 'Mpts_'
+    else:
+        nbr_of_pts = str(int(len(z_height) / 1000))
+        nbr_of_pts += 'kpts_'
+
+
+report_filename = str(folder_path + '/' + mod + '_' + args.algorithm +
+                      nbr_of_pts + str(timestamp) + '.txt')
+
 
 # Get the feature names
 feature_names = data.columns.values.tolist()
@@ -256,7 +261,7 @@ if not args.model_to_import:
     print("\n5. Score model with the test dataset: {0:.4f}".format(model.score(X_test, y_test)))
 
     # Save model
-    model_filename = str(training_model_file + '_' + args.scaler + '.model')
+    model_filename = str(report_filename[:-4] + '_' + args.scaler + '.model')
     save_model(model, model_filename)
 
     # Get the model parameters to print them in report
@@ -344,7 +349,7 @@ else:
 
     # Save classifaction result as point cloud file with all data
     print("\n7. Save classified point cloud as CSV file:")
-    predic_filename = str(predict_model_file + '.csv')
+    predic_filename = str(report_filename[:-4] + '.csv')
     save_predictions(y_pred, predic_filename,
                      xy_fields=xy_coord,
                      z_field=z_height,

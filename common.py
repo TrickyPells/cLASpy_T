@@ -39,11 +39,11 @@ from sklearn.preprocessing import StandardScaler, RobustScaler, MinMaxScaler
 # -------------------------
 
 
-def format_dataset(path_raw_data, mode='training', raw_classif=None):
+def format_dataset(path_raw_data, mode='train', raw_classif=None):
     """
     To format the input data as panda DataFrame. Exclude XYZ fields.
     :param path_raw_data: Path of the input data as text file (.CSV).
-    :param mode: Set the mode ['training', 'predict'] to check mandatory 'target' field in case of training.
+    :param mode: Set the mode ['train', 'pred'] to check mandatory 'target' field in case of training.
     :param raw_classif: (optional): set the field name of the raw_classification of some LiDAR point clouds.
     :return: features_data, coord, height and target as DataFrames.
     """
@@ -97,7 +97,7 @@ def format_dataset(path_raw_data, mode='training', raw_classif=None):
         raise ValueError("There is no Z field!")
 
     # Create dataFrame of targets
-    if mode == 'training':
+    if mode == 'train':
         if 'target' in fields_name:
             trgt = frame.loc[:, ['target']]
         else:
