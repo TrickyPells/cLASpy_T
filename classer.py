@@ -31,6 +31,7 @@
 import os
 import yaml
 import argparse
+import numpy as np
 
 from common import *
 from training import *
@@ -178,21 +179,20 @@ else:
 data, xy_coord, z_height, target = format_dataset(raw_data, mode=mod, raw_classif='lassif')
 
 # Set the name of the report file
-if args.samples:
-    if len(z_height) * args.samples > 999999:
-        nbr_of_pts = str(int(len(z_height) * args.samples / 1000000))
-        nbr_of_pts += 'Mpts_'
+if args.samples * 1000000. > 999999.:  # number of sampled points > 1M
+    nbr_of_pts = str(args.samples)
+    if nbr_of_pts.split('.')[-1][0] == '0':  # round number if it is a zero after point ('xxx.0x')
+        nbr_of_pts = int(np.round(float(nbr_of_pts)))
     else:
-        nbr_of_pts = str(int(len(z_height) * args.samples / 1000))
-        nbr_of_pts += 'kpts_'
+        nbr_of_pts = '_'.join(nbr_of_pts.split('.'))  # replace '.' by '_' if not rounded
+    nbr_of_pts = str(nbr_of_pts) + 'Mpts_'
 else:
-    if len(z_height) > 999999:
-        nbr_of_pts = str(int(len(z_height) / 1000000))
-        nbr_of_pts += 'Mpts_'
+    nbr_of_pts = str(args.samples * 1000.)
+    if nbr_of_pts.split('.')[-1][0] == '0':
+        nbr_of_pts = int(np.round(float(nbr_of_pts)))
     else:
-        nbr_of_pts = str(int(len(z_height) / 1000))
-        nbr_of_pts += 'kpts_'
-
+        nbr_of_pts = '_'.join(nbr_of_pts.split('.'))
+    nbr_of_pts = str(nbr_of_pts) + 'kpts_'
 
 report_filename = str(folder_path + '/' + mod + '_' + args.algorithm +
                       nbr_of_pts + str(timestamp) + '.txt')
