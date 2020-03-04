@@ -29,6 +29,7 @@
 # --------------------
 
 import joblib
+import time
 
 import numpy as np
 import pandas as pd
@@ -320,12 +321,13 @@ def training_nogridsearch(classifier, training_data, training_target, n_jobs=-1,
                                       cv=cross_val,
                                       n_jobs=n_jobs,
                                       scoring=scoring,
-                                      verbose=1)
+                                      verbose=2)
 
     print("\n\tTraining model scores with cross-validation:\n\t{}\n".format(training_scores))
 
     # Set the classifier with training_data and target
     print("\tRefitting the model with all given data...", end='')
+    time.sleep(1.)  # Delay to print the previous message
     classifier.fit(training_data, training_target)
 
     print(" Model trained!\n")

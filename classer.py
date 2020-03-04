@@ -97,6 +97,12 @@ parser.add_argument("-p", "--parameters",
                          "    Example: -p=\"{'n_estimators':50,'max_depth':5,'max_iter':500}\"",
                     type=str, metavar="[=\"dict\"]")
 
+parser.add_argument("--samples",
+                    help="set the number of samples, in Million points, for large dataset.\n"
+                         "    If data length > samples:\n"
+                         "    then train + test length = samples",
+                    type=float, metavar="[in Mpts]")
+
 parser.add_argument("-s", "--scaler",
                     help="set method to scale the data before training.\n"
                          "    See the preprocessing documentation of scikit-learn.",
@@ -114,12 +120,6 @@ parser.add_argument("--test_ratio",
                          "    If train_ratio + test_ratio > 1\n"
                          "    then test_ratio = 1 - train_ratio",
                     type=float, default=0.2, metavar="[0.0-1.0]")
-
-parser.add_argument("--samples",
-                    help="set the number of samples, in Million points, for large dataset.\n"
-                         "    If data length > samples:\n"
-                         "    then train + test length = samples",
-                    type=float, default=0.5, metavar="[in M points]")
 
 parser.add_argument("--train_ratio",
                     help="set the train ratio as float number to split into train and test data.\n"
@@ -167,7 +167,7 @@ else:
 
 # Timestamp for files created
 create_time = datetime.now()
-timestamp = create_time.strftime("%Y%m%d_%H%M%S")  # Timestamp for file creation
+timestamp = create_time.strftime("%m%d_%H%M")  # Timestamp for file creation MD_HM
 
 # Format input data according mode training or predict
 if not args.model_to_import:
@@ -178,25 +178,26 @@ else:
 # Format the data XY & Z & target DataFrames and remove raw_classification from LAS files.
 data, xy_coord, z_height, target = format_dataset(raw_data, mode=mod, raw_classif='lassif')
 
-# Set the name of the report file
-if args.samples * 1000000. > 999999.:  # number of sampled points > 1M
-    nbr_of_pts = str(args.samples)
-    if nbr_of_pts.split('.')[-1][0] == '0':  # round number if it is a zero after point ('xxx.0x')
-        nbr_of_pts = int(np.round(float(nbr_of_pts)))
-    else:
-        nbr_of_pts = '_'.join(nbr_of_pts.split('.'))  # replace '.' by '_' if not rounded
-    nbr_of_pts = str(nbr_of_pts) + 'Mpts_'
+# Set the number of points (to name file)
+if args.samples and args.samples * 1000000. < float(len(z_height)):
+    nbr_pts = float(args.samples * 1000000.)  # Number of points equal size of sample
 else:
-    nbr_of_pts = str(args.samples * 1000.)
-    if nbr_of_pts.split('.')[-1][0] == '0':
-        nbr_of_pts = int(np.round(float(nbr_of_pts)))
+    nbr_pts = float(len(z_height))  # Number of points of entire point cloud
+
+if nbr_pts >= 1000000.:  # number of points > 1M
+    nbr_pts = np.round(nbr_pts / 1000000., 1)
+    if nbr_pts.split('.')[-1][0] == '0':  # round number if it is a zero after point ('xxx.0x')
+        nbr_pts = nbr_pts.split('.')[0]
     else:
-        nbr_of_pts = '_'.join(nbr_of_pts.split('.'))
-    nbr_of_pts = str(nbr_of_pts) + 'kpts_'
+        nbr_pts = '_'.join(nbr_pts.split('.'))  # replace '.' by '_' if not rounded
+    nbr_pts = str(nbr_pts) + 'Mpts_'
 
-report_filename = str(folder_path + '/' + mod + '_' + args.algorithm +
-                      nbr_of_pts + str(timestamp) + '.txt')
+else:                   # number of points < 1M
+    nbr_pts = int(nbr_pts / 1000.)
+    nbr_pts = str(nbr_pts) + 'kpts_'
 
+# Give the report filename
+report_filename = str(folder_path + '/' + mod + '_' + args.algorithm + nbr_pts + str(timestamp) + '.txt')
 
 # Get the feature names
 feature_names = data.columns.values.tolist()
