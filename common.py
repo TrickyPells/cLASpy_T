@@ -14,7 +14,8 @@
 #  ########\/_/####\_\/######\_____\/######\/___________/###########  #
 #  --------- REMOTE --------- SENSING --------- GROUP --------------  #
 #  #################################################################  #
-#        'common.py' from classer library to predict dataset          #
+#        'common.py' from classer library to format, scale, compute   #
+#        the precision and importance of params                       #
 #                    By Xavier PELLERIN LE BAS                        #
 #                         November 2019                               #
 #         REMOTE SENSING GROUP  -- https://rsg.m2c.cnrs.fr/ --        #
