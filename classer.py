@@ -45,8 +45,8 @@ from sklearn.kernel_approximation import Nystroem
 # ---- ARGUMENT_PARSER ----
 # -------------------------
 
-parser = argparse.ArgumentParser(description="This library performs machine learning algorithms to classify\n"
-                                             "points of 3D point cloud. The input data has to be in CSV format.\n\n"
+parser = argparse.ArgumentParser(description="\nThis library based on Sci-kit Learn library performs machine learning\n"
+                                             "to classify points of 3D point cloud. The input data must be in CSV.\n\n"
                                              "For training, csv_data_file must contain:\n"
                                              "    --> target field named 'target' AND data fields\n"
                                              "For prediction, csv_data_file must contain:\n"
@@ -57,7 +57,7 @@ parser = argparse.ArgumentParser(description="This library performs machine lear
                                  formatter_class=argparse.RawTextHelpFormatter)
 
 parser.add_argument("algorithm",
-                    help="the learning algorithm to use:\n"
+                    help="The learning algorithm to use:\n"
                          "    'rf': RandomForestClassifier\n"
                          "    'gb': GradientBoostingClassifier\n"
                          "    'svm': LinearSVC\n"
@@ -65,64 +65,68 @@ parser.add_argument("algorithm",
                     type=str, choices=['rf','gb','svm','ann'])
 
 parser.add_argument("csv_data_file",
-                    help="the CSV file with needed data:\n"
+                    help="The CSV file with needed data:\n"
                          "    [WINDOWS]: 'C:/path/to/the/data.file'\n"
                          "    [UNIX]: '/path/to/the/data.file'",
-                    type=str, metavar="/path/to.file")
+                    type=str, metavar="/path/to/file.csv")
 
 parser.add_argument("-g", "--grid_search",
-                    help="perform the training with GridSearchCV",
+                    help="Perform the training with GridSearchCV",
+                    action="store_true")
+
+parser.add_argument("-i", "--importance",
+                    help="Export feature importance from randomForest and gradientBoosting model as a PNG image file.",
                     action="store_true")
 
 parser.add_argument("-k", "--param_grid",
-                    help="set the parameters to pass at the GridSearch as list(sep=',') in dict. NO SPACE\n"
+                    help="Set the parameters to pass at the GridSearch as list(sep=',') in dict. NO SPACE\n"
                          "    If empty, GridSearchCV uses presets.\n"
                          "    Example: -k=\"{'n_estimators':[50,100,500],'loss':['deviance','exponential'],"
                          "    'hidden_layer_sizes':[[100,100],[50,100,50]]}\"\n"
-                         "    Wrong pameters will be ignored\n",
+                         "    Wrong parameters will be ignored\n",
                     type=str, metavar="[=\"dict\"]")
 
 parser.add_argument("-m", "--model_to_import",
-                    help="the model file to import to make predictions:\n"
+                    help="The model file to import to make predictions:\n"
                          "    [WINDOWS]: 'C:/path/to/the/training/model.file'\n"
                          "    [UNIX]: '/path/to/the/training/model.file'",
                     type=str, metavar="[=\"/path/to.file\"]")
 
 parser.add_argument("-n", "--n_jobs",
-                    help="set the number of CPU used, '-1' means all CPU available.",
+                    help="Set the number of CPU used, '-1' means all CPU available.",
                     type=int, metavar="[1,2,...,-1]", default=-1)
 
 parser.add_argument("-p", "--parameters",
-                    help="set the parameters to pass at the classifier, as dict.\n"
+                    help="Set the parameters to pass at the classifier for training, as dict.\n"
                          "    Example: -p=\"{'n_estimators':50,'max_depth':5,'max_iter':500}\"",
                     type=str, metavar="[=\"dict\"]")
 
-parser.add_argument("--samples",
-                    help="set the number of samples, in Million points, for large dataset.\n"
+parser.add_argument("-s", "--samples",
+                    help="Set the number of samples, in Million points, for large dataset.\n"
                          "    If data length > samples:\n"
                          "    then train + test length = samples",
                     type=float, metavar="[in Mpts]")
 
-parser.add_argument("-s", "--scaler",
-                    help="set method to scale the data before training.\n"
+parser.add_argument("--scaler",
+                    help="Set method to scale the data before training.\n"
                          "    See the preprocessing documentation of scikit-learn.",
                     type=str, choices=['Standard','Robust','MinMax'], default='Standard')
 
 parser.add_argument("--scoring",
-                    help="set scorer to GridSearchCV or cross_val_score according\n"
+                    help="Set scorer to GridSearchCV or cross_val_score according\n"
                          "    to sckikit-learn documentation.",
                     type=str, default='accuracy',
                     metavar="[='accuracy','balanced_accuracy','average_precision',"
                             "'precision','recall',...]")
 
 parser.add_argument("--test_ratio",
-                    help="set the test ratio as float [0.0-1.0] to split into train and test data.\n"
+                    help="Set the test ratio as float [0.0-1.0] to split into train and test data.\n"
                          "    If train_ratio + test_ratio > 1\n"
                          "    then test_ratio = 1 - train_ratio",
                     type=float, default=0.2, metavar="[0.0-1.0]")
 
 parser.add_argument("--train_ratio",
-                    help="set the train ratio as float number to split into train and test data.\n"
+                    help="Set the train ratio as float number to split into train and test data.\n"
                          "    If train_ratio + test_ratio > 1:\n"
                          "    then test_ratio = 1 - train_ratio",
                     type=float, default=0.8, metavar="[0.0-1.0]")
@@ -178,26 +182,14 @@ else:
 # Format the data XY & Z & target DataFrames and remove raw_classification from LAS files.
 data, xy_coord, z_height, target = format_dataset(raw_data, mode=mod, raw_classif='lassif')
 
-# Set the number of points (to name file)
-if args.samples and args.samples * 1000000. < float(len(z_height)):
-    nbr_pts = float(args.samples * 1000000.)  # Number of points equal size of sample
+# Set the number of points (for filename)
+if not args.samples:
+    nbr_pts = format_nbr_pts(samples_size=len(z_height), data_length=len(z_height))
 else:
-    nbr_pts = float(len(z_height))  # Number of points of entire point cloud
-
-if nbr_pts >= 1000000.:  # number of points > 1M
-    nbr_pts = np.round(nbr_pts / 1000000., 1)
-    if nbr_pts.split('.')[-1][0] == '0':  # round number if it is a zero after point ('xxx.0x')
-        nbr_pts = nbr_pts.split('.')[0]
-    else:
-        nbr_pts = '_'.join(nbr_pts.split('.'))  # replace '.' by '_' if not rounded
-    nbr_pts = str(nbr_pts) + 'Mpts_'
-
-else:                   # number of points < 1M
-    nbr_pts = int(nbr_pts / 1000.)
-    nbr_pts = str(nbr_pts) + 'kpts_'
+    nbr_pts = format_nbr_pts(samples_size=args.samples, data_length=len(z_height))
 
 # Give the report filename
-report_filename = str(folder_path + '/' + mod + '_' + args.algorithm + nbr_pts + str(timestamp) + '.txt')
+report_filename = str(folder_path + '/' + mod + '_' + args.algorithm + nbr_pts + str(timestamp))
 
 # Get the feature names
 feature_names = data.columns.values.tolist()
@@ -214,7 +206,7 @@ if not args.model_to_import:
                                                              samples=args.samples)
 
     # Create the report file
-    with open(report_filename, 'w', encoding='utf-8') as report:
+    with open(report_filename + '.txt', 'w', encoding='utf-8') as report:
         report.write('Report of ' + str(args.algorithm) + ' training\n' +
                      '\nFile: ' + str(args.csv_data_file) +
                      '\nDatetime: ' + str(create_time.strftime("%Y/%m/%d %H:%M:%S")) + '\n')
@@ -244,7 +236,7 @@ if not args.model_to_import:
                                                   scoring=args.scoring,
                                                   n_jobs=args.n_jobs)
 
-        with open(report_filename, 'a', encoding='utf-8') as report:
+        with open(report_filename + '.txt', 'a', encoding='utf-8') as report:
             report.write('\nResults of the GridSearchCV:\n')
             report.write(grid_results.to_string(index=False))
             report.write('\n')
@@ -254,7 +246,7 @@ if not args.model_to_import:
                                                   scoring=args.scoring,
                                                   n_jobs=args.n_jobs)
 
-        with open(report_filename, 'a', encoding='utf-8') as report:
+        with open(report_filename + '.txt', 'a', encoding='utf-8') as report:
             report.write('Results of the Cross-Validation:\n')
             report.write(pd.DataFrame(cv_results).to_string(index=False, header=False))
             report.write('\n')
@@ -262,26 +254,27 @@ if not args.model_to_import:
     print("\n5. Score model with the test dataset: {0:.4f}".format(model.score(X_test, y_test)))
 
     # Save model
-    model_filename = str(report_filename[:-4] + '_' + args.scaler + '.model')
+    model_filename = str(report_filename + '_' + args.scaler + '.model')
     save_model(model, model_filename)
 
     # Get the model parameters to print them in report
     applied_parameters = ["{}: {}".format(param, model.get_params()[param]) for param in model.get_params()]
-    with open(report_filename, 'a', encoding='utf-8') as report:
+    with open(report_filename + '.txt', 'a', encoding='utf-8') as report:
         report.write('\nParameters:\n' + '\n'.join(applied_parameters) + '\n')
 
-    # # Importance of each feature in RF and GB
-    # if not args.grid_search:
-    #     if args.algorithm == 'rf' or args.algorithm == 'gb':
-    #         feature_filename = str(training_model_file + '_feat_importance.png')
-    #         save_feature_importance(model, feature_names, feature_filename)
+    # Importance of each feature in RF and GB
+    if args.grid_search or args.algorithm == 'ann' or args.algorithm == 'svm':
+        args.importance = False
+    if args.importance:
+        feature_filename = str(report_filename + '_feat_importance.png')
+        save_feature_importance(model, feature_names, feature_filename)
 
     # Save confusion matrix
     print("\n6. Creating confusion matrix:")
     y_test_pred = model.predict(X_test)
     conf_mat = confusion_matrix(y_test, y_test_pred)
     conf_mat = precision_recall(conf_mat)  # return Dataframe
-    with open(report_filename, 'a', encoding='utf-8') as report:
+    with open(report_filename + '.txt', 'a', encoding='utf-8') as report:
         report.write('\nConfusion Matrix:\n')
         report.write(conf_mat.to_string())
         report.write('\n')
@@ -291,7 +284,7 @@ if not args.model_to_import:
     print("\n7. Creating classification report:")
     spent_time = datetime.now() - create_time
     report_class = classification_report(y_test, y_test_pred)
-    with open(report_filename, 'a', encoding='utf-8') as report:
+    with open(report_filename + '.txt', 'a', encoding='utf-8') as report:
         report.write('\nClassification Report:\n')
         report.write(report_class)
         report.write('\nModel trained in {}'.format(spent_time))
@@ -309,7 +302,7 @@ else:
     model = load_model(args.model_to_import)
 
     # Create report file for predictions
-    with open(report_filename, 'w', encoding='utf-8') as report:
+    with open(report_filename + '.txt', 'w', encoding='utf-8') as report:
         report.write('Report of ' + str(args.algorithm) + ' predictions\n' +
                      '\nFile: ' + str(args.csv_data_file) +
                      '\nModel:' + str(args.model_to_import) +
@@ -324,7 +317,7 @@ else:
 
     # Get the model parameters to print them in report
     applied_parameters = ["{}: {}".format(param, model.get_params()[param]) for param in model.get_params()]
-    with open(report_filename, 'a', encoding='utf-8') as report:
+    with open(report_filename + '.txt', 'a', encoding='utf-8') as report:
         report.write('\nParameters:\n' + '\n'.join(applied_parameters) + '\n')
 
     if target is not None:
@@ -332,7 +325,7 @@ else:
         print("\n5. Creating confusion matrix:")
         conf_mat = confusion_matrix(target.values, y_pred)
         conf_mat = precision_recall(conf_mat)  # return Dataframe
-        with open(report_filename, 'a', encoding='utf-8') as report:
+        with open(report_filename + '.txt', 'a', encoding='utf-8') as report:
             report.write('\nConfusion Matrix:\n')
             report.write(conf_mat.to_string())
             report.write('\n')
@@ -342,7 +335,7 @@ else:
         print("\n6. Creating classification report:")
         spent_time = datetime.now() - create_time
         report_class = classification_report(target.values, y_pred)
-        with open(report_filename, 'a', encoding='utf-8') as report:
+        with open(report_filename + '.txt', 'a', encoding='utf-8') as report:
             report.write('\nClassification Report:\n')
             report.write(report_class)
             report.write('\nPredictions done in {}'.format(spent_time))
@@ -350,7 +343,7 @@ else:
 
     # Save classifaction result as point cloud file with all data
     print("\n7. Save classified point cloud as CSV file:")
-    predic_filename = str(report_filename[:-4] + '.csv')
+    predic_filename = str(report_filename + '.csv')
     save_predictions(y_pred, predic_filename,
                      xy_fields=xy_coord,
                      z_field=z_height,

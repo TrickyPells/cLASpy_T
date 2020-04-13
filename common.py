@@ -42,7 +42,7 @@ from sklearn.preprocessing import StandardScaler, RobustScaler, MinMaxScaler
 
 def format_dataset(path_raw_data, mode='train', raw_classif=None):
     """
-    To format the input data as panda DataFrame. Exclude XYZ fields.
+    Format the input data as panda DataFrame. Exclude XYZ fields.
     :param path_raw_data: Path of the input data as text file (.CSV).
     :param mode: Set the mode ['train', 'pred'] to check mandatory 'target' field in case of training.
     :param raw_classif: (optional): set the field name of the raw_classification of some LiDAR point clouds.
@@ -203,6 +203,51 @@ def precision_recall(conf_mat):
     conf_mat_up = pd.DataFrame(conf_mat_up).round(decimals=3)
 
     return conf_mat_up
+
+
+def format_nbr_pts(samples_size, data_length):
+    """
+    Format the number of point for filename according the magnitude.
+    :param samples_size: Float of the number of point for training.
+    :param data_length: Total number of points in data file.
+    :return: nbr_pts: String of the point number write according the magnitude suffix.
+    """
+    # Initiation
+    magnitude = 1000000
+
+    # Tests
+    try:
+        samples_size = float(samples_size)
+    except ValueError as ve:
+        samples_size = 0.05
+        print("ValueError: 'samples_size' must be a number\n"
+              "'samples_size' set to default 0.05 Mpts.")
+
+    try:
+        data_length = float(data_length)
+    except ValueError as ve:
+        raise ValueError("'data_length' parameter must be a number")
+
+    # Sample size < Data size
+    if samples_size * magnitude < data_length:
+        nbr_pts = float(samples_size * magnitude)  # Number of points equal sample size
+    else:
+        nbr_pts = data_length  # Number of points of entire point cloud
+
+    # Format as Mpts or kpts according number of points
+    if nbr_pts >= magnitude:  # number of points > 1Mpts
+        nbr_pts = np.round(nbr_pts / magnitude, 1)
+        if nbr_pts.split('.')[-1][0] == '0':  # round number if there is zero after point ('xxx.0x')
+            nbr_pts = nbr_pts.split('.')[0]
+        else:
+            nbr_pts = '_'.join(nbr_pts.split('.'))  # replace '.' by '_' if not rounded
+        nbr_pts = str(nbr_pts) + 'Mpts_'
+
+    else:  # number of points < 1M
+        nbr_pts = int(nbr_pts / 1000.)
+        nbr_pts = str(nbr_pts) + 'kpts_'
+
+    return nbr_pts
 
 
 def save_feature_importance(model, feature_names, feature_filename):
