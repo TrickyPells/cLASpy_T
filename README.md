@@ -1,28 +1,27 @@
 # **cLASser**
 
-Classer is a Scikit-Learn based library in Python3, to classify standard LAS point cloud. 
+Classer is a Scikit-Learn based library for automatic classification of 3D point clouds, such as LiDAR or Photogrammetric point clouds.  
 
 ## **Installation**
 
 Use the git command to clone 'classer.git'.
 
 ```bash
-git clone ssh://[user]@rsg-m2c.ynh.fr:22986/home/gitea/repositories/remote_sensing_group/classer.git
+git clone gitea-rsg:/Remote_Sensing_Group/classer.git
 ```
-
 
 ## **Usage**
 
 ```bash
-python classer.py [optional arguments] algorithm C:/path/to/the/data_file.csv
+python classer.py [optional arguments] algorithm /path/to/the/data_file.csv
 ```
+
 ### **algorithm:**
 
 * **rf** : *RandomForestClassifier* > Random Forest algorithm
 * **gb** : *GradientBoostingClassifier* > Gradient Boosting algorithm
 * **svm** : *LinearSVC* > Support Vector Machine algorithm
 * **ann** : *MLPClassifier* > Artificial Neural Network algorithm
-
 
 (Refer to Scikit-Learn library for more details)
 
@@ -43,10 +42,11 @@ X,Y,Z,target,Intensity,Red,Green,Blue,Roughness (5),Omnivariance (5),Sphericity 
 
 
 If X, Y and/or Z fields are present, **they are excluded**.
-If a field_name contains **'lassif'** such as *'classif'*, *'classification'*, *'raw_classification'*... the field is discarded.
 
+If a field_name contains **'lassif'** such as **'classif'**, **'classification'**, **'raw_classification'**... the field is discarded.
 
 ### **optional arguments:**
+
 **-h, --help :**\
 *Show this help message and exit*
 
@@ -108,8 +108,6 @@ then test_ratio = 1 - train_ratio*
 ## **Contributing**
 Pull requests are welcome.\
 For major changes, please open an issue first to discuss what you would like to change.
-
-Please make sure to update tests as appropriate.
 
 ## **License**
 Any
