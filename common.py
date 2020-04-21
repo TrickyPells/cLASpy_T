@@ -205,7 +205,7 @@ def precision_recall(conf_mat):
     return conf_mat_up
 
 
-def format_nbr_pts(samples_size, data_length):
+def format_nbr_pts(data_length, samples_size=None):
     """
     Format the number of point for filename according the magnitude.
     :param samples_size: Float of the number of point for training.
@@ -217,26 +217,27 @@ def format_nbr_pts(samples_size, data_length):
 
     # Tests
     try:
-        samples_size = float(samples_size)
-    except ValueError as ve:
-        samples_size = 0.05
-        print("ValueError: 'samples_size' must be a number\n"
-              "'samples_size' set to default 0.05 Mpts.")
-
-    try:
         data_length = float(data_length)
     except ValueError as ve:
         raise ValueError("'data_length' parameter must be a number")
 
-    # Sample size < Data size
-    if samples_size * magnitude < data_length:
-        nbr_pts = float(samples_size * magnitude)  # Number of points equal sample size
-    else:
+    if samples_size is not None:
+        try:
+            samples_size = float(samples_size)
+        except ValueError as ve:
+            samples_size = 0.05
+            print("ValueError: 'samples_size' must be a number\n"
+                  "'samples_size' set to default 0.05 Mpts.")
+
+    # Sample size > Data size
+    if samples_size is None or samples_size * magnitude >= data_length:
         nbr_pts = data_length  # Number of points of entire point cloud
+    else:
+        nbr_pts = float(samples_size * magnitude)  # Number of points equal sample size
 
     # Format as Mpts or kpts according number of points
     if nbr_pts >= magnitude:  # number of points > 1Mpts
-        nbr_pts = np.round(nbr_pts / magnitude, 1)
+        nbr_pts = str(np.round(nbr_pts / magnitude, 1))
         if nbr_pts.split('.')[-1][0] == '0':  # round number if there is zero after point ('xxx.0x')
             nbr_pts = nbr_pts.split('.')[0]
         else:

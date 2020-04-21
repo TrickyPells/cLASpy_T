@@ -184,9 +184,9 @@ data, xy_coord, z_height, target = format_dataset(raw_data, mode=mod, raw_classi
 
 # Set the number of points (for filename)
 if not args.samples:
-    nbr_pts = format_nbr_pts(samples_size=len(z_height), data_length=len(z_height))
+    nbr_pts = format_nbr_pts(data_length=len(z_height))
 else:
-    nbr_pts = format_nbr_pts(samples_size=args.samples, data_length=len(z_height))
+    nbr_pts = format_nbr_pts(data_length=len(z_height), samples_size=args.samples)
 
 # Give the report filename
 report_filename = str(folder_path + '/' + mod + '_' + args.algorithm + nbr_pts + str(timestamp))
