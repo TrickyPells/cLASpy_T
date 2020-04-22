@@ -46,11 +46,9 @@ from sklearn.svm import LinearSVC
 # -------------------------
 
 
-def split_dataset(data_values, target_values, train_ratio=0.8, test_ratio=0.2, samples=0.5):
+def split_dataset(data_values, target_values, train_ratio=0.5, test_ratio=0.5, samples=0.5):
     """
     Split the input data and target in data_train, data_test, target_train and target_test.
-    Check the length of the dataset. If length > samples, train_size = train_ratio * samples pts
-    and test_size = test_ratio * samples pts.
     :param data_values: the np.ndarray with the data features.
     :param target_values: the np.ndarray with the target.
     :param train_ratio: (optional) Ratio of the size of training dataset.
@@ -60,31 +58,10 @@ def split_dataset(data_values, target_values, train_ratio=0.8, test_ratio=0.2, s
     The samples is paired with train_ratio and test_ratio.
     :return: data_train, data_test, target_train and target_test as np.ndarray.
     """
-
-    print("\n3. Splitting the data...", end='')
-    # Rescale samples
-    samples = int(samples * 1000000)
-
-    # Check if train_ratio + test_ratio =< 1.0
-    if train_ratio > 1.0:
-        train_ratio = 0.8
-
-    if train_ratio + test_ratio > 1.0:
-        test_ratio = 1.0 - train_ratio
-
-    # Check if dataset > 500 kpts
-    n_samples = len(data_values[:, 0])
-    if n_samples > samples:
-        train_size = int(train_ratio * samples)
-        test_size = int(test_ratio * samples)
-    else:
-        train_size = int(train_ratio * n_samples)
-        test_size = int(test_ratio * n_samples)
-
     data_train, data_test, target_train, target_test = train_test_split(data_values, target_values,
                                                                         random_state=0,
-                                                                        train_size=train_size,
-                                                                        test_size=test_size,
+                                                                        train_size=train_ratio,
+                                                                        test_size=test_ratio,
                                                                         stratify=target_values)
     # Convert target_train and target_test column-vectors as 1d array
     target_train = target_train.reshape(train_size)

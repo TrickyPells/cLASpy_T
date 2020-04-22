@@ -59,9 +59,8 @@ parser.add_argument("algorithm",
                     help="The learning algorithm to use:\n"
                          "    'rf': RandomForestClassifier\n"
                          "    'gb': GradientBoostingClassifier\n"
-                         "    'svm': LinearSVC\n"
                          "    'ann': MLPClassifier\n",
-                    type=str, choices=['rf', 'gb', 'svm', 'ann'])
+                    type=str, choices=['rf', 'gb', 'ann'])
 
 parser.add_argument("csv_data_file",
                     help="The CSV file with needed data:\n"
@@ -122,23 +121,38 @@ parser.add_argument("--test_ratio",
                     help="Set the test ratio as float [0.0-1.0] to split into train and test data.\n"
                          "If train_ratio + test_ratio > 1\n"
                          "then test_ratio = 1 - train_ratio",
-                    type=float, default=0.2, metavar="[0.0-1.0]")
+                    type=float, default=0.5, metavar="[0.0-1.0]")
 
 parser.add_argument("--train_ratio",
                     help="Set the train ratio as float number to split into train and test data.\n"
                          "If train_ratio + test_ratio > 1:\n"
                          "then test_ratio = 1 - train_ratio",
-                    type=float, default=0.8, metavar="[0.0-1.0]")
+                    type=float, default=0.5, metavar="[0.0-1.0]")
 
 args = parser.parse_args()
 
 # -------------------------
 # --------- MAIN ----------
 # -------------------------
+
+# Set the chosen learning classifier
+if args.algorithm == 'rf':
+    algo = 'RandomForestClassifier'
+    classifier = set_random_forest(fit_params=parameters,
+                                   n_jobs=args.n_jobs)
+elif args.algorithm == 'gb':
+    algo = 'GradientBoostingClassifier'
+    classifier = set_gradient_boosting(fit_params=parameters)
+elif args.algorithm == 'ann':
+    algo = 'MLPClassifier'
+    classifier = set_mlp_classifier(fit_params=parameters)
+else:
+    raise ValueError("No valid classifier!")
+
 # Introduction
 print("\n####### POINT CLOUD CLASSIFICATION #######\n"
       "Algorithm used: {}\n"
-      "Path to CSV file: {}\n".format(args.algorithm, args.csv_data_file))
+      "Path to CSV file: {}\n".format(algo, args.csv_data_file))
 
 # Create a folder to store model, results, confusion matrix and grid results
 print("Create a new folder to store the result files...", end='')
@@ -156,20 +170,6 @@ parameters = None
 if args.parameters:
     parameters = yaml.safe_load(args.parameters)
 
-# Set the chosen learning classifier
-if args.algorithm == 'rf':
-    algo = 'Random Forest'
-    classifier = set_random_forest(fit_params=parameters,
-                                   n_jobs=args.n_jobs)
-elif args.algorithm == 'gb':
-    algo = 'Gradient Boosting'
-    classifier = set_gradient_boosting(fit_params=parameters)
-elif args.algorithm == 'ann':
-    algo = 'Neural Network'
-    classifier = set_mlp_classifier(fit_params=parameters)
-else:
-    raise ValueError("Any valid classifier was selected !")
-
 # Timestamp for created files
 create_time = datetime.now()
 timestamp = create_time.strftime("%m%d_%H%M")  # Timestamp for file creation MD_HM
@@ -180,7 +180,8 @@ if args.model_to_import is None:
 else:
     mod = 'prediction'
 
-# Format the data XY & Z & target DataFrames and remove raw_classification from file.
+# FORMAT DATA as XY & Z & target DataFrames and remove raw_classification from file.
+print("\n1. Formatting data as pandas.Dataframe...", end='')
 data, xy_coord, z_height, target = format_dataset(raw_data,
                                                   mode=mod,
                                                   raw_classif='lassif')
@@ -196,28 +197,30 @@ report_filename = str(folder_path + '/' + mod[0:6] + '_' +
 # Get the feature names
 feature_names = data.columns.values.tolist()
 
-# Check what mode
+# TRAINING or PREDICTION
 if mod == 'training':  # Training mode
     # Set useless parameter as None
     model_to_load = None
 
     # Scale the dataset as 'Standard', 'Robust' or 'MinMaxScaler'
+    print("\n2. Scaling data...", end='')
     scale_method = args.scaler
     data_trans = scale_dataset(data, method=scale_method)
 
     # Create samples for training and testing
+    print("\n3. Splitting data in train and test sets...", end='')
     X_train_val, X_test, y_train_val, y_test = split_dataset(
         data_trans.values,
         target.values,
         train_ratio=args.train_ratio,
         test_ratio=args.test_ratio,
-        samples=args.samples)
+        samples=nbr_pts)
 
     # Get the train and test sizes
     train_size = len(y_train_val)
     test_size = len(y_test)
 
-    # What kind of training
+    # TYPE OF TRAINING
     if args.grid_search:  # Training with GridSearchCV
         cv_results = None  # So non cross validation results
 
