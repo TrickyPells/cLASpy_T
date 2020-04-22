@@ -320,7 +320,7 @@ def save_model(model_to_save, file_name):
     :param file_name: The path and name of the file.
     """
     joblib.dump(model_to_save, file_name)
-    print("Model path: {}".format('/'.join(file_name.split('/')[:-1])))
+    print("Model path: {}/".format('/'.join(file_name.split('/')[:-1])))
     print("Model file: {}".format(file_name.split('/')[-1]))
 
 # -------------------------

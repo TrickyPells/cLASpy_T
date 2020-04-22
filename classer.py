@@ -29,13 +29,8 @@
 # --------------------
 
 import argparse
-import os
-from datetime import datetime
 
-import numpy as np
-import pandas as pd
 import yaml
-from sklearn.kernel_approximation import Nystroem
 from sklearn.metrics import confusion_matrix, classification_report
 
 from common import *
@@ -137,6 +132,21 @@ args = parser.parse_args()
 # --------- MAIN ----------
 # -------------------------
 
+# Set the mode as 'training' or 'prediction'
+if args.model_to_import is None:
+    mod = 'training'
+else:
+    mod = 'prediction'
+
+# Set non-common parameters as None
+train_size = None
+test_size = None
+grid_results = None
+cv_results = None
+model_to_load = None
+conf_mat = None
+report_class = None
+
 # Check parameters exists
 parameters = None
 if args.parameters:
@@ -157,30 +167,8 @@ else:
     raise ValueError("No valid classifier!")
 
 # INTRODUCTION
-print("\n####### POINT CLOUD CLASSIFICATION #######\n"
-      "Algorithm used: {}\n"
-      "Path to CSV file: {}\n".format(algo, args.csv_data_file))
-
-# Create a folder to store model, results, confusion matrix and grid results
-print("Create a new folder to store the result files...", end='')
-raw_data = args.csv_data_file
-raw_data = '/'.join(raw_data.split('\\'))  # Change '\' in '/'
-folder_path = '.'.join(raw_data.split('.')[:-1])  # remove extension so give folder path
-try:
-    os.mkdir(folder_path)  # Using file path to make new folder
-    print(" Done.")
-except (TypeError, FileExistsError):
-    print(" Folder already exists.")
-
-# Timestamp for created files
-create_time = datetime.now()
-timestamp = create_time.strftime("%m%d_%H%M")  # Timestamp for file creation MD_HM
-
-# Set the mode as 'training' or 'prediction'
-if args.model_to_import is None:
-    mod = 'training'
-else:
-    mod = 'prediction'
+raw_data, folder_path, start_time = introduction(algo, args.csv_data_file)
+timestamp = start_time.strftime("%m%d_%H%M")  # Timestamp for file creation MD_HM
 
 # FORMAT DATA as XY & Z & target DataFrames and remove raw_classification from file.
 print("\n1. Formatting data as pandas.Dataframe...", end='')
@@ -193,7 +181,7 @@ nbr_pts = nbr_pts(data_length=len(z_height), samples_size=args.samples)
 str_nbr_pts = format_nbr_pts(nbr_pts)  # Format in string for filename
 
 # Give the report filename
-report_filename = str(folder_path + '/' + mod[0:6] + '_' +
+report_filename = str(folder_path + '/' + mod[0:5] + '_' +
                       args.algorithm + str_nbr_pts + str(timestamp))
 
 # Get the feature names
@@ -201,8 +189,6 @@ feature_names = data.columns.values.tolist()
 
 # TRAINING or PREDICTION
 if mod == 'training':  # Training mode
-    # Set useless parameter as None
-    model_to_load = None
 
     # Scale the dataset as 'Standard', 'Robust' or 'MinMaxScaler'
     print("\n2. Scaling data...", end='')
@@ -228,7 +214,6 @@ if mod == 'training':  # Training mode
     # TYPE OF TRAINING
     if args.grid_search:  # Training with GridSearchCV
         print('\n4. Training model with GridSearchCV...')
-        cv_results = None  # So non cross validation results
 
         # Check param_grid exists
         if args.param_grid is not None:
@@ -247,34 +232,24 @@ if mod == 'training':  # Training mode
 
     else:  # Training with Cross Validation
         print("\n4. Training model with cross validation...")
-        grid_results = None  # So no GridSearchCV results
         model, cv_results = training_nogridsearch(classifier,
                                                   X_train_val,
                                                   y_train_val,
                                                   scoring=args.scoring,
                                                   n_jobs=args.n_jobs)
 
-    print("\n5. Score model with the test dataset: {0:.4f}".format(
+    print("\tScore model with the test dataset: {0:.4f}\n".format(
         model.score(X_test, y_test)))
 
-    # Save model and scaler
-    model_filename = str(report_filename + '_' + args.scaler + '.model')
-    model_to_save = (model, scaler)
-    save_model(model_to_save, model_filename)
-
-    # Get the model parameters to print them in report
-    applied_parameters = ["{}: {}".format(
-        param, model.get_params()[param]) for param in model.get_params()]
-
     # Importance of each feature in RF and GB
-    if args.grid_search or args.algorithm == 'ann' or args.algorithm == 'svm':
+    if args.grid_search or args.algorithm == 'ann':
         args.importance = False  # Overwrite 'False' if '-i' option set with grid, ann or svm
     if args.importance:
-        feature_filename = str(report_filename + '_feat_importance.png')
-        save_feature_importance(model, feature_names, feature_filename)
+        feat_imp_filename = str(report_filename + '_feat_importance.png')
+        save_feature_importance(model, feature_names, feat_imp_filename)
 
     # Save confusion matrix
-    print("\n6. Creating confusion matrix:")
+    print("\n5. Creating confusion matrix:")
     y_test_pred = model.predict(X_test)
     conf_mat = confusion_matrix(y_test, y_test_pred)
     conf_mat = precision_recall(conf_mat)  # return Dataframe
@@ -284,13 +259,13 @@ if mod == 'training':  # Training mode
     report_class = classification_report(y_test, y_test_pred)
     print("\n{}\n".format(report_class))
 
+    # Save model and scaler
+    print("\n6. Saving model and scaler in file:")
+    model_filename = str(report_filename + '_' + args.scaler + '.model')
+    model_to_save = (model, scaler)
+    save_model(model_to_save, model_filename)
 
 else:  # Prediction mode
-    # Set useless parameters as None
-    train_size = None
-    test_size = None
-    grid_results = None
-    cv_results = None
 
     # Get model and scaling parameter
     print("\n2. Loading model...", end='')
@@ -309,10 +284,6 @@ else:  # Prediction mode
     print("\n4. Making predictions for entire dataset...")
     y_pred = model.predict(data_scaled.values)
 
-    # Get the model parameters to print them in report
-    applied_parameters = ["{}: {}".format(
-        param, model.get_params()[param]) for param in model.get_params()]
-
     if target is not None:
         # Save confusion matrix
         print("\n5 Creating confusion matrix:")
@@ -324,13 +295,10 @@ else:  # Prediction mode
         report_class = classification_report(target.values, y_pred)
         print("\n{}\n".format(report_class))
 
-    else:
-        conf_mat = None
-        report_class = None
-
     # Save classifaction result as point cloud file with all data
     print("\n6. Saving classified point cloud as CSV file:")
     predic_filename = str(report_filename + '.csv')
+    print(predic_filename)
     save_predictions(y_pred,
                      predic_filename,
                      xy_fields=xy_coord,
@@ -340,14 +308,21 @@ else:  # Prediction mode
 
 # Create and save prediction report
 print("\n7. Creating classification report:")
-spent_time = datetime.now() - create_time
+print(report_filename + '.txt')
+
+# Get the model parameters to print them in report
+applied_parameters = ["{}: {}".format(
+    param, model.get_params()[param]) for param in model.get_params()]
+
+# Compute elapsed time
+spent_time = datetime.now() - start_time
 
 # Write the entire report
 write_report(report_filename,
              mode=mod,
              algo=algo,
              data_file=args.csv_data_file,
-             start_time=create_time,
+             start_time=start_time,
              elapsed_time=spent_time,
              feat_names=feature_names,
              scaler=scaler,

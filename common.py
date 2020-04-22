@@ -29,15 +29,46 @@
 # --- DEPENDENCIES ---
 # --------------------
 
+import os
+from datetime import datetime
+
 import numpy as np
 import pandas as pd
-
 from matplotlib import pyplot as plt
 from sklearn.preprocessing import StandardScaler, RobustScaler, MinMaxScaler
+
 
 # -------------------------
 # ------ FUNCTIONS --------
 # -------------------------
+
+def introduction(algo, csv_file):
+    """
+    Write the introduction, create folder to store results
+    and return the start_time
+    :param algo: Algorithm used
+    :param csv_file: CSV file of used data
+    :return: raw_data, folder_path and start time
+    """
+    print("\n####### POINT CLOUD CLASSIFICATION #######\n"
+          "Algorithm used: {}\n"
+          "Path to CSV file: {}\n".format(algo, csv_file))
+
+    # Create a folder to store models, reports and predictions
+    print("Create a new folder to store the result files...", end='')
+    raw_data = csv_file
+    raw_data = '/'.join(raw_data.split('\\'))  # Change '\' in '/'
+    folder_path = '.'.join(raw_data.split('.')[:-1])  # remove extension so give folder path
+    try:
+        os.mkdir(folder_path)  # Using file path to make new folder
+        print(" Done.")
+    except (TypeError, FileExistsError):
+        print(" Folder already exists.")
+
+    # Timestamp for created files
+    start_time = datetime.now()
+
+    return raw_data, folder_path, start_time
 
 
 def format_dataset(path_raw_data, mode='training', raw_classif=None):
