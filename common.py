@@ -40,7 +40,7 @@ from sklearn.preprocessing import StandardScaler, RobustScaler, MinMaxScaler
 # -------------------------
 
 
-def format_dataset(path_raw_data, mode='train', raw_classif=None):
+def format_dataset(path_raw_data, mode='training', raw_classif=None):
     """
     Format the input data as panda DataFrame. Exclude XYZ fields.
     :param path_raw_data: Path of the input data as text file (.CSV).
@@ -98,7 +98,7 @@ def format_dataset(path_raw_data, mode='train', raw_classif=None):
         raise ValueError("There is no Z field!")
 
     # Create dataFrame of targets
-    if mode == 'train':
+    if mode == 'training':
         if 'target' in fields_name:
             trgt = frame.loc[:, ['target']]
         else:
@@ -110,26 +110,26 @@ def format_dataset(path_raw_data, mode='train', raw_classif=None):
             trgt = None
 
     # Select only features fields by removing X, Y, Z and target fields
-    features_name = fields_name
+    feat_name = fields_name
     for field in ['X', 'Y', 'Z', 'target']:
-        features_name.remove(field)
+        feat_name.remove(field)
 
     # Remove the raw_classification of some LiDAR point clouds
     if raw_classif is not None:
         if isinstance(raw_classif, str):
-            for index, field in enumerate(features_name):
+            for index, field in enumerate(feat_name):
                 if raw_classif in field:
-                    features_name.remove(fields_name[index])
+                    feat_name.remove(fields_name[index])
 
     # formatted data without extra fields
-    features_data = frame.loc[:, features_name]
+    feat_data = frame.loc[:, feat_name]
 
     # Replace NAN values by median
-    features_data.fillna(value=features_data.median(0), inplace=True)  # .median(0) computes median/col
+    feat_data.fillna(value=feat_data.median(0), inplace=True)  # .median(0) computes median/col
 
     print(" Done.")
 
-    return features_data, coord, hght, trgt
+    return feat_data, coord, hght, trgt
 
 
 def scale_dataset(data_to_scale, method='Standard'):
@@ -205,12 +205,12 @@ def precision_recall(conf_mat):
     return conf_mat_up
 
 
-def format_nbr_pts(data_length, samples_size=None):
+def nbr_pts(data_length, samples_size=None):
     """
-    Format the number of point for filename according the magnitude.
+    Set the number of point for according the magnitude.
     :param samples_size: Float of the number of point for training.
     :param data_length: Total number of points in data file.
-    :return: nbr_pts: String of the point number write according the magnitude suffix.
+    :return: nbr_pts: Integer of the number of points.
     """
     # Initiation
     magnitude = 1000000
@@ -231,24 +231,110 @@ def format_nbr_pts(data_length, samples_size=None):
 
     # Sample size > Data size
     if samples_size is None or samples_size * magnitude >= data_length:
-        nbr_pts = data_length  # Number of points of entire point cloud
+        int_nbr_pts = int(data_length)  # Number of points of entire point cloud
     else:
-        nbr_pts = float(samples_size * magnitude)  # Number of points equal sample size
+        int_nbr_pts = int(samples_size * magnitude)  # Number of points < sample size
+
+    return int_nbr_pts
+
+
+def format_nbr_pts(number_pts):
+    """
+    Format the nbr_pts as string for the filename.
+    :param number_pts: Integer of the number of points used to format in string.
+    :return: String of the point number write according the magnitude suffix.
+    """
+    # Initiation
+    magnitude = 1000000
 
     # Format as Mpts or kpts according number of points
-    if nbr_pts >= magnitude:  # number of points > 1Mpts
-        nbr_pts = str(np.round(nbr_pts / magnitude, 1))
-        if nbr_pts.split('.')[-1][0] == '0':  # round number if there is zero after point ('xxx.0x')
-            nbr_pts = nbr_pts.split('.')[0]
+    if number_pts >= magnitude:  # number of points > 1Mpts
+        str_nbr_pts = str(np.round(number_pts / magnitude, 1))
+        if str_nbr_pts.split('.')[-1][0] == '0':  # round number if there is zero after point ('xxx.0x')
+            str_nbr_pts = str_nbr_pts.split('.')[0]
         else:
-            nbr_pts = '_'.join(nbr_pts.split('.'))  # replace '.' by '_' if not rounded
-        nbr_pts = str(nbr_pts) + 'Mpts_'
+            str_nbr_pts = '_'.join(str_nbr_pts.split('.'))  # replace '.' by '_' if not rounded
+        str_nbr_pts = str_nbr_pts + 'Mpts_'
 
     else:  # number of points < 1M
-        nbr_pts = int(nbr_pts / 1000.)
-        nbr_pts = str(nbr_pts) + 'kpts_'
+        number_pts = int(number_pts / 1000.)
+        str_nbr_pts = str(number_pts) + 'kpts_'
 
-    return nbr_pts
+    return str_nbr_pts
+
+
+def write_report(filename, mode, algo, data_file, start_time, elapsed_time, applied_param,
+                 feat_names, scale_method, data_len, train_len=None, test_len=None,
+                 model=None, grid_results=None, cv_results=None,
+                 conf_mat=None, score_report=None):
+    """
+    Write the report of training or predictions in .TXT file.
+    :param filename: Entire path and filename without extension.
+    :param mode: 'train' or 'pred' mode.
+    :param algo: Algorithm used for training or predictions.
+    :param data_file: Data file used to make training or predictions.
+    :param start_time: Time when the script began.
+    :param elapsed_time: Time spent between begin and end.
+    :param feat_names: List of the all feature names.
+    :param scale_method: Method used to scale data.
+    :param data_len: Length of the used data.
+    :param train_len: Length of the train data set.
+    :param test_len: Length of the test data set.
+    :param applied_param: Parameters applied to create model or make predictions.
+    :param model: Model used to make predictions.
+    :param grid_results: Results of the GridSearchCV.
+    :param cv_results: Results of the Cross Validation.
+    :param conf_mat: Confusion matrix if target field exists.
+    :param score_report: Report of all score if target field exists.
+    :return:
+    """
+    # Write the header of the report file
+    with open(filename + '.txt', 'w', encoding='utf-8') as report:
+        report.write('Report of ' + algo + ' ' + mode)
+        report.write('\n\nDatetime: ' + start_time.strftime("%Y-%m-%d %H:%M:%S"))
+        report.write('\nFile: ' + data_file)
+        report.write('\n\nFeatures:\n' + '\n'.join(feat_names))
+        report.write('\n\nScaling method: ' + scale_method)
+
+        # Write the train and test size
+        if mode == 'training':
+            report.write('\n\nNumber of points for training: ' + str(data_len) + ' pts')
+            report.write('\nTrain size: ' + str(train_len) + ' pts')
+            report.write('\nTest size: ' + str(test_len) + ' pts')
+
+        # Write the number of point to predict
+        if mode == 'prediction':
+            report.write('\n\nNumber of points to predict: ' + str(data_len) + ' pts')
+            report.write('\nModel used: ' + model)
+
+        # Write the GridSearchCV results
+        if grid_results is not None:
+            report.write('\n\n\nResults of the GridSearchCV:\n')
+            report.write(grid_results.to_string(index=False))
+
+        # Write the Cross validation results
+        if cv_results is not None:
+            report.write('\n\n\nResults of the Cross-Validation:\n')
+            report.write(pd.DataFrame(cv_results).to_string(index=False, header=False))
+
+        # Write applied parameters
+        report.write('\n\n\nParameters:\n' + '\n'.join(applied_param))
+
+        # Write the confusion matrix results
+        if conf_mat is not None:
+            report.write('\n\n\nConfusion Matrix:\n')
+            report.write(conf_mat.to_string())
+
+        # Write the score report of the classification
+        if score_report is not None:
+            report.write('\n\n\nClassification Report:\n')
+            report.write(score_report)
+
+        # Write elapsed time
+        if mode == 'training':
+            report.write('\n\nModel trained in {}'.format(elapsed_time))
+        else:
+            report.write('\n\nPredictions done in {}'.format(elapsed_time))
 
 
 def save_feature_importance(model, feature_names, feature_filename):

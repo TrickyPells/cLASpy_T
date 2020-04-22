@@ -29,18 +29,17 @@
 # --------------------
 
 import joblib
-import time
-
 import numpy as np
 import pandas as pd
-
-from sklearn.model_selection import train_test_split
+import time
+from sklearn.ensemble import GradientBoostingClassifier
+from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import GridSearchCV
 from sklearn.model_selection import cross_val_score, StratifiedShuffleSplit
-from sklearn.svm import LinearSVC
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.ensemble import GradientBoostingClassifier
+from sklearn.model_selection import train_test_split
 from sklearn.neural_network import MLPClassifier
+from sklearn.svm import LinearSVC
+
 
 # -------------------------
 # ------ FUNCTIONS --------
@@ -56,8 +55,9 @@ def split_dataset(data_values, target_values, train_ratio=0.8, test_ratio=0.2, s
     :param target_values: the np.ndarray with the target.
     :param train_ratio: (optional) Ratio of the size of training dataset.
     :param test_ratio: (optional) Ratio of the size of testing dataset.
-    :param samples: (optional) Number of samples beyond which the dataset is splitted with two integers,
-    for train_size and test_size. The samples is paired with train_ratio and test_ratio.
+    :param samples: (optional) Number of samples beyond which the dataset
+    is splitted with two integers, for train_size and test_size.
+    The samples is paired with train_ratio and test_ratio.
     :return: data_train, data_test, target_train and target_test as np.ndarray.
     """
 
