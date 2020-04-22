@@ -29,10 +29,12 @@
 # --------------------
 
 import argparse
-import numpy as np
 import os
-import yaml
 from datetime import datetime
+
+import numpy as np
+import pandas as pd
+import yaml
 from sklearn.kernel_approximation import Nystroem
 from sklearn.metrics import confusion_matrix, classification_report
 
@@ -135,6 +137,11 @@ args = parser.parse_args()
 # --------- MAIN ----------
 # -------------------------
 
+# Check parameters exists
+parameters = None
+if args.parameters:
+    parameters = yaml.safe_load(args.parameters)
+
 # Set the chosen learning classifier
 if args.algorithm == 'rf':
     algo = 'RandomForestClassifier'
@@ -149,7 +156,7 @@ elif args.algorithm == 'ann':
 else:
     raise ValueError("No valid classifier!")
 
-# Introduction
+# INTRODUCTION
 print("\n####### POINT CLOUD CLASSIFICATION #######\n"
       "Algorithm used: {}\n"
       "Path to CSV file: {}\n".format(algo, args.csv_data_file))
@@ -164,11 +171,6 @@ try:
     print(" Done.")
 except (TypeError, FileExistsError):
     print(" Folder already exists.")
-
-# Check parameters exists
-parameters = None
-if args.parameters:
-    parameters = yaml.safe_load(args.parameters)
 
 # Timestamp for created files
 create_time = datetime.now()
@@ -205,12 +207,15 @@ if mod == 'training':  # Training mode
     # Scale the dataset as 'Standard', 'Robust' or 'MinMaxScaler'
     print("\n2. Scaling data...", end='')
     scale_method = args.scaler
-    data_trans = scale_dataset(data, method=scale_method)
+    scaler = set_scaler(data, method=scale_method)
+    data_scaled = scaler.transform(data)
+    data_scaled = pd.DataFrame.from_records(
+        data_scaled, columns=data.columns.values.tolist())
 
-    # Create samples for training and testing
+    # Split data into training and testing sets
     print("\n3. Splitting data in train and test sets...", end='')
     X_train_val, X_test, y_train_val, y_test = split_dataset(
-        data_trans.values,
+        data_scaled.values,
         target.values,
         train_ratio=args.train_ratio,
         test_ratio=args.test_ratio,
@@ -222,6 +227,7 @@ if mod == 'training':  # Training mode
 
     # TYPE OF TRAINING
     if args.grid_search:  # Training with GridSearchCV
+        print('\n4. Training model with GridSearchCV...')
         cv_results = None  # So non cross validation results
 
         # Check param_grid exists
@@ -240,6 +246,7 @@ if mod == 'training':  # Training mode
                                                   n_jobs=args.n_jobs)
 
     else:  # Training with Cross Validation
+        print("\n4. Training model with cross validation...")
         grid_results = None  # So no GridSearchCV results
         model, cv_results = training_nogridsearch(classifier,
                                                   X_train_val,
@@ -250,9 +257,10 @@ if mod == 'training':  # Training mode
     print("\n5. Score model with the test dataset: {0:.4f}".format(
         model.score(X_test, y_test)))
 
-    # Save model
+    # Save model and scaler
     model_filename = str(report_filename + '_' + args.scaler + '.model')
-    save_model(model, model_filename)
+    model_to_save = (model, scaler)
+    save_model(model_to_save, model_filename)
 
     # Get the model parameters to print them in report
     applied_parameters = ["{}: {}".format(
@@ -274,6 +282,7 @@ if mod == 'training':  # Training mode
 
     # Get classification report
     report_class = classification_report(y_test, y_test_pred)
+    print("\n{}\n".format(report_class))
 
 
 else:  # Prediction mode
@@ -284,18 +293,21 @@ else:  # Prediction mode
     cv_results = None
 
     # Get model and scaling parameter
-    scale_method = '.'.join(args.model_to_import.split('.')[:-1]).split('_')[-1]
+    print("\n2. Loading model...", end='')
+    model_to_load = args.model_to_import  # Set variable for the report
+    loaded_model = load_model(model_to_load)
+    # Get the model
+    model = loaded_model[0]
 
-    # Scale the dataset 'Standard', 'Robust', 'MinMaxScaler'
-    data_trans = scale_dataset(data, method=scale_method)
-
-    # Load trained model
-    model_to_load = args.model_to_import
-    model = load_model(model_to_load)
+    # Get the scaler and scale data
+    print("\n3. Scaling data...", end='')
+    scaler = loaded_model[1]
+    data_scaled = scaler.transform(data)
+    data_scaled = pd.DataFrame.from_records(data_scaled, columns=data.columns.values.tolist())
 
     # Predic target of input data
-    print("\n4. Making predictions for the entire dataset...")
-    y_pred = model.predict(data_trans.values)
+    print("\n4. Making predictions for entire dataset...")
+    y_pred = model.predict(data_scaled.values)
 
     # Get the model parameters to print them in report
     applied_parameters = ["{}: {}".format(
@@ -303,13 +315,12 @@ else:  # Prediction mode
 
     if target is not None:
         # Save confusion matrix
-        print("\n5. Creating confusion matrix:")
+        print("\n5 Creating confusion matrix:")
         conf_mat = confusion_matrix(target.values, y_pred)
         conf_mat = precision_recall(conf_mat)  # return Dataframe
         print("\n{}".format(conf_mat))
 
-        # Save classification report
-        print("\n6. Creating classification report:")
+        # Get classification report
         report_class = classification_report(target.values, y_pred)
         print("\n{}\n".format(report_class))
 
@@ -318,7 +329,7 @@ else:  # Prediction mode
         report_class = None
 
     # Save classifaction result as point cloud file with all data
-    print("\n7. Saving classified point cloud as CSV file:")
+    print("\n6. Saving classified point cloud as CSV file:")
     predic_filename = str(report_filename + '.csv')
     save_predictions(y_pred,
                      predic_filename,
@@ -328,7 +339,7 @@ else:  # Prediction mode
                      target_field=target)
 
 # Create and save prediction report
-print("\n8. Creating classification report:")
+print("\n7. Creating classification report:")
 spent_time = datetime.now() - create_time
 
 # Write the entire report
@@ -339,7 +350,7 @@ write_report(report_filename,
              start_time=create_time,
              elapsed_time=spent_time,
              feat_names=feature_names,
-             scale_method=scale_method,
+             scaler=scaler,
              data_len=nbr_pts,
              train_len=train_size,
              test_len=test_size,
@@ -351,6 +362,6 @@ write_report(report_filename,
              score_report=report_class)
 
 if mod == 'training':
-    print("\n{}\n\nModel trained in {}".format(report_class, spent_time))
+    print("\n\nModel trained in {}".format(spent_time))
 else:
     print("\nPredictions done in {}".format(spent_time))

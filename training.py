@@ -58,17 +58,21 @@ def split_dataset(data_values, target_values, train_ratio=0.5, test_ratio=0.5, s
     The samples is paired with train_ratio and test_ratio.
     :return: data_train, data_test, target_train and target_test as np.ndarray.
     """
+    # Set the train_size and test_size according sample size
+    train_size = int(samples * train_ratio)
+    test_size = int(samples * test_ratio)
+
     data_train, data_test, target_train, target_test = train_test_split(data_values, target_values,
                                                                         random_state=0,
-                                                                        train_size=train_ratio,
-                                                                        test_size=test_ratio,
+                                                                        train_size=train_size,
+                                                                        test_size=test_size,
                                                                         stratify=target_values)
     # Convert target_train and target_test column-vectors as 1d array
     target_train = target_train.reshape(train_size)
     target_test = target_test.reshape(test_size)
 
     print(" Done.")
-    print("\tNumber of used points: {} pts".format(train_size+test_size))
+    print("\tNumber of used points: {} pts".format(train_size + test_size))
     print("\tSize of train|test datasets: {} pts | {} pts".format(train_size, test_size))
 
     return data_train, data_test, target_train, target_test
@@ -251,7 +255,6 @@ def training_gridsearch(classifier, training_data, training_target, grid_params=
     :return: classifier, results: Classifier with best parameters and results from grid search.
     """
 
-    print('\n4. Training the model with GridSearchCV...')
     # Set cross_validation method with train_size 80% and validation_size 20%
     cross_val = StratifiedShuffleSplit(n_splits=5,
                                        train_size=0.8,
@@ -288,8 +291,6 @@ def training_nogridsearch(classifier, training_data, training_target, n_jobs=-1,
     :param scoring: Set the scorer according scikit-learn documentation.
     :return: model, training_scores: The training model and the scores of n_splits training.
     """
-
-    print("\n4. Training the model with cross validation...")
     # Set cross_validation method with train_size 80% and validation_size 20%
     cross_val = StratifiedShuffleSplit(n_splits=5, train_size=0.8, test_size=0.2, random_state=0)
 

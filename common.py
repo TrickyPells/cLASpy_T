@@ -131,33 +131,31 @@ def format_dataset(path_raw_data, mode='training', raw_classif=None):
     return feat_data, coord, hght, trgt
 
 
-def scale_dataset(data_to_scale, method='Standard'):
+def set_scaler(data_to_scale, method='Standard'):
     """
     Scale the dataset according different methods: 'Standard', 'Robust', 'MinMax'.
     :param data_to_scale: dataset to scale.
     :param method: (optional) Set method to scale dataset.
-    :return: The training and testing datasets: data_train_scaled, data_test_scaled.
+    :return: Scaler fitted with data.
     """
 
     # Perform the data scaling according the chosen method
     if method == 'Standard':
-        method = StandardScaler()  # Scale data with mean and std
+        scaler = StandardScaler()  # Scale data with mean and std
     elif method == 'Robust':
-        method = RobustScaler()  # Scale data with median and interquartile
+        scaler = RobustScaler()  # Scale data with median and interquartile
     elif method == 'MinMax':
-        method = MinMaxScaler()  # Scale data between 0-1 for each feature and translate (mean=0)
+        scaler = MinMaxScaler()  # Scale data between 0-1 for each feature and translate (mean=0)
     else:
-        method = StandardScaler()
+        scaler = StandardScaler()
         print("\nWARNING:"
               "\nScaling method '{}' was not recognized. Replaced by 'StandardScaler' method.\n".format(str(method)))
 
-    method.fit(data_to_scale)
-    data_scaled = method.transform(data_to_scale)
-    data_scaled = pd.DataFrame.from_records(data_scaled, columns=data_to_scale.columns.values.tolist())
+    scaler.fit(data_to_scale)
 
     print(" Done.")
 
-    return data_scaled
+    return scaler
 
 
 def precision_recall(conf_mat):
@@ -263,7 +261,7 @@ def format_nbr_pts(number_pts):
 
 
 def write_report(filename, mode, algo, data_file, start_time, elapsed_time, applied_param,
-                 feat_names, scale_method, data_len, train_len=None, test_len=None,
+                 feat_names, scaler, data_len, train_len=None, test_len=None,
                  model=None, grid_results=None, cv_results=None,
                  conf_mat=None, score_report=None):
     """
@@ -275,7 +273,7 @@ def write_report(filename, mode, algo, data_file, start_time, elapsed_time, appl
     :param start_time: Time when the script began.
     :param elapsed_time: Time spent between begin and end.
     :param feat_names: List of the all feature names.
-    :param scale_method: Method used to scale data.
+    :param scaler: Method used to scale data.
     :param data_len: Length of the used data.
     :param train_len: Length of the train data set.
     :param test_len: Length of the test data set.
@@ -293,7 +291,7 @@ def write_report(filename, mode, algo, data_file, start_time, elapsed_time, appl
         report.write('\n\nDatetime: ' + start_time.strftime("%Y-%m-%d %H:%M:%S"))
         report.write('\nFile: ' + data_file)
         report.write('\n\nFeatures:\n' + '\n'.join(feat_names))
-        report.write('\n\nScaling method: ' + scale_method)
+        report.write('\n\nScaling method:\n{}'.format(scaler))
 
         # Write the train and test size
         if mode == 'training':

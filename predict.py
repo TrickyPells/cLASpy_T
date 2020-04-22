@@ -43,8 +43,6 @@ def load_model(path_to_model):
     :return: loaded_model
     """
 
-    print("\n3. Loading model...", end='')
-
     # Check if path_to_model variable is str and load model
     if isinstance(path_to_model, str):
         loaded_model = joblib.load(path_to_model)
