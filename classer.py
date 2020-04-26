@@ -96,6 +96,10 @@ parser.add_argument("-p", "--parameters",
                          "Example: -p=\"{'n_estimators':50,'max_depth':5,'max_iter':500}\"",
                     type=str, metavar="[=\"dict\"]")
 
+parser.add_argument("--pca",
+                    help="Set the PCA analysis and the number of principal components",
+                    type=int, metavar="--pca=10")
+
 parser.add_argument("-s", "--samples",
                     help="Set the number of samples, in Million points, for large dataset.\n"
                          "If data length > samples:\n"
@@ -141,6 +145,8 @@ else:
 # Set non-common parameters as None
 train_size = None
 test_size = None
+pca = None
+pca_compo = None
 grid_results = None
 cv_results = None
 model_to_load = None
@@ -211,12 +217,25 @@ if mod == 'training':  # Training mode
     train_size = len(y_train_val)
     test_size = len(y_test)
 
+    # Apply PCA if it's not None
+    if args.pca:
+        pca_filename = str(report_filename + '_pca.png')
+        pca = set_pca(pca_filename,
+                      X_train_val,
+                      feature_names,
+                      n_components=args.pca)
+
+        X_train_val = pca.transform(X_train_val)
+        X_test = pca.transform(X_test)
+        pca_compo = str(pca.components_)
+        print("\nPCA Applied !\n")
+
     # TYPE OF TRAINING
     if args.grid_search:  # Training with GridSearchCV
         print('\n4. Training model with GridSearchCV...')
 
         # Check param_grid exists
-        if args.param_grid is not None:
+        if args.param_grid:
             param_grid = yaml.safe_load(args.param_grid)
         else:
             param_grid = None
@@ -259,10 +278,10 @@ if mod == 'training':  # Training mode
     report_class = classification_report(y_test, y_test_pred)
     print("\n{}\n".format(report_class))
 
-    # Save model and scaler
+    # Save model and scaler and pca
     print("\n6. Saving model and scaler in file:")
     model_filename = str(report_filename + '_' + args.scaler + '.model')
-    model_to_save = (model, scaler)
+    model_to_save = (model, scaler, pca)
     save_model(model_to_save, model_filename)
 
 else:  # Prediction mode
@@ -330,6 +349,7 @@ write_report(report_filename,
              train_len=train_size,
              test_len=test_size,
              applied_param=applied_parameters,
+             pca_compo=pca_compo,
              model=model_to_load,
              grid_results=grid_results,
              cv_results=cv_results,

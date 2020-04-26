@@ -35,6 +35,7 @@ from datetime import datetime
 import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt
+from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler, RobustScaler, MinMaxScaler
 
 
@@ -160,6 +161,32 @@ def format_dataset(path_raw_data, mode='training', raw_classif=None):
     print(" Done.")
 
     return feat_data, coord, hght, trgt
+
+
+def set_pca(filename, data_to_fit, ft_names, n_components=8):
+    """
+    Create PCA object fitting with the given data.
+    :param filename: Filename for the matshow figure of principal components.
+    :param data_to_fit: Dataset used to fit the PCA.
+    :param ft_names: List of the feature names.
+    :param n_components: (optional) Set the number of principal components (default=8).
+    :return: PCA object fitted with data
+    """
+    # Creating PCA object with correct number of component
+    pca = PCA(n_components=n_components, random_state=0)
+    pca.fit(data_to_fit)
+
+    # Export principal components as picture
+    plt.matshow(pca.components_, cmap='seismic')
+    # plt.title("PCA Principal Components")
+    plt.yticks(list(range(0, n_components)), list(range(1, n_components+1)))
+    plt.colorbar()
+    plt.xticks(range(len(ft_names)), ft_names, rotation=60, ha='left')
+    plt.xlabel("Features")
+    plt.ylabel("Principal Components")
+    plt.savefig(filename)
+
+    return pca
 
 
 def set_scaler(data_to_scale, method='Standard'):
@@ -293,7 +320,7 @@ def format_nbr_pts(number_pts):
 
 def write_report(filename, mode, algo, data_file, start_time, elapsed_time, applied_param,
                  feat_names, scaler, data_len, train_len=None, test_len=None,
-                 model=None, grid_results=None, cv_results=None,
+                 pca_compo=None, model=None, grid_results=None, cv_results=None,
                  conf_mat=None, score_report=None):
     """
     Write the report of training or predictions in .TXT file.
@@ -309,6 +336,7 @@ def write_report(filename, mode, algo, data_file, start_time, elapsed_time, appl
     :param train_len: Length of the train data set.
     :param test_len: Length of the test data set.
     :param applied_param: Parameters applied to create model or make predictions.
+    :param pca_compo: Principal components of the PCA
     :param model: Model used to make predictions.
     :param grid_results: Results of the GridSearchCV.
     :param cv_results: Results of the Cross Validation.
@@ -335,6 +363,10 @@ def write_report(filename, mode, algo, data_file, start_time, elapsed_time, appl
             report.write('\n\nNumber of points to predict: ' + str(data_len) + ' pts')
             report.write('\nModel used: ' + model)
 
+        if pca_compo:
+            report.write('\n\nPCA Components:\n')
+            report.write(pca_compo)
+
         # Write the GridSearchCV results
         if grid_results is not None:
             report.write('\n\n\nResults of the GridSearchCV:\n')
@@ -354,7 +386,7 @@ def write_report(filename, mode, algo, data_file, start_time, elapsed_time, appl
             report.write(conf_mat.to_string())
 
         # Write the score report of the classification
-        if score_report is not None:
+        if score_report:
             report.write('\n\n\nClassification Report:\n')
             report.write(score_report)
 
