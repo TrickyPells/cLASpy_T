@@ -98,7 +98,7 @@ parser.add_argument("-p", "--parameters",
 
 parser.add_argument("--pca",
                     help="Set the PCA analysis and the number of principal components",
-                    type=int, metavar="--pca=10")
+                    type=int, metavar="--pca=8")
 
 parser.add_argument("-s", "--samples",
                     help="Set the number of samples, in Million points, for large dataset.\n"
@@ -196,18 +196,10 @@ feature_names = data.columns.values.tolist()
 # TRAINING or PREDICTION
 if mod == 'training':  # Training mode
 
-    # Scale the dataset as 'Standard', 'Robust' or 'MinMaxScaler'
-    print("\n2. Scaling data...", end='')
-    scale_method = args.scaler
-    scaler = set_scaler(data, method=scale_method)
-    data_scaled = scaler.transform(data)
-    data_scaled = pd.DataFrame.from_records(
-        data_scaled, columns=data.columns.values.tolist())
-
     # Split data into training and testing sets
-    print("\n3. Splitting data in train and test sets...", end='')
+    print("\n2. Splitting data in train and test sets...", end='')
     X_train_val, X_test, y_train_val, y_test = split_dataset(
-        data_scaled.values,
+        data.values,
         target.values,
         train_ratio=args.train_ratio,
         test_ratio=args.test_ratio,
@@ -217,18 +209,17 @@ if mod == 'training':  # Training mode
     train_size = len(y_train_val)
     test_size = len(y_test)
 
-    # Apply PCA if it's not None
+    # Scale the dataset as 'Standard', 'Robust' or 'MinMaxScaler'
+    print("\n3. Scaling data...")
+    scaler = set_scaler(method=args.scaler)
+
+    # Create PCA if it's called
     if args.pca:
         pca_filename = str(report_filename + '_pca.png')
-        pca = set_pca(pca_filename,
-                      X_train_val,
-                      feature_names,
-                      n_components=args.pca)
+        pca = set_pca(n_components=args.pca)
 
-        X_train_val = pca.transform(X_train_val)
-        X_test = pca.transform(X_test)
-        pca_compo = str(pca.components_)
-        print("\nPCA Applied !\n")
+    # Create Pipeline for GridSearchCV or CV
+    pipeline = set_pipeline(scaler, classifier, pca=pca)
 
     # TYPE OF TRAINING
     if args.grid_search:  # Training with GridSearchCV
@@ -239,10 +230,10 @@ if mod == 'training':  # Training mode
             param_grid = yaml.safe_load(args.param_grid)
         else:
             param_grid = None
-        param_grid = check_grid_params(classifier,
+        param_grid = check_grid_params(pipeline,
                                        grid_params=param_grid)
 
-        model, grid_results = training_gridsearch(classifier,
+        model, grid_results = training_gridsearch(pipeline,
                                                   X_train_val,
                                                   y_train_val,
                                                   grid_params=param_grid,
@@ -251,14 +242,16 @@ if mod == 'training':  # Training mode
 
     else:  # Training with Cross Validation
         print("\n4. Training model with cross validation...")
-        model, cv_results = training_nogridsearch(classifier,
+        model, cv_results = training_nogridsearch(pipeline,
                                                   X_train_val,
                                                   y_train_val,
                                                   scoring=args.scoring,
                                                   n_jobs=args.n_jobs)
 
-    print("\tScore model with the test dataset: {0:.4f}\n".format(
+    print("\tScore with the test dataset: {0:.4f}\n".format(
         model.score(X_test, y_test)))
+
+    # Be careful --> Model is a pipeline
 
     # Importance of each feature in RF and GB
     if args.grid_search or args.algorithm == 'ann':
@@ -280,8 +273,8 @@ if mod == 'training':  # Training mode
 
     # Save model and scaler and pca
     print("\n6. Saving model and scaler in file:")
-    model_filename = str(report_filename + '_' + args.scaler + '.model')
-    model_to_save = (model, scaler, pca)
+    model_filename = str(report_filename + '.model')
+    model_to_save = model
     save_model(model_to_save, model_filename)
 
 else:  # Prediction mode

@@ -36,6 +36,7 @@ import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt
 from sklearn.decomposition import PCA
+from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler, RobustScaler, MinMaxScaler
 
 
@@ -163,41 +164,64 @@ def format_dataset(path_raw_data, mode='training', raw_classif=None):
     return feat_data, coord, hght, trgt
 
 
-def set_pca(filename, data_to_fit, ft_names, n_components=8):
+def plot_pca(filename, pca, ft_names):
     """
-    Create PCA object fitting with the given data.
+    Create and save figure of PCA principal components.
     :param filename: Filename for the matshow figure of principal components.
-    :param data_to_fit: Dataset used to fit the PCA.
+    :param pca: PCA already fitted with data.
     :param ft_names: List of the feature names.
-    :param n_components: (optional) Set the number of principal components (default=8).
-    :return: PCA object fitted with data
+    :return:
     """
-    # Creating PCA object with correct number of component
-    pca = PCA(n_components=n_components, random_state=0)
-    pca.fit(data_to_fit)
-
     # Export principal components as picture
     plt.matshow(pca.components_, cmap='seismic')
     # plt.title("PCA Principal Components")
-    plt.yticks(list(range(0, n_components)), list(range(1, n_components+1)))
+    plt.yticks(list(range(0, len(pca.components_)), list(range(1, len(pca.components) + 1))))
     plt.colorbar()
     plt.xticks(range(len(ft_names)), ft_names, rotation=60, ha='left')
     plt.xlabel("Features")
     plt.ylabel("Principal Components")
     plt.savefig(filename)
 
+
+def set_pca(n_components):
+    """
+    Set the PCA according to the number of principal components
+    :param n_components: Number of principal components.
+    :return: PCA object
+    """
+    pca = PCA(n_components=n_components)
+
     return pca
 
 
-def set_scaler(data_to_scale, method='Standard'):
+def set_pipeline(scaler, classifier, pca=None):
     """
-    Scale the dataset according different methods: 'Standard', 'Robust', 'MinMax'.
-    :param data_to_scale: dataset to scale.
-    :param method: (optional) Set method to scale dataset.
-    :return: Scaler fitted with data.
+    Set the pipeline for GridSearchCV and Cross-Validation
+    :param scaler: Scaler used.
+    :param classifier: Classifier used for training
+    :param pca: (optional) Principal Component Analysis.
+    :return: Pipeline
     """
+    # Two configurations depending of PCA existence
+    if pca:
+        pipe = Pipeline([("scaler", scaler),
+                         ("pca", pca),
+                         ("classifier", classifier)])
 
-    # Perform the data scaling according the chosen method
+    else:
+        pipe = Pipeline([("scaler", scaler),
+                         ("classifier", classifier)])
+
+    return pipe
+
+
+def set_scaler(method='Standard'):
+    """
+    Set the scaler according to different methods: 'Standard', 'Robust', 'MinMax'.
+    :param method: Set method to scale dataset.
+    :return: Scaler.
+    """
+    # Set the data scaling according the chosen method
     if method == 'Standard':
         scaler = StandardScaler()  # Scale data with mean and std
     elif method == 'Robust':
@@ -209,16 +233,12 @@ def set_scaler(data_to_scale, method='Standard'):
         print("\nWARNING:"
               "\nScaling method '{}' was not recognized. Replaced by 'StandardScaler' method.\n".format(str(method)))
 
-    scaler.fit(data_to_scale)
-
-    print(" Done.")
-
     return scaler
 
 
 def precision_recall(conf_mat):
     """
-    Compute precision, recal and global accuracy from confusion matrix.
+    Compute precision, recall and global accuracy from confusion matrix.
     :param conf_mat: The confusion matrix as a numpy.array.
    :return conf_mat_up: Confusion matrix wth precision, recall and global accuracy
     """
@@ -400,13 +420,13 @@ def write_report(filename, mode, algo, data_file, start_time, elapsed_time, appl
 def save_feature_importance(model, feature_names, feature_filename):
     """
     Save the feature importances of RandomForest or GradientBoosting models into file.
-    :param model: The RandomForest or GradientBoostingClassifier
-    :param feature_names: The names of the features.
-    :param feature_filename: The filename and path of the feature importance figure file.
+    :param model: Pipeline with RandomForest or GradientBoosting Classifier
+    :param feature_names: Names of the features.
+    :param feature_filename: Filename and path of the feature importance figure file.
     :return:
     """
     # Get the feature importances
-    importances = model.feature_importances_
+    importances = model.named_steps['classifier'].feature_importances_
 
     # Create feature_imp_dict
     feature_imp_dict = dict()
