@@ -274,20 +274,19 @@ if mod == 'training':  # Training mode
     # Save model and scaler and pca
     print("\n6. Saving model and scaler in file:")
     model_filename = str(report_filename + '.model')
-    model_to_save = model
-    save_model(model_to_save, model_filename)
+    save_model(model, model_filename)
 
 else:  # Prediction mode
 
     # Get model and scaling parameter
-    print("\n2. Loading model...", end='')
+    print("\n2. Loading model...")
     model_to_load = args.model_to_import  # Set variable for the report
     loaded_model = load_model(model_to_load)
     # Get the model
     model = loaded_model[0]
 
     # Get the scaler and scale data
-    print("\n3. Scaling data...", end='')
+    print("\n3. Scaling data...")
     scaler = loaded_model[1]
     data_scaled = scaler.transform(data)
     data_scaled = pd.DataFrame.from_records(data_scaled, columns=data.columns.values.tolist())
