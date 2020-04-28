@@ -71,7 +71,6 @@ def split_dataset(data_values, target_values, train_ratio=0.5, test_ratio=0.5, s
     target_train = target_train.reshape(train_size)
     target_test = target_test.reshape(test_size)
 
-    print(" Done.")
     print("\tNumber of used points: {} pts".format(train_size + test_size))
     print("\tSize of train|test datasets: {} pts | {} pts".format(train_size, test_size))
 
@@ -308,7 +307,7 @@ def training_nogridsearch(pipeline, training_data, training_target, n_jobs=-1, s
     time.sleep(1.)  # Delay to print the previous message
     pipeline.fit(training_data, training_target)
 
-    print(" Model trained!\n")
+    print(" Model trained!")
 
     return pipeline, training_scores
 

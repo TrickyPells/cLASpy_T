@@ -126,11 +126,14 @@ def format_dataset(path_raw_data, mode='training', raw_classif=None):
         raise ValueError("A 'target' field is mandatory for training!")
     if field_t:
         target = frame.loc[:, field_t]
+    else:
+        target = None
 
     # Select only features fields by removing X, Y, Z and target fields
     feat_name = fields_name
     for field in [field_x, field_y, field_z, field_t]:
-        feat_name.remove(field)
+        if field:
+            feat_name.remove(field)
 
     # Remove the raw_classification of some LiDAR point clouds
     if isinstance(raw_classif, str):
@@ -175,6 +178,26 @@ def set_pca(n_components):
     pca = PCA(n_components=n_components)
 
     return pca
+
+
+def apply_pca(pca, data):
+    """
+    Apply PCA transformation to the data.
+    :param pca: PCA to apply.
+    :param data: Data to tranform.
+    :return: data_pca as pandas.core.frame.DataFrame
+    """
+    #  Create list of component names
+    pca_compo_list = list()
+    for idx, compo in enumerate(pca.components_):
+        pca_compo_list.append('Principal_Compo_' + str(idx + 1))
+
+    # Apply PCA transformation to the data
+    data_pca = pca.transform(data)  # Becomes np.array
+    data_pca = pd.DataFrame.from_records(data_pca,
+                                         columns=pca_compo_list)  # Becomes pd.DataFrame
+
+    return data_pca
 
 
 def set_pipeline(scaler, classifier, pca=None):

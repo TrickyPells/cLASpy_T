@@ -53,7 +53,7 @@ def load_model(path_to_model):
     else:
         raise TypeError("Argument 'model_to_import' must be a string!")
 
-    # Check if the model is GridSearchCV or classifier
+    # Check if the model is GridSearchCV or Pipeline
     if isinstance(loaded_model, GridSearchCV):
         loaded_model = loaded_model.best_estimator_
     elif isinstance(loaded_model, Pipeline):
@@ -62,20 +62,18 @@ def load_model(path_to_model):
         raise IOError('Loading model failed !\n'
                       'Model to load must be GridSearchCV or Pipeline type !')
 
-    # Fill list with classifier, scaler and pca
-    list_model = list()
-    list_model.append(loaded_model.named_steps['classifier'])  # Load classifier to list
-    list_model.append(loaded_model.named_steps['scaler'])  # Add scaler to list
+    # Fill classifier, scaler and pca
+    model = loaded_model.named_steps['classifier']  # Load classifier
+    scaler = loaded_model.named_steps['scaler']  # Load scaler
     try:
-        list_model.append(loaded_model.named_steps['pca'])  # Add PCA if exists
+        pca = loaded_model.named_steps['pca']  # Load PCA if exists
     except KeyError as ke:
-        print('Any PCA data to load from model.')
+        print('\tAny PCA data to load from model.')
+        pca = None
     else:
-        print('PCA data load from model.')
+        print('\tPCA data load from model.')
 
-
-
-    return list_model
+    return model, scaler, pca
 
 
 def save_predictions(target_pred, file_name, xy_fields=None,

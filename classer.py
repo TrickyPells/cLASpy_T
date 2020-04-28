@@ -182,8 +182,6 @@ data, xy_coord, z_height, target = format_dataset(raw_data,
                                                   mode=mod,
                                                   raw_classif='lassif')
 
-print('Data:\n' + '\n'.join(data.columns.values.tolist()))
-
 # Get the number of points
 nbr_pts = nbr_pts(data_length=len(z_height), samples_size=args.samples)
 str_nbr_pts = format_nbr_pts(nbr_pts)  # Format in string for filename
@@ -199,7 +197,7 @@ feature_names = data.columns.values.tolist()
 if mod == 'training':  # Training mode
 
     # Split data into training and testing sets
-    print("\n2. Splitting data in train and test sets...", end='')
+    print("\n2. Splitting data in train and test sets...")
     X_train_val, X_test, y_train_val, y_test = split_dataset(
         data.values,
         target.values,
@@ -225,7 +223,7 @@ if mod == 'training':  # Training mode
 
     # TYPE OF TRAINING
     if args.grid_search:  # Training with GridSearchCV
-        print('\n4. Training model with GridSearchCV...')
+        print('\n4. Training model with GridSearchCV...\n')
 
         # Check param_grid exists
         if args.param_grid:
@@ -243,7 +241,7 @@ if mod == 'training':  # Training mode
                                                   n_jobs=args.n_jobs)
 
     else:  # Training with Cross Validation
-        print("\n4. Training model with cross validation...")
+        print("\n4. Training model with cross validation...\n")
         model, cv_results = training_nogridsearch(pipeline,
                                                   X_train_val,
                                                   y_train_val,
@@ -253,8 +251,6 @@ if mod == 'training':  # Training mode
     print("\tScore with the test dataset: {0:.4f}\n".format(
         model.score(X_test, y_test)))
 
-    # Be careful --> Model is a pipeline
-
     # Importance of each feature in RF and GB
     if args.grid_search or args.algorithm == 'ann':
         args.importance = False  # Overwrite 'False' if '-i' option set with grid, ann or svm
@@ -262,16 +258,13 @@ if mod == 'training':  # Training mode
         feat_imp_filename = str(report_filename + '_feat_importance.png')
         save_feature_importance(model, feature_names, feat_imp_filename)
 
-    # Save confusion matrix
-    print("\n5. Creating confusion matrix:")
+    # Create confusion matrix
+    print("\n5. Creating confusion matrix...")
     y_test_pred = model.predict(X_test)
     conf_mat = confusion_matrix(y_test, y_test_pred)
     conf_mat = precision_recall(conf_mat)  # return Dataframe
-    print("\n{}".format(conf_mat))
-
-    # Get classification report
-    report_class = classification_report(y_test, y_test_pred)
-    print("\n{}\n".format(report_class))
+    report_class = classification_report(y_test, y_test_pred)  # Get classification report
+    print("\n{}".format(report_class))
 
     # Save model and scaler and pca
     print("\n6. Saving model and scaler in file:")
@@ -280,18 +273,21 @@ if mod == 'training':  # Training mode
 
 else:  # Prediction mode
 
-    # Get model and scaling parameter
+    # Get model, scaler and pca
     print("\n2. Loading model...")
     model_to_load = args.model_to_import  # Set variable for the report
-    loaded_model = load_model(model_to_load)
-    # Get the model
-    model = loaded_model[0]
+    model, scaler, pca = load_model(model_to_load)
 
-    # Get the scaler and scale data
+    # Apply scaler to data
     print("\n3. Scaling data...")
-    scaler = loaded_model[1]
     data_scaled = scaler.transform(data)
-    data_scaled = pd.DataFrame.from_records(data_scaled, columns=data.columns.values.tolist())
+    data_scaled = pd.DataFrame.from_records(data_scaled,
+                                            columns=data.columns.values.tolist())
+
+    # Apply pca to data if exists
+    if pca:
+        data_scaled = apply_pca(pca, data_scaled)
+        pca_compo = np.array2string(pca.components_)
 
     # Predic target of input data
     print("\n4. Making predictions for entire dataset...")
@@ -299,13 +295,10 @@ else:  # Prediction mode
 
     if target is not None:
         # Save confusion matrix
-        print("\n5 Creating confusion matrix:")
+        print("\n5 Creating confusion matrix...")
         conf_mat = confusion_matrix(target.values, y_pred)
         conf_mat = precision_recall(conf_mat)  # return Dataframe
-        print("\n{}".format(conf_mat))
-
-        # Get classification report
-        report_class = classification_report(target.values, y_pred)
+        report_class = classification_report(target.values, y_pred)  # Get classification report
         print("\n{}\n".format(report_class))
 
     # Save classifaction result as point cloud file with all data
@@ -324,8 +317,8 @@ print("\n7. Creating classification report:")
 print(report_filename + '.txt')
 
 # Get the model parameters to print them in report
-applied_parameters = ["{}: {}".format(
-    param, model.get_params()[param]) for param in model.get_params()]
+applied_parameters = ["{}: {}".format(param, model.get_params()[param])
+                      for param in model.get_params()]
 
 # Compute elapsed time
 spent_time = datetime.now() - start_time
@@ -351,6 +344,6 @@ write_report(report_filename,
              score_report=report_class)
 
 if mod == 'training':
-    print("\n\nModel trained in {}".format(spent_time))
+    print("\nModel trained in {}".format(spent_time))
 else:
     print("\nPredictions done in {}".format(spent_time))
