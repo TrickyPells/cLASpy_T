@@ -83,8 +83,7 @@ parser.add_argument("-k", "--param_grid",
 
 parser.add_argument("-m", "--model_to_import",
                     help="The model file to import to make predictions:\n"
-                         "    [WINDOWS]: 'C:/path/to/the/training/model.file'\n"
-                         "    [UNIX]: '/path/to/the/training/model.file'",
+                         "'/path/to/the/training/file.model'",
                     type=str, metavar="[=\"/path/to.file\"]")
 
 parser.add_argument("-n", "--n_jobs",
