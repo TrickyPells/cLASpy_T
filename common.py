@@ -77,91 +77,74 @@ def format_dataset(path_raw_data, mode='training', raw_classif=None):
     """
     Format the input data as panda DataFrame. Exclude XYZ fields.
     :param path_raw_data: Path of the input data as text file (.CSV).
-    :param mode: Set the mode ['train', 'pred'] to check mandatory 'target' field in case of training.
+    :param mode: Set the mode ['training', 'prediction'] to check mandatory 'target' field in case of training.
     :param raw_classif: (optional): set the field name of the raw_classification of some LiDAR point clouds.
     :return: features_data, coord, height and target as DataFrames.
     """
-
     # Load data into DataFrame
-    frame = pd.read_csv(path_raw_data, header='infer')
+    frame = pd.read_csv(path_raw_data, sep=',', header='infer')
 
     # Create list name of all fields
     fields_name = frame.columns.values.tolist()
 
     # Clean up the header built by CloudCompare ('//X')
-    for index, field in enumerate(fields_name):
+    for field in fields_name:
         if field == '//X':
-            fields_name[index] = 'X'
+            frame = frame.rename(columns={"//X": "X"}, errors='raise')
 
-    # Search X coordinate
-    if 'X' in fields_name:
-        index_x = fields_name.index('X')
-    elif 'x' in fields_name:
-        index_x = fields_name.index('x')
-    else:
-        index_x = None
+    # Update list name of all fields
+    fields_name = frame.columns.values.tolist()
 
-    # Search Y coordinate
-    if 'Y' in fields_name:
-        index_y = fields_name.index('Y')
-    elif 'y' in fields_name:
-        index_y = fields_name.index('y')
-    else:
-        index_y = None
+    # Search X, Y, Z, target and raw_classif fields
+    field_x = None
+    field_y = None
+    field_z = None
+    field_t = None
+    for field in fields_name:
+        if field.casefold() == 'x':  # casefold() to be non case-sensitive
+            field_x = field
+        if field.casefold() == 'y':
+            field_y = field
+        if field.casefold() == 'z':
+            field_z = field
+        if field.casefold() == 'target':
+            field_t = field
 
-    # Search Z coordinate
-    if 'Z' in fields_name:
-        index_z = fields_name.index('Z')
-    elif 'z' in fields_name:
-        index_z = fields_name.index('z')
-    else:
-        index_z = None
-
-    # Create DataFrame with X and Y coordinates
-    if index_x is not None and index_y is not None:
-        coord = frame.iloc[:, [index_x, index_y]]
-    else:
+    # Create XY field -> 'coord'
+    if field_x is None or field_y is None:
         raise ValueError("There is no X or Y field, or both!")
+    coord = frame[[field_x, field_y]]
+    # coord = frame.loc[:, [field_x, field_y]]
 
-    # Create DataFrame with Z coordinate
-    if index_z is not None:
-        hght = frame.iloc[:, [index_z]]
-    else:
+    # Create Z field -> 'height'
+    if field_z is None:
         raise ValueError("There is no Z field!")
+    height = frame.loc[:, field_z]
 
-    # Create dataFrame of targets
-    if mode == 'training':
-        if 'target' in fields_name:
-            trgt = frame.loc[:, ['target']]
-        else:
-            raise ValueError("A 'target' field is mandatory for training!")
-    else:
-        if 'target' in fields_name:
-            trgt = frame.loc[:, ['target']]
-        else:
-            trgt = None
+    # Create 'target' field
+    if mode == 'training' and field_t is None:
+        raise ValueError("A 'target' field is mandatory for training!")
+    if field_t:
+        target = frame.loc[:, field_t]
 
     # Select only features fields by removing X, Y, Z and target fields
     feat_name = fields_name
-    for field in ['X', 'Y', 'Z', 'target']:
+    for field in [field_x, field_y, field_z, field_t]:
         feat_name.remove(field)
 
     # Remove the raw_classification of some LiDAR point clouds
-    if raw_classif is not None:
-        if isinstance(raw_classif, str):
-            for index, field in enumerate(feat_name):
-                if raw_classif in field:
-                    feat_name.remove(fields_name[index])
+    if isinstance(raw_classif, str):
+        for field in feat_name:
+            if raw_classif.casefold() in field.casefold():
+                feat_name.remove(field)
 
-    # formatted data without extra fields
+    # data without extra fields
     feat_data = frame.loc[:, feat_name]
 
     # Replace NAN values by median
     feat_data.fillna(value=feat_data.median(0), inplace=True)  # .median(0) computes median/col
 
-    print(" Done.")
-
-    return feat_data, coord, hght, trgt
+    return feat_data, coord, height, target
 
 
 def plot_pca(filename, pca, ft_names):

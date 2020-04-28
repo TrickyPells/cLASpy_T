@@ -177,10 +177,12 @@ raw_data, folder_path, start_time = introduction(algo, args.csv_data_file)
 timestamp = start_time.strftime("%m%d_%H%M")  # Timestamp for file creation MD_HM
 
 # FORMAT DATA as XY & Z & target DataFrames and remove raw_classification from file.
-print("\n1. Formatting data as pandas.Dataframe...", end='')
+print("\n1. Formatting data as pandas.Dataframe...")
 data, xy_coord, z_height, target = format_dataset(raw_data,
                                                   mode=mod,
                                                   raw_classif='lassif')
+
+print('Data:\n' + '\n'.join(data.columns.values.tolist()))
 
 # Get the number of points
 nbr_pts = nbr_pts(data_length=len(z_height), samples_size=args.samples)
