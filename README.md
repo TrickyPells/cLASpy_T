@@ -106,6 +106,35 @@ then test_ratio = 1 - train_ratio*
 If train_ratio + test_ratio > 1:\
 then test_ratio = 1 - train_ratio*
 
+## **Branches**
+List all branches (local and remote):
+```bash
+git branch -a
+```
+
+```bash
+  cheno
+  dev
+* master
+  remotes/origin/HEAD -> origin/master
+  remotes/origin/beta
+  remotes/origin/cheno
+  remotes/origin/dev
+  remotes/origin/master
+```
+
+To create a new local branch from remote:\
+*(Here, to create a local branch 'beta')*
+
+```bash
+git chechout --track origin/beta
+```
+
+```bash
+Switched to a new branch 'beta'
+Branch 'beta' set up to track remote branch 'beta' from 'origin'.
+```
+
 ## **Contributing**
 Pull requests are welcome.\
 For major changes, please open an issue first to discuss what you would like to change.
