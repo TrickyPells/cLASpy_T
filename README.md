@@ -123,13 +123,17 @@ git branch -a
   remotes/origin/master
 ```
 
-To create a new local branch from remote, give the same name.
-Here, to create a local branch 'beta'
+To create a new local branch from remote:\
+*(Here, to create a local branch 'beta')*
 
 ```bash
-git chechout -b beta
+git chechout --track origin/beta
 ```
 
+```bash
+Switched to a new branch 'beta'
+Branch 'beta' set up to track remote branch 'beta' from 'origin'.
+```
 
 ## **Contributing**
 Pull requests are welcome.\
