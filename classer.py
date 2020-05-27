@@ -222,7 +222,7 @@ if mod == 'training':  # Training mode
 
     # TYPE OF TRAINING
     if args.grid_search:  # Training with GridSearchCV
-        print('\n4. Training model with GridSearchCV...\n')
+        print('\n4.1 Training model with GridSearchCV...\n')
 
         # Check param_grid exists
         if args.param_grid:
@@ -240,7 +240,7 @@ if mod == 'training':  # Training mode
                                                   n_jobs=args.n_jobs)
 
     else:  # Training with Cross Validation
-        print("\n4. Training model with cross validation...\n")
+        print("\n4.1 Training model with cross validation...\n")
         model, cv_results = training_nogridsearch(pipeline,
                                                   X_train_val,
                                                   y_train_val,
@@ -258,7 +258,7 @@ if mod == 'training':  # Training mode
         save_feature_importance(model, feature_names, feat_imp_filename)
 
     # Create confusion matrix
-    print("\n5. Creating confusion matrix...")
+    print("\n4.2. Creating confusion matrix...")
     y_test_pred = model.predict(X_test)
     conf_mat = confusion_matrix(y_test, y_test_pred)
     conf_mat = precision_recall(conf_mat)  # return Dataframe
@@ -266,7 +266,7 @@ if mod == 'training':  # Training mode
     print("\n{}".format(report_class))
 
     # Save model and scaler and pca
-    print("\n6. Saving model and scaler in file:")
+    print("\n5. Saving model and scaler in file:")
     model_filename = str(report_filename + '.model')
     save_model(model, model_filename)
 
@@ -290,18 +290,19 @@ else:  # Prediction mode
 
     # Predic target of input data
     print("\n4. Making predictions for entire dataset...")
-    y_pred = model.predict(data_scaled.values)
+    # y_pred = model.predict(data_scaled.values)
+    y_pred = predict_with_proba(model, data_scaled.values)
 
     if target is not None:
         # Save confusion matrix
-        print("\n5 Creating confusion matrix...")
-        conf_mat = confusion_matrix(target.values, y_pred)
+        print("\n4.2 Creating confusion matrix...")
+        conf_mat = confusion_matrix(target.values, y_pred.transpose()[0])
         conf_mat = precision_recall(conf_mat)  # return Dataframe
-        report_class = classification_report(target.values, y_pred)  # Get classification report
+        report_class = classification_report(target.values, y_pred.transpose()[0])  # Get classification report
         print("\n{}\n".format(report_class))
 
     # Save classifaction result as point cloud file with all data
-    print("\n6. Saving classified point cloud as CSV file:")
+    print("\n5. Saving classified point cloud as CSV file:")
     predic_filename = str(report_filename + '.csv')
     print(predic_filename)
     save_predictions(y_pred,
@@ -312,7 +313,7 @@ else:  # Prediction mode
                      target_field=target)
 
 # Create and save prediction report
-print("\n7. Creating classification report:")
+print("\n6. Creating classification report:")
 print(report_filename + '.txt')
 
 # Get the model parameters to print them in report

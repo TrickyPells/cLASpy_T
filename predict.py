@@ -29,6 +29,7 @@
 # --------------------
 
 import joblib
+import numpy as np
 import pandas as pd
 
 from sklearn.pipeline import Pipeline
@@ -74,11 +75,34 @@ def load_model(path_to_model):
     return model, scaler, pca
 
 
+def predict_with_proba(model, data_to_predic):
+    """
+    Make predictions with probability for each class.
+    :param model: The model to use to make predictions.
+    :param data_to_predic: The data to predict.
+    :return: The prediction, the best probability and the probability for each class.
+    """
+    # Get the probability for each class
+    y_proba = model.predict_proba(data_to_predic)
+
+    # Get the best probability and the corresponding class
+    y_best_proba = np.amax(y_proba, axis=1)
+    y_best_class = np.argmax(y_proba, axis=1)
+
+    # Add best proba and bet class to probability per class
+    y_proba = np.insert(y_proba, 0, y_best_proba, axis=1)
+    y_proba = np.insert(y_proba, 0, y_best_class, axis=1)
+
+    return y_proba
+
+
 def save_predictions(predictions, file_name, xy_fields=None,
                      z_field=None, data_fields=None, target_field=None):
     """
     Save the report of the classification algorithms with test dataset.
-    :param predictions: The point cloud classified.
+    :param predictions: Array with first column as class predicted,
+    second column as probability of predicted class,
+    following columns as probabilities for each class.
     :param file_name: The path and name of the file.
     :param xy_fields: The X and Y fields from the raw_data.
     :param z_field: The Z field from the raw_data
@@ -86,13 +110,14 @@ def save_predictions(predictions, file_name, xy_fields=None,
     :param target_field: The target field from the raw_data.
     :return:
     """
+    # Get number of class in prediction array (number of column - 2)
+    numb_class = predictions.shape[1] - 2
+
+    # Set header for the predictions
+    pred_header = ['Prediction', 'BestProba'] + ['Proba' + str(cla) for cla in range(0, numb_class)]
+
     # Set the np.array of target_pred pd.Dataframe
-    if predictions.shape[0] > 1:
-        predictions = pd.DataFrame(predictions, columns=['Predictions'])
-    elif predictions.shape[1] > 1:
-        predictions = pd.DataFrame(predictions)
-    else:
-        raise ValueError("The predicted target field is empty!")
+    predictions = pd.DataFrame(predictions, columns=pred_header).round(decimals=3)
 
     # Set the list of DataFrames
     final_classif_list = list()
