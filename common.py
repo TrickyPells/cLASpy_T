@@ -59,8 +59,8 @@ def introduction(algo, csv_file):
     # Create a folder to store models, reports and predictions
     print("Create a new folder to store the result files...", end='')
     raw_data = csv_file
-    raw_data = '/'.join(raw_data.split('\\'))  # Change '\' in '/'
-    folder_path = '.'.join(raw_data.split('.')[:-1])  # remove extension so give folder path
+    raw_data = os.path.normpath(raw_data)
+    folder_path = os.path.splitext(raw_data)[0]  # remove extension so give folder path
     try:
         os.mkdir(folder_path)  # Using file path to make new folder
         print(" Done.")

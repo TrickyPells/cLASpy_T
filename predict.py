@@ -70,17 +70,15 @@ def load_model(path_to_model):
     except KeyError as ke:
         print('\tAny PCA data to load from model.')
         pca = None
-    else:
-        print('\tPCA data load from model.')
 
     return model, scaler, pca
 
 
-def save_predictions(target_pred, file_name, xy_fields=None,
+def save_predictions(predictions, file_name, xy_fields=None,
                      z_field=None, data_fields=None, target_field=None):
     """
-    Save the report of the classsification algorithms with test dataset.
-    :param target_pred: The point cloud classified.
+    Save the report of the classification algorithms with test dataset.
+    :param predictions: The point cloud classified.
     :param file_name: The path and name of the file.
     :param xy_fields: The X and Y fields from the raw_data.
     :param z_field: The Z field from the raw_data
@@ -89,10 +87,10 @@ def save_predictions(target_pred, file_name, xy_fields=None,
     :return:
     """
     # Set the np.array of target_pred pd.Dataframe
-    if target_pred.shape[0] > 1:
-        target_pred = pd.DataFrame(target_pred, columns=['Predictions'])
-    elif target_pred.shape[1] > 1:
-        target_pred = pd.DataFrame(target_pred)
+    if predictions.shape[0] > 1:
+        predictions = pd.DataFrame(predictions, columns=['Predictions'])
+    elif predictions.shape[1] > 1:
+        predictions = pd.DataFrame(predictions)
     else:
         raise ValueError("The predicted target field is empty!")
 
@@ -118,7 +116,7 @@ def save_predictions(target_pred, file_name, xy_fields=None,
     if target_field is not None:
         final_classif_list.append(target_field)
 
-    final_classif_list.append(target_pred)
+    final_classif_list.append(predictions)
     final_classif = pd.concat(final_classif_list, axis=1)
 
     final_classif.to_csv(file_name, sep=',', header=True, index=False)

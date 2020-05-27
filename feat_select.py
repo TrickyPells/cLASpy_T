@@ -41,8 +41,6 @@ from predict import *
 from training import *
 
 
-
-
 # -------------------------
 # --------- MAIN ----------
 # -------------------------
@@ -72,7 +70,7 @@ if __name__ == '__main__':
     print(features)
     mask = select.get_support()
     print(mask)
-    print(features[mask])
+    print('\n'.join(features[mask]))
     plt.matshow(mask.reshape(1, -1), cmap='gray_r')
     plt.xlabel("Sample index")
     plt.yticks(())
