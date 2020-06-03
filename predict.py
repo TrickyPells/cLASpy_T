@@ -28,10 +28,9 @@
 # --- DEPENDENCIES ---
 # --------------------
 
-import joblib
-import numpy as np
-import pandas as pd
+from training import *
 
+from sklearn.cluster import KMeans
 from sklearn.pipeline import Pipeline
 from sklearn.model_selection import GridSearchCV
 
@@ -39,6 +38,23 @@ from sklearn.model_selection import GridSearchCV
 # -------------------------
 # ------ FUNCTIONS --------
 # -------------------------
+
+def set_kmeans_cluster(fit_params):
+    """
+    Set the clustering algorithm as KMeans.
+    :param fit_params: A dict with the parameters to set up.
+    :return: classifier: the desired classifier with the required parameters
+    """
+    # Set the classifier
+    if isinstance(fit_params, dict):
+        fit_params['random_state'] = 0
+        classifier = KMeans()
+        classifier = check_parameters(classifier, fit_params)  # Check and set parameters
+
+    else:
+        classifier = KMeans()
+
+    return classifier
 
 
 def load_model(path_to_model):
@@ -110,11 +126,17 @@ def save_predictions(predictions, file_name, xy_fields=None,
     :param target_field: The target field from the raw_data.
     :return:
     """
-    # Get number of class in prediction array (number of column - 2)
-    numb_class = predictions.shape[1] - 2
-
     # Set header for the predictions
-    pred_header = ['Prediction', 'BestProba'] + ['Proba' + str(cla) for cla in range(0, numb_class)]
+    if len(predictions.shape) > 1:
+        # Get number of class in prediction array (number of column - 2)
+        numb_class = predictions.shape[1] - 2
+        if numb_class <= -1:
+            pred_header = ['Prediction']
+        else:
+            pred_header = ['Prediction', 'BestProba'] + ['Proba' + str(cla) for cla in range(0, numb_class)]
+
+    else:
+        pred_header = ['Prediction']
 
     # Set the np.array of target_pred pd.Dataframe
     predictions = pd.DataFrame(predictions, columns=pred_header).round(decimals=3)

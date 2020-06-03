@@ -57,7 +57,7 @@ parser.add_argument("algorithm",
                          "    'rf': RandomForestClassifier\n"
                          "    'gb': GradientBoostingClassifier\n"
                          "    'ann': MLPClassifier\n",
-                    type=str, choices=['rf', 'gb', 'ann'])
+                    type=str, choices=['rf', 'gb', 'ann', 'kmeans'])
 
 parser.add_argument("csv_data_file",
                     help="The CSV file with needed data:\n"
@@ -135,12 +135,6 @@ args = parser.parse_args()
 # --------- MAIN ----------
 # -------------------------
 
-# Set the mode as 'training' or 'prediction'
-if args.model_to_import is None:
-    mod = 'training'
-else:
-    mod = 'prediction'
-
 # Set non-common parameters as None
 train_size = None
 test_size = None
@@ -168,8 +162,21 @@ elif args.algorithm == 'gb':
 elif args.algorithm == 'ann':
     algo = 'MLPClassifier'
     classifier = set_mlp_classifier(fit_params=parameters)
+elif args.algorithm == 'kmeans':
+    algo = 'KMeans'
+    classifier = set_kmeans_cluster(fit_params=parameters)
+
 else:
     raise ValueError("No valid classifier!")
+
+# Set the mode as 'training', 'prediction' or 'unsupervised'
+if args.model_to_import is None:
+    if any(args.algorithm in s for s in ['rf', 'gb', 'ann']):
+        mod = 'training'
+    else:
+        mod = 'unsupervised'
+else:
+    mod = 'prediction'
 
 # INTRODUCTION
 raw_data, folder_path, start_time = introduction(algo, args.csv_data_file)
@@ -269,6 +276,21 @@ if mod == 'training':  # Training mode
     print("\n5. Saving model and scaler in file:")
     model_filename = str(report_filename + '.model')
     save_model(model, model_filename)
+
+elif mod == 'unsupervised':
+    print("\n2. Clustering the entire dataset...")
+    y_pred = classifier.fit_predict(data)
+
+    # Save clustering result as point cloud file with all data
+    print("\n3. Saving segmented point cloud as CSV file:")
+    predic_filename = str(report_filename + '.csv')
+    print(predic_filename)
+    save_predictions(y_pred,
+                     predic_filename,
+                     xy_fields=xy_coord,
+                     z_field=z_height,
+                     data_fields=data,
+                     target_field=target)
 
 else:  # Prediction mode
 
