@@ -254,9 +254,6 @@ if mod == 'training':  # Training mode
                                                   scoring=args.scoring,
                                                   n_jobs=args.n_jobs)
 
-    print("\tScore with the test dataset: {0:.4f}\n".format(
-        model.score(X_test, y_test)))
-
     # Importance of each feature in RF and GB
     if args.grid_search or args.algorithm == 'ann':
         args.importance = False  # Overwrite 'False' if '-i' option set with grid, ann or svm

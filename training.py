@@ -35,7 +35,7 @@ import time
 from sklearn.ensemble import GradientBoostingClassifier
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import GridSearchCV
-from sklearn.model_selection import cross_val_score, StratifiedShuffleSplit
+from sklearn.model_selection import cross_val_score, cross_validate, StratifiedShuffleSplit
 from sklearn.model_selection import train_test_split
 from sklearn.neural_network import MLPClassifier
 from sklearn.svm import LinearSVC
@@ -292,24 +292,24 @@ def training_nogridsearch(pipeline, training_data, training_target, n_jobs=-1, s
                                        random_state=0)
 
     # Get the training scores
-    training_scores = cross_val_score(pipeline,
-                                      training_data,
-                                      training_target,
-                                      cv=cross_val,
-                                      n_jobs=n_jobs,
-                                      scoring=scoring,
-                                      verbose=2)
+    results = cross_validate(pipeline,
+                             training_data,
+                             training_target,
+                             cv=cross_val,
+                             n_jobs=n_jobs,
+                             scoring=scoring,
+                             verbose=2,
+                             return_estimator=True)
 
-    print("\n\tTraining model scores with cross-validation:\n\t{}\n".format(training_scores))
+    print("\n\tTraining model scores with cross-validation:\n\t{}\n".format(results["test_score"]))
 
     # Set the classifier with training_data and target
-    print("\tRefitting the model with all given data...", end='')
     time.sleep(1.)  # Delay to print the previous message
-    pipeline.fit(training_data, training_target)
+    pipeline = results["estimator"][1]  # Get the second estimator from the cross_validation
 
     print(" Model trained!")
 
-    return pipeline, training_scores
+    return pipeline, results["test_score"]
 
 
 def save_model(model_to_save, file_name):
