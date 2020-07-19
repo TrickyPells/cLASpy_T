@@ -289,6 +289,9 @@ elif mod == 'unsupervised':
                      data_fields=data,
                      target_field=target)
 
+    model = classifier
+    scaler = None
+
 else:  # Prediction mode
 
     # Get model, scaler and pca
