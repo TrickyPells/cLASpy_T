@@ -7,12 +7,12 @@
 #  ##############/ /\ \ \########/ / /\ \_#######/ /\ \_\###########  #
 #  #############/ / /\ \_\######/ / /\ \__\#####/ / /\/_/###########  #
 #  ############/ / /_/ / /######\ \ \#\/__/####/ / /#______#########  #
-#  ###########/ / /__\/ /#########\ \ \#######/ / /#/\_____\########  #
-#  ##########/ / /_____/_##########\ \ \#####/ / /##\/____ /########  #
+#  ###########/ / /__\/ /########\ \ \########/ / /#/\_____\########  #
+#  ##########/ / /_____/##########\ \ \######/ / /##\/____ /########  #
 #  #########/ / /\ \ \######/_/\__/ / /#####/ / /_____/ / /#########  #
 #  ########/ / /##\ \ \#####\ \/___/ /#####/ / /______\/ /##########  #
 #  ########\/_/####\_\/######\_____\/######\/___________/###########  #
-#  --------- REMOTE --------- SENSING --------- GROUP --------------  #
+#  ---------- REMOTE -------- SENSING --------- GROUP --------------  #
 #  #################################################################  #
 #       'predict.py' from classer library to predict dataset          #
 #                    By Xavier PELLERIN LE BAS                        #
@@ -28,12 +28,33 @@
 # --- DEPENDENCIES ---
 # --------------------
 
-import joblib
-import pandas as pd
+from training import *
+
+from sklearn.cluster import KMeans
+from sklearn.pipeline import Pipeline
+from sklearn.model_selection import GridSearchCV
+
 
 # -------------------------
 # ------ FUNCTIONS --------
 # -------------------------
+
+def set_kmeans_cluster(fit_params):
+    """
+    Set the clustering algorithm as KMeans.
+    :param fit_params: A dict with the parameters to set up.
+    :return: classifier: the desired classifier with the required parameters
+    """
+    # Set the classifier
+    if isinstance(fit_params, dict):
+        fit_params['random_state'] = 0
+        classifier = KMeans()
+        classifier = check_parameters(classifier, fit_params)  # Check and set parameters
+
+    else:
+        classifier = KMeans()
+
+    return classifier
 
 
 def load_model(path_to_model):
@@ -43,23 +64,61 @@ def load_model(path_to_model):
     :return: loaded_model
     """
 
-    print("\n3. Loading model...", end='')
-
     # Check if path_to_model variable is str and load model
     if isinstance(path_to_model, str):
         loaded_model = joblib.load(path_to_model)
     else:
         raise TypeError("Argument 'model_to_import' must be a string!")
-    print(" Done.")
 
-    return loaded_model
+    # Check if the model is GridSearchCV or Pipeline
+    if isinstance(loaded_model, GridSearchCV):
+        loaded_model = loaded_model.best_estimator_
+    elif isinstance(loaded_model, Pipeline):
+        pass
+    else:
+        raise IOError('Loading model failed !\n'
+                      'Model to load must be GridSearchCV or Pipeline type !')
+
+    # Fill classifier, scaler and pca
+    model = loaded_model.named_steps['classifier']  # Load classifier
+    scaler = loaded_model.named_steps['scaler']  # Load scaler
+    try:
+        pca = loaded_model.named_steps['pca']  # Load PCA if exists
+    except KeyError as ke:
+        print('\tAny PCA data to load from model.')
+        pca = None
+
+    return model, scaler, pca
 
 
-def save_predictions(target_pred, file_name, xy_fields=None,
+def predict_with_proba(model, data_to_predic):
+    """
+    Make predictions with probability for each class.
+    :param model: The model to use to make predictions.
+    :param data_to_predic: The data to predict.
+    :return: The prediction, the best probability and the probability for each class.
+    """
+    # Get the probability for each class
+    y_proba = model.predict_proba(data_to_predic)
+
+    # Get the best probability and the corresponding class
+    y_best_proba = np.amax(y_proba, axis=1)
+    y_best_class = np.argmax(y_proba, axis=1)
+
+    # Add best proba and bet class to probability per class
+    y_proba = np.insert(y_proba, 0, y_best_proba, axis=1)
+    y_proba = np.insert(y_proba, 0, y_best_class, axis=1)
+
+    return y_proba
+
+
+def save_predictions(predictions, file_name, xy_fields=None,
                      z_field=None, data_fields=None, target_field=None):
     """
-    Save the report of the classsification algorithms with test dataset.
-    :param target_pred: The point cloud classified.
+    Save the report of the classification algorithms with test dataset.
+    :param predictions: Array with first column as class predicted,
+    second column as probability of predicted class,
+    following columns as probabilities for each class.
     :param file_name: The path and name of the file.
     :param xy_fields: The X and Y fields from the raw_data.
     :param z_field: The Z field from the raw_data
@@ -67,13 +126,20 @@ def save_predictions(target_pred, file_name, xy_fields=None,
     :param target_field: The target field from the raw_data.
     :return:
     """
-    # Set the np.array of target_pred pd.Dataframe
-    if target_pred.shape[0] > 1:
-        target_pred = pd.DataFrame(target_pred, columns=['Predictions'])
-    elif target_pred.shape[1] > 1:
-        target_pred = pd.DataFrame(target_pred)
+    # Set header for the predictions
+    if len(predictions.shape) > 1:
+        # Get number of class in prediction array (number of column - 2)
+        numb_class = predictions.shape[1] - 2
+        if numb_class <= -1:
+            pred_header = ['Prediction']
+        else:
+            pred_header = ['Prediction', 'BestProba'] + ['Proba' + str(cla) for cla in range(0, numb_class)]
+
     else:
-        raise ValueError("The predicted target field is empty!")
+        pred_header = ['Prediction']
+
+    # Set the np.array of target_pred pd.Dataframe
+    predictions = pd.DataFrame(predictions, columns=pred_header).round(decimals=3)
 
     # Set the list of DataFrames
     final_classif_list = list()
@@ -97,7 +163,7 @@ def save_predictions(target_pred, file_name, xy_fields=None,
     if target_field is not None:
         final_classif_list.append(target_field)
 
-    final_classif_list.append(target_pred)
+    final_classif_list.append(predictions)
     final_classif = pd.concat(final_classif_list, axis=1)
 
     final_classif.to_csv(file_name, sep=',', header=True, index=False)

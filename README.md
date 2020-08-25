@@ -16,11 +16,10 @@ git clone gitea-rsg:/Remote_Sensing_Group/classer.git
 python classer.py [optional arguments] algorithm /path/to/the/data_file.csv
 ```
 
-### **algorithm:**
+### **algorithm**
 
 * **rf** : *RandomForestClassifier* > Random Forest algorithm
 * **gb** : *GradientBoostingClassifier* > Gradient Boosting algorithm
-* **svm** : *LinearSVC* > Support Vector Machine algorithm
 * **ann** : *MLPClassifier* > Artificial Neural Network algorithm
 
 (Refer to Scikit-Learn library for more details)
@@ -33,8 +32,8 @@ X,Y,Z,target,Intensity,Red,Green,Blue,Roughness (5),Omnivariance (5),Sphericity 
 638.957,916.201,-2.953,1,39.0,104,133,113,0.11013,0.63586,0.00095...
 ```
 
-**For training, csv_data_file must contain:**
-* target field named *'target'*
+**For training, data_file.csv must contain:**
+* target field named *'Target'*
 * data fields
 
 **For prediction, csv_data_file must contain:**
@@ -70,10 +69,9 @@ Wrong parameters will be ignored. If empty, GridSearchCV uses presets.*
 
 *Examples:*
 ```bash
--m="C:/path/to/the/training/file.model" [WINDOWS]
--m="/path/to/the/training/file.model" [UNIX]
+-m="/path/to/the/training/file.model"
 ```
- **-n, --n_jobs [1,2,...,-1] :**\
+ **-n, --n_jobs [=int] :**\
 *Set the number of CPU used, '-1' means all CPU available.*
 
 **-p, --parameters [="dict"] :**\
@@ -84,16 +82,19 @@ Wrong parameters will be ignored. If empty, GridSearchCV uses presets.*
 -p="{'n_estimators':50,'max_depth':5,'max_iter':500}"
 ```
 
-**-s, --samples [float in Mpts] :**\
+**--pca [=int] :**\
+*Set the PCA analysis and the number of principal components.*
+
+**-s, --samples [=float (in Mpts)] :**\
 *Set the number of samples, in Million points, for large dataset.\
-If data length* *> samples:\
+If data length > samples:\
 then train + test length = samples*
 
-**--scaler {Standard,Robust,MinMax}:**\
+**--scaler [='Standard','Robust','MinMax']:**\
 *Set method to scale the data before training. See the preprocessing documentation of scikit-learn.*
 
 **--scoring [='accuracy','balanced_accuracy','average_precision','precision','recall',...]**\
-*Set scorer to **GridSearchCV** or **cross_val_score** according to sckikit-learn documentation.*
+*Set scorer to **GridSearchCV** or **cross_val_score** according to scikit-learn documentation.*
 
 **--test_ratio [0.0-1.0]:**\
 *Set the test ratio as float [0.0-1.0] to split into train and test data.\
@@ -104,6 +105,35 @@ then test_ratio = 1 - train_ratio*
 *Set the train ratio as float number to split into train and test data.\
 If train_ratio + test_ratio > 1:\
 then test_ratio = 1 - train_ratio*
+
+## **Branches**
+List all branches (local and remote):
+```bash
+git branch -a
+```
+
+```bash
+  cheno
+  dev
+* master
+  remotes/origin/HEAD -> origin/master
+  remotes/origin/beta
+  remotes/origin/cheno
+  remotes/origin/dev
+  remotes/origin/master
+```
+
+To create a new local branch from remote:\
+*(Here, to create a local branch 'beta')*
+
+```bash
+git chechout --track origin/beta
+```
+
+```bash
+Switched to a new branch 'beta'
+Branch 'beta' set up to track remote branch 'beta' from 'origin'.
+```
 
 ## **Contributing**
 Pull requests are welcome.\
