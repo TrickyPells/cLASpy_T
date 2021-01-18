@@ -29,38 +29,42 @@
 # --------------------
 
 import argparse
-
 import yaml
-from sklearn.metrics import confusion_matrix, classification_report
 
 from common import *
 from predict import *
 from training import *
+from sklearn.metrics import confusion_matrix, classification_report
+
 
 # -------------------------
 # ---- ARGUMENT_PARSER ----
 # -------------------------
 
-parser = argparse.ArgumentParser(description="\nThis library based on Sci-kit Learn library performs machine learning\n"
-                                             "to classify points of 3D point cloud. The input data must be in CSV.\n\n"
-                                             "For training, csv_data_file must contain:\n"
+parser = argparse.ArgumentParser(description="\nThis library based on Sci-kit Learn library classify 3D point cloud\n"
+                                             "using machine learning algorithms. The input data must be CSV or LAS "
+                                             "file. Three supervised classifiers are available from the sklearn library"
+                                             "(RandomForestClassifier, GradientBoostingClassifier and MLPClassifier) "
+                                             "and one unsupervised clustering algorithm (KMeans).\n"
+                                             "\nFor training, data_file must contain:\n"
                                              "    --> target field named 'target' AND data fields\n"
-                                             "For prediction, csv_data_file must contain:\n"
+                                             "For prediction, data_file must contain:\n"
                                              "    --> data fields\n\n"
                                              "If X, Y and/or Z fields are present, they are excluded.\n"
-                                             "If a field_name is 'classif', 'raw_classification'...\n"
-                                             "the field is discarded.",
+                                             "All standard dimensions of LAS like 'intensity', 'scan_angle_rank'\n"
+                                             "are discarded.",
                                  formatter_class=argparse.RawTextHelpFormatter)
 
 parser.add_argument("algorithm",
-                    help="The learning algorithm to use:\n"
+                    help="The available algorithms:\n"
                          "    'rf': RandomForestClassifier\n"
                          "    'gb': GradientBoostingClassifier\n"
-                         "    'ann': MLPClassifier\n",
+                         "    'ann': MLPClassifier\n"
+                         "    'kmeans': KMeans\n",
                     type=str, choices=['rf', 'gb', 'ann', 'kmeans'])
 
-parser.add_argument("csv_data_file",
-                    help="The CSV file with needed data:\n"
+parser.add_argument("data_file",
+                    help="The data file:\n"
                          "    [WINDOWS]: 'C:/path/to/the/data.file'\n"
                          "    [UNIX]: '/path/to/the/data.file'",
                     type=str, metavar="/path/to/file.csv")
@@ -84,7 +88,7 @@ parser.add_argument("-k", "--param_grid",
 parser.add_argument("-m", "--model_to_import",
                     help="The model file to import to make predictions:\n"
                          "'/path/to/the/training/file.model'",
-                    type=str, metavar="[=\"/path/to.file\"]")
+                    type=str, metavar="[=\"/path/to/file.model\"]")
 
 parser.add_argument("-n", "--n_jobs",
                     help="Set the number of CPU used, '-1' means all CPU available.",
@@ -112,7 +116,7 @@ parser.add_argument("--scaler",
 
 parser.add_argument("--scoring",
                     help="Set scorer to GridSearchCV or cross_val_score according\n"
-                         "to sckikit-learn documentation.",
+                         "to scikit-learn documentation.",
                     type=str, default='accuracy',
                     metavar="[='accuracy','balanced_accuracy','average_precision',"
                             "'precision','recall',...]")
@@ -144,7 +148,7 @@ grid_results = None
 cv_results = None
 model_to_load = None
 conf_mat = None
-report_class = None
+test_report = None
 
 # Check parameters exists
 parameters = None
@@ -154,14 +158,16 @@ if args.parameters:
 # Set the chosen learning classifier
 if args.algorithm == 'rf':
     algo = 'RandomForestClassifier'
-    classifier = set_random_forest(fit_params=parameters,
-                                   n_jobs=args.n_jobs)
+    classifier = set_random_forest(fit_params=parameters, n_jobs=args.n_jobs)
+
 elif args.algorithm == 'gb':
     algo = 'GradientBoostingClassifier'
     classifier = set_gradient_boosting(fit_params=parameters)
+
 elif args.algorithm == 'ann':
     algo = 'MLPClassifier'
     classifier = set_mlp_classifier(fit_params=parameters)
+
 elif args.algorithm == 'kmeans':
     algo = 'KMeans'
     classifier = set_kmeans_cluster(fit_params=parameters)
@@ -169,38 +175,36 @@ elif args.algorithm == 'kmeans':
 else:
     raise ValueError("No valid classifier!")
 
-# Set the mode as 'training', 'prediction' or 'unsupervised'
+# Set mode as 'training', 'prediction' or 'unsupervised'
 if args.model_to_import is None:
     if any(args.algorithm in s for s in ['rf', 'gb', 'ann']):
-        mod = 'training'
+        mode = 'training'
     else:
-        mod = 'unsupervised'
+        mode = 'unsupervised'
 else:
-    mod = 'prediction'
+    mode = 'prediction'
 
 # INTRODUCTION
-raw_data, folder_path, start_time = introduction(algo, args.csv_data_file)
-timestamp = start_time.strftime("%m%d_%H%M")  # Timestamp for file creation MD_HM
+data_path, folder_path, start_time = introduction(algo, args.data_file)  # Start prompt
+timestamp = start_time.strftime("%m%d_%H%M")  # Timestamp for file creation MonthDay_HourMinute
 
 # FORMAT DATA as XY & Z & target DataFrames and remove raw_classification from file.
 print("\n1. Formatting data as pandas.Dataframe...")
-data, xy_coord, z_height, target = format_dataset(raw_data,
-                                                  mode=mod,
-                                                  raw_classif='lassif')
+data, target = format_dataset(data_path, mode=mode)
 
 # Get the number of points
-nbr_pts = nbr_pts(data_length=len(z_height), samples_size=args.samples)
-str_nbr_pts = format_nbr_pts(nbr_pts)  # Format in string for filename
+nbr_pts = nbr_pts(data_length=data.shape[0], sample_size=args.samples, mode=mode)
+str_nbr_pts = format_nbr_pts(nbr_pts)  # Format nbr_pts as string for filename
 
-# Give the report filename
-report_filename = str(folder_path + '/' + mod[0:5] + '_' +
+# Set the report filename
+report_filename = str(folder_path + '/' + mode[0:5] + '_' +
                       args.algorithm + str_nbr_pts + str(timestamp))
 
 # Get the feature names
 feature_names = data.columns.values.tolist()
 
 # TRAINING or PREDICTION
-if mod == 'training':  # Training mode
+if mode == 'training':  # Training mode
 
     # Split data into training and testing sets
     print("\n2. Splitting data in train and test sets...")
@@ -256,9 +260,9 @@ if mod == 'training':  # Training mode
 
     # Importance of each feature in RF and GB
     if args.grid_search or args.algorithm == 'ann':
-        args.importance = False  # Overwrite 'False' if '-i' option set with grid, ann or svm
+        args.importance = False  # Overwrite 'False' if '-i' option set with grid, ann
     if args.importance:
-        feat_imp_filename = str(report_filename + '_feat_importance.png')
+        feat_imp_filename = str(report_filename + '_feat_imp.png')
         save_feature_importance(model, feature_names, feat_imp_filename)
 
     # Create confusion matrix
@@ -266,15 +270,15 @@ if mod == 'training':  # Training mode
     y_test_pred = model.predict(X_test)
     conf_mat = confusion_matrix(y_test, y_test_pred)
     conf_mat = precision_recall(conf_mat)  # return Dataframe
-    report_class = classification_report(y_test, y_test_pred)  # Get classification report
-    print("\n{}".format(report_class))
+    test_report = classification_report(y_test, y_test_pred)  # Get classification report
+    print("\n{}".format(test_report))
 
     # Save model and scaler and pca
     print("\n5. Saving model and scaler in file:")
     model_filename = str(report_filename + '.model')
     save_model(model, model_filename)
 
-elif mod == 'unsupervised':
+elif mode == 'unsupervised':
     print("\n2. Clustering the entire dataset...")
     y_pred = classifier.fit_predict(data)
 
@@ -282,13 +286,7 @@ elif mod == 'unsupervised':
     print("\n3. Saving segmented point cloud as CSV file:")
     predic_filename = str(report_filename + '.csv')
     print(predic_filename)
-    save_predictions(y_pred,
-                     predic_filename,
-                     xy_fields=xy_coord,
-                     z_field=z_height,
-                     data_fields=data,
-                     target_field=target)
-
+    save_predictions(y_pred, predic_filename, data_path)
     model = classifier
     scaler = None
 
@@ -302,8 +300,7 @@ else:  # Prediction mode
     # Apply scaler to data
     print("\n3. Scaling data...")
     data_scaled = scaler.transform(data)
-    data_scaled = pd.DataFrame.from_records(data_scaled,
-                                            columns=data.columns.values.tolist())
+    data_scaled = pd.DataFrame.from_records(data_scaled, columns=feature_names)
 
     # Apply pca to data if exists
     if pca:
@@ -317,28 +314,23 @@ else:  # Prediction mode
 
     if target is not None:
         # Save confusion matrix
-        print("\n4.2 Creating confusion matrix...")
+        print("\nCreating confusion matrix...")
         conf_mat = confusion_matrix(target.values, y_pred.transpose()[0])
         conf_mat = precision_recall(conf_mat)  # return Dataframe
-        report_class = classification_report(target.values, y_pred.transpose()[0])  # Get classification report
-        print("\n{}\n".format(report_class))
+        test_report = classification_report(target.values, y_pred.transpose()[0])  # Get classification report
+        print("\n{}\n".format(test_report))
 
     # Save classifaction result as point cloud file with all data
-    print("\n5. Saving classified point cloud as CSV file:")
-    predic_filename = str(report_filename + '.csv')
+    print("\n5. Saving classified point cloud:")
+    predic_filename = report_filename
     print(predic_filename)
-    save_predictions(y_pred,
-                     predic_filename,
-                     xy_fields=xy_coord,
-                     z_field=z_height,
-                     data_fields=data,
-                     target_field=target)
+    save_predictions(y_pred, predic_filename, data_path)
 
 # Create and save prediction report
 print("\n6. Creating classification report:")
 print(report_filename + '.txt')
 
-# Get the model parameters to print them in report
+# Get the model parameters to print in the report
 applied_parameters = ["{}: {}".format(param, model.get_params()[param])
                       for param in model.get_params()]
 
@@ -347,9 +339,9 @@ spent_time = datetime.now() - start_time
 
 # Write the entire report
 write_report(report_filename,
-             mode=mod,
+             mode=mode,
              algo=algo,
-             data_file=args.csv_data_file,
+             data_file=args.data_file,
              start_time=start_time,
              elapsed_time=spent_time,
              feat_names=feature_names,
@@ -363,9 +355,9 @@ write_report(report_filename,
              grid_results=grid_results,
              cv_results=cv_results,
              conf_mat=conf_mat,
-             score_report=report_class)
+             score_report=test_report)
 
-if mod == 'training':
+if mode == 'training':
     print("\nModel trained in {}".format(spent_time))
 else:
     print("\nPredictions done in {}".format(spent_time))

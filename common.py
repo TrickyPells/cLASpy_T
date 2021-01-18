@@ -32,6 +32,7 @@
 import os
 from datetime import datetime
 
+import pylas
 import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt
@@ -39,68 +40,136 @@ from sklearn.decomposition import PCA
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler, RobustScaler, MinMaxScaler
 
+# -------------------------
+# ------ VARIABLES --------
+# -------------------------
+
+# Define point_format dict for LAS files
+point_format = dict()
+
+gps_time = ['gps_time']
+nir = ['nir']
+rgb = ['red', 'green', 'blue']
+wavepacket = ['wavepacket_index', 'wavepacket_offset', 'wavepacket_size',
+              'return_point_wave_location', 'x_t', 'y_t', 'z_t']
+
+# Point formats for LAS 1.2 to 1.4
+point_format[0] = ['X', 'Y', 'Z', 'intensity', 'return_number', 'number_of_returns',
+                   'scan_direction_flag', 'edge_of_flight_line', 'classification',
+                   'synthetic', 'key_point', 'withheld', 'scan_angle_rank',
+                   'user_data', 'point_source_id']
+point_format[1] = point_format[0] + gps_time
+point_format[2] = point_format[0] + rgb
+point_format[3] = point_format[0] + gps_time + rgb
+
+# Point formats for LAS 1.3 to 1.4
+point_format[4] = point_format[0] + gps_time + wavepacket
+point_format[5] = point_format[0] + gps_time + rgb + wavepacket
+
+# Point formats for LAS 1.4
+point_format[6] = ['X', 'Y', 'Z', 'intensity', 'return_number', 'number_of_returns',
+                   'synthetic', 'key_point', 'withheld', 'overlap', 'scanner_channel',
+                   'scan_direction_flag', 'edge_of_flight_line', 'classification',
+                   'user_data', 'scan_angle_rank', 'point_source_id', 'gps_time']
+point_format[7] = point_format[6] + rgb
+point_format[8] = point_format[6] + rgb + nir
+point_format[9] = point_format[6] + wavepacket
+point_format[10] = point_format[6] + rgb + nir + wavepacket
 
 # -------------------------
 # ------ FUNCTIONS --------
 # -------------------------
 
-def introduction(algo, csv_file):
+
+def introduction(algo, file_path):
     """
-    Write the introduction, create folder to store results
+    Prompt the introduction, create folder to store results
     and return the start_time
     :param algo: Algorithm used
-    :param csv_file: CSV file of used data
+    :param file_path: CSV or LAS file of used data
     :return: raw_data, folder_path and start time
     """
+    # Prompt information about algorithm and file
+    data_path = os.path.normpath(file_path)
     print("\n####### POINT CLOUD CLASSIFICATION #######\n"
-          "Algorithm used: {}\n"
-          "Path to CSV file: {}\n".format(algo, csv_file))
+          "Algorithm used: {}".format(algo))
+
+    # Check CSV or LAS file
+    root_ext = os.path.splitext(data_path)  # split file_path into root and extension
+    if root_ext[1] == '.csv':
+        print("Path to CSV file: {}\n".format(data_path))
+    elif root_ext[1] == '.las':
+        print("Path to LAS file: {}\n".format(data_path))
+    else:
+        print("Unknown Extension file !")
 
     # Create a folder to store models, reports and predictions
     print("Create a new folder to store the result files...", end='')
-    raw_data = csv_file
-    raw_data = os.path.normpath(raw_data)
-    folder_path = os.path.splitext(raw_data)[0]  # remove extension so give folder path
+    folder_path = root_ext[0]  # remove extension so give folder path
     try:
-        os.mkdir(folder_path)  # Using file path to make new folder
+        os.mkdir(folder_path)  # Using file path to create new folder
         print(" Done.")
     except (TypeError, FileExistsError):
         print(" Folder already exists.")
 
-    # Timestamp for created files
+    # Start time for timestamp for files and time computation
     start_time = datetime.now()
 
-    return raw_data, folder_path, start_time
+    return data_path, folder_path, start_time
 
 
-def format_dataset(path_raw_data, mode='training', raw_classif=None):
+def file_to_pandasframe(data_path):
     """
-    Format the input data as panda DataFrame. Exclude XYZ fields.
-    :param path_raw_data: Path of the input data as text file (.CSV).
-    :param mode: Set the mode ['training', 'prediction'] to check mandatory 'target' field in case of training.
-    :param raw_classif: (optional): set the field name of the raw_classification of some LiDAR point clouds.
-    :return: features_data, coord, height and target as DataFrames.
+    Convert CSV or LAS data in a Pandas DataFrame
+    :param data_path: Path to the CSV or LAS data
+    :return: frame as DataFrame
     """
     # Load data into DataFrame
-    frame = pd.read_csv(path_raw_data, sep=',', header='infer')
+    root_ext = os.path.splitext(data_path)  # split file_path into root and extension
+    if root_ext[1] == '.csv':
+        frame = pd.read_csv(data_path, sep=',', header='infer')
+        # Replace 'space' by '_' and clean up the header built by CloudCompare ('//X')
+        for field in frame.columns.values.tolist():
+            field_ = field.replace(' ', '_')
+            frame = frame.rename(columns={field: field_})
+            if field == '//X':
+                frame = frame.rename(columns={"//X": "X"})
+
+    elif root_ext[1] == '.las':
+        las = pylas.read(data_path)
+        print("LAS Version: {}".format(las.header.version))
+        print("LAS point format: {}".format(las.point_format.id))
+        print("Number of points: {}".format(las.header.point_count))
+        extra_dims = list(las.point_format.extra_dimension_names)  # Only get the extra dimensions
+        frame = pd.DataFrame()
+        for dim in extra_dims:
+            frame[dim] = las[dim]
+    else:
+        raise ValueError("Unknown Extension file !")
+
+    return frame
+
+
+def format_dataset(data_path, mode='training'):
+    """
+    Format the input data as panda DataFrame. Exclude XYZ fields.
+    :param data_path: Path of the input data as text file (.CSV).
+    :param mode: Set the mode ['training', 'prediction'] to check mandatory 'target' field in case of training.
+    :return: features_data, coord, height and target as DataFrames.
+    """
+    # Load data into Pandas DataFrame
+    frame = file_to_pandasframe(data_path)
 
     # Create list name of all fields
-    fields_name = frame.columns.values.tolist()
-
-    # Clean up the header built by CloudCompare ('//X')
-    for field in fields_name:
-        if field == '//X':
-            frame = frame.rename(columns={"//X": "X"}, errors='raise')
-
-    # Update list name of all fields
-    fields_name = frame.columns.values.tolist()
+    all_field_names = frame.columns.values.tolist()
 
     # Search X, Y, Z, target and raw_classif fields
     field_x = None
     field_y = None
     field_z = None
     field_t = None
-    for field in fields_name:
+
+    for field in all_field_names:
         if field.casefold() == 'x':  # casefold() to be non case-sensitive
             field_x = field
         if field.casefold() == 'y':
@@ -110,49 +179,37 @@ def format_dataset(path_raw_data, mode='training', raw_classif=None):
         if field.casefold() == 'target':
             field_t = field
 
-    # Create XY field -> 'coord'
-    if field_x is None or field_y is None:
-        raise ValueError("There is no X or Y field, or both!")
-    coord = frame[[field_x, field_y]]
-    # coord = frame.loc[:, [field_x, field_y]]
-
-    # Create Z field -> 'height'
-    if field_z is None:
-        raise ValueError("There is no Z field!")
-    height = frame.loc[:, field_z]
-
-    # Create 'target' field
+    # Target is mandatory for training
     if mode == 'training' and field_t is None:
         raise ValueError("A 'target' field is mandatory for training!")
+
+    # Create target field if exist
     if field_t:
         target = frame.loc[:, field_t]
     else:
         target = None
 
     # Select only features fields by removing X, Y, Z and target fields
-    feat_name = fields_name
+    sel_feat_names = all_field_names
     for field in [field_x, field_y, field_z, field_t]:
         if field:
-            feat_name.remove(field)
+            sel_feat_names.remove(field)
 
-    # Remove the raw_classification of some LiDAR point clouds
-    if isinstance(raw_classif, str):
-        for field in feat_name:
-            if raw_classif.casefold() in field.casefold():
-                feat_name.remove(field)
+    # Sort data by field names
+    sel_feat_names.sort()  # Sorted to be compatible with other format
 
-    # data without extra fields
-    feat_data = frame.loc[:, feat_name]
+    # data without X, Y, Z and target fields
+    data = frame.filter(sel_feat_names, axis=1)
 
     # Replace NAN values by median
-    feat_data.fillna(value=feat_data.median(0), inplace=True)  # .median(0) computes median/col
+    data.fillna(value=data.median(0), inplace=True)  # .median(0) computes median/col
 
-    return feat_data, coord, height, target
+    return data, target
 
 
 def plot_pca(filename, pca, ft_names):
     """
-    Create and save figure of PCA principal components.
+    Create and save figure of principal components.
     :param filename: Filename for the matshow figure of principal components.
     :param pca: PCA already fitted with data.
     :param ft_names: List of the feature names.
@@ -184,7 +241,7 @@ def apply_pca(pca, data):
     """
     Apply PCA transformation to the data.
     :param pca: PCA to apply.
-    :param data: Data to tranform.
+    :param data: Data to transform.
     :return: data_pca as pandas.core.frame.DataFrame
     """
     #  Create list of component names
@@ -194,8 +251,7 @@ def apply_pca(pca, data):
 
     # Apply PCA transformation to the data
     data_pca = pca.transform(data)  # Becomes np.array
-    data_pca = pd.DataFrame.from_records(data_pca,
-                                         columns=pca_compo_list)  # Becomes pd.DataFrame
+    data_pca = pd.DataFrame.from_records(data_pca, columns=pca_compo_list)  # Becomes pd.DataFrame
 
     return data_pca
 
@@ -286,35 +342,40 @@ def precision_recall(conf_mat):
     return conf_mat_up
 
 
-def nbr_pts(data_length, samples_size=None):
+def nbr_pts(data_length, sample_size=None, mode='training'):
     """
-    Set the number of point for according the magnitude.
-    :param samples_size: Float of the number of point for training.
+    Set the number of point according the magnitude.
+    :param sample_size: Float of the number of point for training.
     :param data_length: Total number of points in data file.
+    :param mode: 'training', 'unsupervised' and 'prediction' modes.
     :return: nbr_pts: Integer of the number of points.
     """
     # Initiation
     magnitude = 1000000
 
-    # Tests
+    # Tests data_length and sample_size exist as number
     try:
         data_length = float(data_length)
     except ValueError as ve:
         raise ValueError("'data_length' parameter must be a number")
 
-    if samples_size is not None:
+    if sample_size is not None:  # Check if the sample_size and is a number
         try:
-            samples_size = float(samples_size)
+            samples_size = float(sample_size)
         except ValueError as ve:
-            samples_size = 0.05
-            print("ValueError: 'samples_size' must be a number\n"
-                  "'samples_size' set to default 0.05 Mpts.")
+            sample_size = 0.05
+            print("ValueError: sample size must be a number\n"
+                  "sample size set to default: 0.05 Mpts.")
 
-    # Sample size > Data size
-    if samples_size is None or samples_size * magnitude >= data_length:
-        int_nbr_pts = int(data_length)  # Number of points of entire point cloud
+    # Crop data only on training mode
+    if mode == 'training':
+        # Sample size > Data size
+        if sample_size is None or sample_size * magnitude >= data_length:
+            int_nbr_pts = int(data_length)  # Number of points of entire point cloud
+        else:
+            int_nbr_pts = int(sample_size * magnitude)  # Number of points < sample size
     else:
-        int_nbr_pts = int(samples_size * magnitude)  # Number of points < sample size
+        int_nbr_pts = int(data_length)
 
     return int_nbr_pts
 
@@ -362,7 +423,7 @@ def write_report(filename, mode, algo, data_file, start_time, elapsed_time, appl
     :param train_len: Length of the train data set.
     :param test_len: Length of the test data set.
     :param applied_param: Parameters applied to create model or make predictions.
-    :param pca_compo: Principal components of the PCA
+    :param pca_compo: Principal components of the PCA.
     :param model: Model used to make predictions.
     :param grid_results: Results of the GridSearchCV.
     :param cv_results: Results of the Cross Validation.
@@ -425,13 +486,13 @@ def write_report(filename, mode, algo, data_file, start_time, elapsed_time, appl
 
 def save_feature_importance(model, feature_names, feature_filename):
     """
-    Save the feature importances of RandomForest or GradientBoosting models into file.
+    Save the feature importance of RandomForest or GradientBoosting models into file.
     :param model: Pipeline with RandomForest or GradientBoosting Classifier
     :param feature_names: Names of the features.
     :param feature_filename: Filename and path of the feature importance figure file.
     :return:
     """
-    # Get the feature importances
+    # Get the feature importance
     importances = model.named_steps['classifier'].feature_importances_
 
     # Create feature_imp_dict
@@ -445,7 +506,7 @@ def save_feature_importance(model, feature_names, feature_filename):
     for key in feature_names:
         importances_sorted.append(feature_imp_dict[key])
 
-    # Plot the feature importances of the forest
+    # Plot the feature importances
     plt.figure()
     plt.title("Feature Importances")
     plt.barh(feature_names, importances_sorted, color='b')
