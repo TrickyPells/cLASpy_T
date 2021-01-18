@@ -28,6 +28,8 @@
 # --- DEPENDENCIES ---
 # --------------------
 
+import os
+import pylas
 from training import *
 
 from sklearn.cluster import KMeans
@@ -112,58 +114,86 @@ def predict_with_proba(model, data_to_predic):
     return y_proba
 
 
-def save_predictions(predictions, file_name, xy_fields=None,
-                     z_field=None, data_fields=None, target_field=None):
+def save_pred_csv(predictions, csv_name, source_file):
     """
-    Save the report of the classification algorithms with test dataset.
+    Save the predictions in copy of CSV source_file.
+    :param predictions: DataFrame of the predictions.
+    :param csv_name: Output file name with path.
+    :param source_file: CSV source file name with path.
+    """
+    # Get CSV data in copy_data
+    copy_data = pd.read_csv(source_file, sep=',', header='infer')
+
+    # Join copy of the data with the predictions
+    final_data = copy_data.join(predictions)
+
+    # Free memory
+    copy_data = None
+    predictions = None
+
+    # Write all data in the CSV output file
+    csv_name = str(csv_name + '.csv')
+    final_data.to_csv(csv_name, sep=',', header=True, index=False)
+
+
+def save_pred_las(predictions, las_name, source_file):
+    """
+    Save the predictions in copy of LAS source_file.
+    :param predictions: DataFrame of the predictions.
+    :param las_name: Output file name with path.
+    :param source_file: LAS source file name with path.
+    """
+    # Get LAS data in copy_data
+    copy_data = pylas.read(source_file)
+
+    # Add dimensions according the predictions dataframe
+    copy_data.add_extra_dim(name='Prediction', type='u1',  # First dimension is 'u1' type
+                            description='Prediction done by the model')
+    copy_data['Prediction'] = predictions['Prediction']
+
+    if predictions.shape[1] > 1:
+        dimension_list = predictions.columns.values.tolist()
+        dimension_list.remove('Prediction')
+        for dim in dimension_list:
+            copy_data.add_extra_dim(name=dim, type='f4', description='Probability for this class')
+            copy_data[dim] = predictions[dim]
+
+    # Write all data in the LAS output file
+    las_name = str(las_name + '.las')
+    copy_data.write(las_name)
+
+
+def save_predictions(predictions, file_name, source_file):
+    """
+    Save the predictions in copy of source_file.
     :param predictions: Array with first column as class predicted,
     second column as probability of predicted class,
     following columns as probabilities for each class.
     :param file_name: The path and name of the file.
-    :param xy_fields: The X and Y fields from the raw_data.
-    :param z_field: The Z field from the raw_data
-    :param data_fields: The data fields from the raw_data.
-    :param target_field: The target field from the raw_data.
-    :return:
+    :param source_file: The path to the input file.
     """
     # Set header for the predictions
-    if len(predictions.shape) > 1:
+    if predictions.shape[1] > 2:
         # Get number of class in prediction array (number of column - 2)
         numb_class = predictions.shape[1] - 2
-        if numb_class <= -1:
-            pred_header = ['Prediction']
-        else:
-            pred_header = ['Prediction', 'BestProba'] + ['Proba' + str(cla) for cla in range(0, numb_class)]
-
+        pred_header = ['Prediction', 'BestProba'] + ['Proba' + str(cla) for cla in range(0, numb_class)]
     else:
         pred_header = ['Prediction']
 
     # Set the np.array of target_pred pd.Dataframe
-    predictions = pd.DataFrame(predictions, columns=pred_header).round(decimals=3)
+    predictions = pd.DataFrame(predictions, columns=pred_header, dtype='float32').round(decimals=3)
 
-    # Set the list of DataFrames
-    final_classif_list = list()
+    # Reload data into DataFrame
+    root_ext = os.path.splitext(source_file)  # split file path into root and extension
+    if root_ext[1] == '.csv':  # Copy the CSV source file
+        print("Write the CSV output file...", end='')
+        save_pred_csv(predictions, file_name, source_file)
+        print(" Done!")
 
-    # Fill the DataFrame
-    if xy_fields is not None:
-        if isinstance(xy_fields, pd.DataFrame):
-            xy_fields = xy_fields.round(decimals=4)
-        final_classif_list.append(xy_fields)
+    elif root_ext[1] == '.las':  # Copy the LAS source file
+        print("Write the LAS output file...", end='')
+        save_pred_las(predictions, file_name, source_file)
+        print(" Done!")
 
-    if z_field is not None:
-        if isinstance(z_field, pd.DataFrame):
-            z_field = z_field.round(decimals=4)
-        final_classif_list.append(z_field)
-
-    if data_fields is not None:
-        if isinstance(data_fields, pd.DataFrame):
-            data_fields = data_fields.round(decimals=4)
-        final_classif_list.append(data_fields)
-
-    if target_field is not None:
-        final_classif_list.append(target_field)
-
-    final_classif_list.append(predictions)
-    final_classif = pd.concat(final_classif_list, axis=1)
-
-    final_classif.to_csv(file_name, sep=',', header=True, index=False)
+    else:
+        print("Unknown extension!")

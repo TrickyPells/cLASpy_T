@@ -62,6 +62,7 @@ def split_dataset(data_values, target_values, train_ratio=0.5, test_ratio=0.5, s
     train_size = int(samples * train_ratio)
     test_size = int(samples * test_ratio)
 
+    # Perform the train test split
     data_train, data_test, target_train, target_test = train_test_split(data_values, target_values,
                                                                         random_state=0,
                                                                         train_size=train_size,

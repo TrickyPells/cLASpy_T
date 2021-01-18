@@ -1,0 +1,7 @@
+python cLASpy_T.py -i -p="{'n_estimators':500,'max_depth':10,'min_samples_leaf':100}" rf ./Test/Orne_20130525.csv
+
+python cLASpy_T.py -m="./Test/Orne_20130525/train_rf50kpts_csv.model" rf ./Test/Orne_20130525.csv
+
+python cLASpy_T.py -i -p="{'n_estimators':500,'max_depth':10,'min_samples_leaf':100}" rf ./Test/Orne_20130525.las
+
+python cLASpy_T.py -m="./Test/Orne_20130525/train_rf50kpts_las.model" rf ./Test/Orne_20130525.las
