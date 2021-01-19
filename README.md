@@ -1,56 +1,68 @@
-# **cLASser**
+# **cLASpy-T**
 
-Classer is a Scikit-Learn based library for automatic classification of 3D point clouds, such as LiDAR or Photogrammetric point clouds.  
+'cLASpy-T' means Tools for classification of LAS file with python language and libraries (classification LAS python-Tools). 
+cLASpy-T is a classification algorithm using machine learning algorithms and based on Scikit-Learn library.  
+It allows to classify 3D point clouds, such as LiDAR or Photogrammetric point clouds.
+The data must be provided in a LAS ou CSV file. Other formats should be supported later (like GEOTIFF or PLY).
+
+First create model according an available machine learning algorithm with labelled data.
+Once the model is created, use it to perform prediction on non-labelled data.
 
 ## **Installation**
 
-Use the git command to clone 'classer.git'.
+Use the git command to clone 'cLASpy-T.git'.
 
 ```bash
-git clone gitea-rsg:/Remote_Sensing_Group/classer.git
+git clone https://github.com/TrickyPells/cLASpy_T.git
 ```
 
 ## **Usage**
 
 ```bash
-python classer.py [optional arguments] algorithm /path/to/the/data_file.csv
+python cLASpy-T.py [optional arguments] algorithm /path/to/the/data_file.csv
 ```
 
-### **algorithm**
+### **Algorithms**
 
 * **rf** : *RandomForestClassifier* > Random Forest algorithm
 * **gb** : *GradientBoostingClassifier* > Gradient Boosting algorithm
 * **ann** : *MLPClassifier* > Artificial Neural Network algorithm
+* **kmeans** : *KMeans* > K-Means clustering algorithm
 
 (Refer to Scikit-Learn library for more details)
 
-### **data_file.csv**
+### **Data files**
 
-The input data must be in CSV format.
+The input data must be in LAS or CSV format.
+
+**Example of CSV file**
+
 ```txt
 X,Y,Z,target,Intensity,Red,Green,Blue,Roughness (5),Omnivariance (5),Sphericity (5)...
 638.957,916.201,-2.953,1,39.0,104,133,113,0.11013,0.63586,0.00095...
 ```
 
-**For training, data_file.csv must contain:**
-* target field named *'Target'*
+**For training, data file must contain:**
+
+* target field named *'Target'* (not case-sensitive)
 * data fields
 
 **For prediction, csv_data_file must contain:**
+
 * data fields
 
 
-If X, Y and/or Z fields are present, **they are excluded**.
+If X, Y and/or Z fields are present, **they are excluded**, but re-used to write the output file.
 
-If a field_name contains **'lassif'** such as **'classif'**, **'classification'**, **'raw_classification'**... the field is discarded.
+To use **'Intensity'** field from LAS file, rename it (example: **'Original_Intensity'** or **'Amplitude'**).
 
-### **optional arguments:**
+### **Optional arguments:**
 
 **-h, --help :**\
 *Show this help message and exit*
 
 **-g, --grid_search :**\
-*Perform the training with GridSearchCV*
+*Perform the training with GridSearchCV* (See the Scikit-Learn documentation).
 
 **-i, --importance :**\
 *Export feature importance from **RandomForest** and **GradientBoosting** model as a PNG image file.\
@@ -64,18 +76,19 @@ Wrong parameters will be ignored. If empty, GridSearchCV uses presets.*
 ```bash
 -k="{'n_estimators':[50,100,500],'loss':['deviance','exponential'],hidden_layer_sizes':[[100,100],[50,100,50]]}"    
 ```                            
- **-m, --model_to_import [="/path/to.file"] :**\
-*The model file to import to make predictions:*
+ **-m, --model_to_import [="/path/to.model"] :**\
+*The model file to import to make predictions.*
 
 *Examples:*
 ```bash
--m="/path/to/the/training/file.model"
+-m="/path/to/the/file.model"
 ```
  **-n, --n_jobs [=int] :**\
 *Set the number of CPU used, '-1' means all CPU available.*
 
 **-p, --parameters [="dict"] :**\
-*Set the parameters to pass at the classifier, as dict **with ANY SPACE**.*
+*Set the parameters to pass at the classifier, as dict **with ANY SPACE**.*\
+*Wrong parameters will be ignored.*
 
 *Example:*
 ```bash
@@ -91,10 +104,10 @@ If data length > samples:\
 then train + test length = samples*
 
 **--scaler [='Standard','Robust','MinMax']:**\
-*Set method to scale the data before training. See the preprocessing documentation of scikit-learn.*
+*Set method to scale the data before training (See the Scikit-Learn documentation).*
 
 **--scoring [='accuracy','balanced_accuracy','average_precision','precision','recall',...]**\
-*Set scorer to **GridSearchCV** or **cross_val_score** according to scikit-learn documentation.*
+*Set scorer to **GridSearchCV** or **cross_val_score** according to the Scikit-Learn documentation.*
 
 **--test_ratio [0.0-1.0]:**\
 *Set the test ratio as float [0.0-1.0] to split into train and test data.\
@@ -114,9 +127,9 @@ git branch -a
 
 ```bash
   cheno
-  dev
-* master
-  remotes/origin/HEAD -> origin/master
+* dev
+  master
+  remotes/origin/HEAD -> origin/dev
   remotes/origin/beta
   remotes/origin/cheno
   remotes/origin/dev
@@ -137,7 +150,41 @@ Branch 'beta' set up to track remote branch 'beta' from 'origin'.
 
 ## **Contributing**
 Pull requests are welcome.\
-For major changes, please open an issue first to discuss what you would like to change.
+For major changes or report bugs, please open an issue first to discuss what you would like to change or what does not work.
 
 ## **License**
-Any
+*(See the **'licence_en.txt'** file)*
+
+CeCILL FREE SOFTWARE LICENSE AGREEMENT
+
+Version 2.1 dated 2013-06-21
+
+**Notice**
+
+This Agreement is a Free Software license agreement that is the result
+of discussions between its authors in order to ensure compliance with
+the two main principles guiding its drafting:
+
+  * firstly, compliance with the principles governing the distribution
+    of Free Software: access to source code, broad rights granted to users,
+  * secondly, the election of a governing law, French law, with which it
+    is conformant, both as regards the law of torts and intellectual
+    property law, and the protection that it offers to both authors and
+    holders of the economic rights over software.
+
+The authors of the CeCILL (for Ce[a] C[nrs] I[nria] L[ogiciel] L[ibre]) 
+license are: 
+
+Commissariat à l'énergie atomique et aux énergies alternatives - CEA, a
+public scientific, technical and industrial research establishment,
+having its principal place of business at 25 rue Leblanc, immeuble Le
+Ponant D, 75015 Paris, France.
+
+Centre National de la Recherche Scientifique - CNRS, a public scientific
+and technological establishment, having its principal place of business
+at 3 rue Michel-Ange, 75794 Paris cedex 16, France.
+
+Institut National de Recherche en Informatique et en Automatique -
+Inria, a public scientific and technological establishment, having its
+principal place of business at Domaine de Voluceau, Rocquencourt, BP
+105, 78153 Le Chesnay cedex, France.
