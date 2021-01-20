@@ -73,8 +73,9 @@ Wrong parameters will be ignored. If empty, GridSearchCV uses presets.*
 *Example:*
 ```bash
 -k="{'n_estimators':[50,100,500],'loss':['deviance','exponential'],hidden_layer_sizes':[[100,100],[50,100,50]]}"    
-```                            
- **-m, --model_to_import [="/path/to.model"] :**\
+```
+
+**-m, --model_to_import [="/path/to.model"] :**\
 *The model file to import to make predictions.*
 
 *Examples:*
@@ -108,7 +109,9 @@ then train + test length = samples*
 *Set scorer to **GridSearchCV** or **cross_val_score** according to the Scikit-Learn documentation.*
 
 **--test_ratio [0.0-1.0]:**\
+
 *Set the test ratio as float [0.0-1.0] to split into train and test data.\
+
 If train_ratio + test_ratio > 1:\
 then test_ratio = 1 - train_ratio*
 
