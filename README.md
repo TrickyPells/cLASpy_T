@@ -1,16 +1,15 @@
-# **cLASpy-T**
+# **cLASpy_T**
 
-'cLASpy-T' means Tools for classification of LAS file with python language and libraries (classification LAS python-Tools). 
-cLASpy-T is a classification algorithm using machine learning algorithms and based on Scikit-Learn library.  
-It allows to classify 3D point clouds, such as LiDAR or Photogrammetric point clouds.
-The data must be provided in a LAS ou CSV file. Other formats should be supported later (like GEOTIFF or PLY).
+**cLASpy_T** means '*Tools for classification of LAS file with python and machine learning libraries*' (classification LAS python-Tools). 
+cLASpy_T uses Scikit-Learn machine learning algorithms to classify 3D point clouds, such as LiDAR or Photogrammetric point clouds.
+The data must be provided in a LAS ou CSV file. Other formats should be supported later (GEOTIFF or PLY), and other machine learning libraries too (TensorFlow).
 
-First create model according an available machine learning algorithm with labelled data.
-Once the model is created, use it to perform prediction on non-labelled data.
+First, create model with labelled data and according an available machine learning algorithm in cLASpy-T.
+Once the model created, use it to perform predictions for non-labelled data.
 
 ## **Installation**
 
-Use the git command to clone 'cLASpy-T.git'.
+Use the git command to clone 'cLASpy_T.git'.
 
 ```bash
 git clone https://github.com/TrickyPells/cLASpy_T.git
@@ -19,10 +18,10 @@ git clone https://github.com/TrickyPells/cLASpy_T.git
 ## **Usage**
 
 ```bash
-python cLASpy-T.py [optional arguments] algorithm /path/to/the/data_file.csv
+python cLASpy_T.py [optional arguments] algorithm /path/to/the/data.file
 ```
 
-### **Algorithms**
+### **Available algorithms**
 
 * **rf** : *RandomForestClassifier* > Random Forest algorithm
 * **gb** : *GradientBoostingClassifier* > Gradient Boosting algorithm
@@ -31,30 +30,29 @@ python cLASpy-T.py [optional arguments] algorithm /path/to/the/data_file.csv
 
 (Refer to Scikit-Learn library for more details)
 
-### **Data files**
+### **Format of data files**
 
-The input data must be in LAS or CSV format.
+The input data must be in **LAS** or **CSV**(sep=',') format.
 
-**Example of CSV file**
-
+*Example of CSV file:*
 ```txt
-X,Y,Z,target,Intensity,Red,Green,Blue,Roughness (5),Omnivariance (5),Sphericity (5)...
+X,Y,Z,Target,Intensity,Red,Green,Blue,Roughness (5),Omnivariance (5),Sphericity (5)...
 638.957,916.201,-2.953,1,39.0,104,133,113,0.11013,0.63586,0.00095...
 ```
 
 **For training, data file must contain:**
 
-* target field named *'Target'* (not case-sensitive)
+* target field named **'target'** (not case-sensitive), contains the labels as integer 
 * data fields
 
-**For prediction, csv_data_file must contain:**
+**For prediction, data file must contain:**
 
 * data fields
 
 
 If X, Y and/or Z fields are present, **they are excluded**, but re-used to write the output file.
 
-To use **'Intensity'** field from LAS file, rename it (example: **'Original_Intensity'** or **'Amplitude'**).
+To use **'Intensity'** field from LAS file, rename it (examples: **'Original_Intensity'** or **'Amplitude'**).
 
 ### **Optional arguments:**
 
@@ -84,7 +82,7 @@ Wrong parameters will be ignored. If empty, GridSearchCV uses presets.*
 -m="/path/to/the/file.model"
 ```
  **-n, --n_jobs [=int] :**\
-*Set the number of CPU used, '-1' means all CPU available.*
+*Set the number of CPU used, '-1' means all available CPUs.*
 
 **-p, --parameters [="dict"] :**\
 *Set the parameters to pass at the classifier, as dict **with ANY SPACE**.*\
@@ -140,7 +138,7 @@ To create a new local branch from remote:\
 *(Here, to create a local branch 'beta')*
 
 ```bash
-git chechout --track origin/beta
+git checkout --track origin/beta
 ```
 
 ```bash
@@ -150,7 +148,7 @@ Branch 'beta' set up to track remote branch 'beta' from 'origin'.
 
 ## **Contributing**
 Pull requests are welcome.\
-For major changes or report bugs, please open an issue first to discuss what you would like to change or what does not work.
+For major changes or bug reports, please open an issue first to discuss what you would like to change or what does not work.
 
 ## **License**
 *(See the **'licence_en.txt'** file)*
