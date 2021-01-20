@@ -14,7 +14,7 @@
 #  ########\/_/####\_\/######\_____\/######\/___________/###########  #
 #  ---------- REMOTE -------- SENSING --------- GROUP --------------  #
 #  #################################################################  #
-#       'training.py' from classer library to train dataset           #
+#       'training.py' from cLASpy_T library to train dataset          #
 #                    By Xavier PELLERIN LE BAS                        #
 #                         November 2019                               #
 #         REMOTE SENSING GROUP  -- https://rsg.m2c.cnrs.fr/ --        #

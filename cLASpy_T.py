@@ -14,7 +14,7 @@
 #  ########\/_/####\_\/######\_____\/######\/___________/###########  #
 #  ---------- REMOTE -------- SENSING --------- GROUP --------------  #
 #  #################################################################  #
-#               'classer.py' from classer library                     #
+#               'cLASpy_T.py' from cLASpy_T program                   #
 #                By Xavier PELLERIN LE BAS and                        #
 #                         November 2019                               #
 #         REMOTE SENSING GROUP  -- https://rsg.m2c.cnrs.fr/ --        #
