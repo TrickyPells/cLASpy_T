@@ -7,12 +7,12 @@
 #  ##############/ /\ \ \########/ / /\ \_#######/ /\ \_\###########  #
 #  #############/ / /\ \_\######/ / /\ \__\#####/ / /\/_/###########  #
 #  ############/ / /_/ / /######\ \ \#\/__/####/ / /#______#########  #
-#  ###########/ / /__\/ /#########\ \ \#######/ / /#/\_____\########  #
-#  ##########/ / /_____/_##########\ \ \#####/ / /##\/____ /########  #
+#  ###########/ / /__\/ /########\ \ \########/ / /#/\_____\########  #
+#  ##########/ / /_____/##########\ \ \######/ / /##\/____ /########  #
 #  #########/ / /\ \ \######/_/\__/ / /#####/ / /_____/ / /#########  #
 #  ########/ / /##\ \ \#####\ \/___/ /#####/ / /______\/ /##########  #
 #  ########\/_/####\_\/######\_____\/######\/___________/###########  #
-#  --------- REMOTE --------- SENSING --------- GROUP --------------  #
+#  ---------- REMOTE -------- SENSING --------- GROUP --------------  #
 #  #################################################################  #
 #       'training.py' from classer library to train dataset           #
 #                    By Xavier PELLERIN LE BAS                        #
@@ -29,58 +29,40 @@
 # --------------------
 
 import joblib
-import time
-
 import numpy as np
 import pandas as pd
-
-from sklearn.model_selection import train_test_split
-from sklearn.model_selection import GridSearchCV
-from sklearn.model_selection import cross_val_score, StratifiedShuffleSplit
-from sklearn.svm import LinearSVC
-from sklearn.ensemble import RandomForestClassifier
+import time
 from sklearn.ensemble import GradientBoostingClassifier
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.model_selection import GridSearchCV
+from sklearn.model_selection import cross_val_score, cross_validate, StratifiedShuffleSplit
+from sklearn.model_selection import train_test_split
 from sklearn.neural_network import MLPClassifier
+from sklearn.svm import LinearSVC
+
 
 # -------------------------
 # ------ FUNCTIONS --------
 # -------------------------
 
 
-def split_dataset(data_values, target_values, train_ratio=0.8, test_ratio=0.2, samples=0.5):
+def split_dataset(data_values, target_values, train_ratio=0.5, test_ratio=0.5, samples=0.5):
     """
     Split the input data and target in data_train, data_test, target_train and target_test.
-    Check the length of the dataset. If length > samples, train_size = train_ratio * samples pts
-    and test_size = test_ratio * samples pts.
     :param data_values: the np.ndarray with the data features.
     :param target_values: the np.ndarray with the target.
     :param train_ratio: (optional) Ratio of the size of training dataset.
     :param test_ratio: (optional) Ratio of the size of testing dataset.
-    :param samples: (optional) Number of samples beyond which the dataset is splitted with two integers,
-    for train_size and test_size. The samples is paired with train_ratio and test_ratio.
+    :param samples: (optional) Number of samples beyond which the dataset
+    is splitted with two integers, for train_size and test_size.
+    The samples is paired with train_ratio and test_ratio.
     :return: data_train, data_test, target_train and target_test as np.ndarray.
     """
+    # Set the train_size and test_size according sample size
+    train_size = int(samples * train_ratio)
+    test_size = int(samples * test_ratio)
 
-    print("\n3. Splitting the data...", end='')
-    # Rescale samples
-    samples = int(samples * 1000000)
-
-    # Check if train_ratio + test_ratio =< 1.0
-    if train_ratio > 1.0:
-        train_ratio = 0.8
-
-    if train_ratio + test_ratio > 1.0:
-        test_ratio = 1.0 - train_ratio
-
-    # Check if dataset > 500 kpts
-    n_samples = len(data_values[:, 0])
-    if n_samples > samples:
-        train_size = int(train_ratio * samples)
-        test_size = int(test_ratio * samples)
-    else:
-        train_size = int(train_ratio * n_samples)
-        test_size = int(test_ratio * n_samples)
-
+    # Perform the train test split
     data_train, data_test, target_train, target_test = train_test_split(data_values, target_values,
                                                                         random_state=0,
                                                                         train_size=train_size,
@@ -90,8 +72,7 @@ def split_dataset(data_values, target_values, train_ratio=0.8, test_ratio=0.2, s
     target_train = target_train.reshape(train_size)
     target_test = target_test.reshape(test_size)
 
-    print(" Done.")
-    print("\tNumber of used points: {} pts".format(train_size+test_size))
+    print("\tNumber of used points: {} pts".format(train_size + test_size))
     print("\tSize of train|test datasets: {} pts | {} pts".format(train_size, test_size))
 
     return data_train, data_test, target_train, target_test
@@ -120,42 +101,31 @@ def check_parameters(classifier, fit_params):
     return classifier
 
 
-def check_grid_params(classifier, grid_params):
+def check_grid_params(pipeline, grid_params):
     """
     Check if the given grid_params match with the given classifier.
-    :param classifier: The given classifier.
+    :param pipeline: Pipeline set with 'scaler' and 'classifier' (at least).
     :param grid_params: Grid parameters to check in dict.
-    :return: well_params: Grid parameters with only the well defined parameters.
+    :return: pipe_params: Grid parameters with only the well defined parameters for the pipeline.
     """
     # Get the type of classifier
-    clf_name = str(type(classifier)).split('.')[-1][:-2]
+    clf_name = str(type(pipeline.named_steps['classifier'])).split('.')[-1][:-2]
 
     # Get the list of valid parameters from the classifier
-    param_names = classifier._get_param_names()
+    param_names = pipeline.named_steps['classifier']._get_param_names()
 
     # Check if grid_params is None or empty
     well_params = dict()  # dictionary with only good parameters
-    if grid_params is None or not bool(grid_params):  # If grid_params is None or empty
-        params_isfull = False
-        grid_params = well_params
-    else:
-        params_isfull = True
-
-    # Check if the keys of grid_params are in list of valid parameters
-    if params_isfull:
-        for key in grid_params.keys():
+    if grid_params:
+        for key in grid_params.keys():  # Check if the keys of grid_params are in list of valid parameters
             if key in param_names:
                 well_params[key] = grid_params[key]
             else:
                 print("GridSearchCV: Invalid parameter '{}' for {}, it was skipped!".format(str(key), clf_name))
 
-    # Check if well_params is None or empty dict and set predefined parameters
-    if well_params is None or not bool(well_params):  # If well_params is None or empty
-        if clf_name == 'RandomForestClassifier':
-            well_params = {'n_estimators': [50, 100, 500],
-                           'max_depth': [8, 11, 14],
-                           'min_samples_leaf': [100, 500, 1000]}
-        elif clf_name == 'GradientBoostingClassifier':
+    # Check if well_params is empty dict and set predefined parameters
+    if not well_params:
+        if clf_name == 'RandomForestClassifier' or clf_name == 'GradientBoostingClassifier':
             well_params = {'n_estimators': [50, 100, 500],
                            'max_depth': [8, 11, 14],
                            'min_samples_leaf': [100, 500, 1000]}
@@ -167,7 +137,13 @@ def check_grid_params(classifier, grid_params):
                            'activation': ('tanh', 'relu'),
                            'alpha': [0.0001, 0.01, 1.0]}
 
-    return well_params
+    # Create parameter dictionary for Pipeline
+    pipe_params = dict()
+    for key in well_params.keys():
+        new_key = 'classifier__' + key
+        pipe_params[new_key] = well_params[key]
+
+    return pipe_params
 
 
 def set_random_forest(fit_params=None, n_jobs=-1):
@@ -262,10 +238,10 @@ def set_mlp_classifier(fit_params=None):
     return classifier
 
 
-def training_gridsearch(classifier, training_data, training_target, grid_params=None, n_jobs=-1, scoring='accuracy'):
+def training_gridsearch(pipeline, training_data, training_target, grid_params=None, n_jobs=-1, scoring='accuracy'):
     """
     Train model with GridSearchCV meta-estimator according the chosen learning algorithm.
-    :param classifier: Set the algorithm to train the model.
+    :param pipeline: Set the algorithm to train the model.
     :param training_data: The training dataset.
     :param training_target: The targets corresponding to the training dataset.
     :param grid_params: The parameters for the GridSearchCV.
@@ -274,7 +250,6 @@ def training_gridsearch(classifier, training_data, training_target, grid_params=
     :return: classifier, results: Classifier with best parameters and results from grid search.
     """
 
-    print('\n4. Training the model with GridSearchCV...')
     # Set cross_validation method with train_size 80% and validation_size 20%
     cross_val = StratifiedShuffleSplit(n_splits=5,
                                        train_size=0.8,
@@ -283,56 +258,59 @@ def training_gridsearch(classifier, training_data, training_target, grid_params=
 
     # Set the GridSearchCV
     print("\tSearching best parameters...")
-    classifier = GridSearchCV(classifier,
-                              param_grid=grid_params,
-                              n_jobs=n_jobs,
-                              cv=cross_val,
-                              scoring=scoring,
-                              verbose=1,
-                              error_score=np.nan)
+    grid = GridSearchCV(pipeline,
+                        param_grid=grid_params,
+                        n_jobs=n_jobs,
+                        cv=cross_val,
+                        scoring=scoring,
+                        verbose=1,
+                        error_score=np.nan)
 
     # Training the model to find the best parameters
-    classifier.fit(training_data, training_target)
-    results = pd.DataFrame(classifier.cv_results_)
-    print("\tThe best score: {0:.4f}".format(classifier.best_score_))
-    print("\tThe best parameters: {}".format(classifier.best_params_))
+    grid.fit(training_data, training_target)
+    results = pd.DataFrame(grid.cv_results_)
+    print("\tBest score: {0:.4f}".format(grid.best_score_))
+    print("\tBest parameters: {}".format(grid.best_params_))
     print("\tModel trained!")
 
-    return classifier, results
+    return grid, results
 
 
-def training_nogridsearch(classifier, training_data, training_target, n_jobs=-1, scoring='accuracy'):
+def training_nogridsearch(pipeline, training_data, training_target, n_jobs=-1, scoring='accuracy'):
     """
     Train model with cross-validation according the chosen classifier.
-    :param classifier: Set the algorithm to train the model.
+    :param pipeline: Set the algorithm to train the model.
     :param training_data: The training dataset.
     :param training_target: The targets corresponding to the training dataset.
     :param n_jobs: Number of CPU used.
     :param scoring: Set the scorer according scikit-learn documentation.
     :return: model, training_scores: The training model and the scores of n_splits training.
     """
-
-    print("\n4. Training the model with cross validation...")
     # Set cross_validation method with train_size 80% and validation_size 20%
-    cross_val = StratifiedShuffleSplit(n_splits=5, train_size=0.8, test_size=0.2, random_state=0)
+    cross_val = StratifiedShuffleSplit(n_splits=5,
+                                       train_size=0.8,
+                                       test_size=0.2,
+                                       random_state=0)
 
     # Get the training scores
-    training_scores = cross_val_score(classifier, training_data, training_target,
-                                      cv=cross_val,
-                                      n_jobs=n_jobs,
-                                      scoring=scoring,
-                                      verbose=2)
+    results = cross_validate(pipeline,
+                             training_data,
+                             training_target,
+                             cv=cross_val,
+                             n_jobs=n_jobs,
+                             scoring=scoring,
+                             verbose=2,
+                             return_estimator=True)
 
-    print("\n\tTraining model scores with cross-validation:\n\t{}\n".format(training_scores))
+    print("\n\tTraining model scores with cross-validation:\n\t{}\n".format(results["test_score"]))
 
     # Set the classifier with training_data and target
-    print("\tRefitting the model with all given data...", end='')
     time.sleep(1.)  # Delay to print the previous message
-    classifier.fit(training_data, training_target)
+    pipeline = results["estimator"][1]  # Get the second estimator from the cross_validation
 
-    print(" Model trained!\n")
+    print(" Model trained!")
 
-    return classifier, training_scores
+    return pipeline, results["test_score"]
 
 
 def save_model(model_to_save, file_name):
@@ -342,7 +320,7 @@ def save_model(model_to_save, file_name):
     :param file_name: The path and name of the file.
     """
     joblib.dump(model_to_save, file_name)
-    print("Model path: {}".format('/'.join(file_name.split('/')[:-1])))
+    print("Model path: {}/".format('/'.join(file_name.split('/')[:-1])))
     print("Model file: {}".format(file_name.split('/')[-1]))
 
 # -------------------------
