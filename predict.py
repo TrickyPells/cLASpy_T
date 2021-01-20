@@ -14,7 +14,7 @@
 #  ########\/_/####\_\/######\_____\/######\/___________/###########  #
 #  ---------- REMOTE -------- SENSING --------- GROUP --------------  #
 #  #################################################################  #
-#       'predict.py' from classer library to predict dataset          #
+#       'predict.py' from cLASpy_T library to predict dataset         #
 #                    By Xavier PELLERIN LE BAS                        #
 #                         November 2019                               #
 #         REMOTE SENSING GROUP  -- https://rsg.m2c.cnrs.fr/ --        #
