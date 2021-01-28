@@ -67,7 +67,7 @@ parser.add_argument("data_file",
                     help="The data file:\n"
                          "    [WINDOWS]: 'C:/path/to/the/data.file'\n"
                          "    [UNIX]: '/path/to/the/data.file'",
-                    type=str, metavar="/path/to/file.csv")
+                    type=str, metavar="/path/to/data.file")
 
 parser.add_argument("-g", "--grid_search",
                     help="Perform the training with GridSearchCV",
