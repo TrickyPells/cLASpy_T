@@ -28,10 +28,11 @@
 # --- DEPENDENCIES ---
 # --------------------
 
+import time
 import joblib
 import numpy as np
 import pandas as pd
-import time
+
 from sklearn.ensemble import GradientBoostingClassifier
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import GridSearchCV

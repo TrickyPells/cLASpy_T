@@ -14,7 +14,7 @@
 #  ########\/_/####\_\/######\_____\/######\/___________/###########  #
 #  ---------- REMOTE -------- SENSING --------- GROUP --------------  #
 #  #################################################################  #
-#            'feat_select.py' from cLASpy_T library                    #
+#            'feat_select.py' from cLASpy_T library                   #
 #                By Xavier PELLERIN LE BAS and                        #
 #                         November 2019                               #
 #         REMOTE SENSING GROUP  -- https://rsg.m2c.cnrs.fr/ --        #

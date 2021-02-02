@@ -196,7 +196,7 @@ def format_dataset(data_path, mode='training'):
             sel_feat_names.remove(field)
 
     # Sort data by field names
-    sel_feat_names.sort()  # Sorted to be compatible with other format
+    sel_feat_names.sort()  # Sort to be compatible between formats
 
     # data without X, Y, Z and target fields
     data = frame.filter(sel_feat_names, axis=1)
