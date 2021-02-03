@@ -2,10 +2,10 @@
 
 **cLASpy_T** means '*Tools for classification of LAS file with python and machine learning libraries*' (classification LAS python-Tools). 
 cLASpy_T uses Scikit-Learn machine learning algorithms to classify 3D point clouds, such as LiDAR or Photogrammetric point clouds.
-The data must be provided in a LAS ou CSV file. Other formats should be supported later (GEOTIFF or PLY), and other machine learning libraries too (TensorFlow).
+The data must be provided in a LAS or CSV file. Other formats should be supported later (GEOTIFF or PLY), and other machine learning libraries too (TensorFlow).
 
-First, create model with labelled data and according an available machine learning algorithm in cLASpy-T.
-Once the model created, use it to perform predictions for non-labelled data.
+First, create a model with labeled data, according to an available machine learning algorithm in cLASpy-T.
+Once the model is created, use it to perform predictions for non-labeled data.
 
 ## **Installation**
 
