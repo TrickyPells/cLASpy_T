@@ -56,8 +56,8 @@ wavepacket = ['wavepacket_index', 'wavepacket_offset', 'wavepacket_size',
 # Point formats for LAS 1.2 to 1.4
 point_format[0] = ['X', 'Y', 'Z', 'intensity', 'return_number', 'number_of_returns',
                    'scan_direction_flag', 'edge_of_flight_line', 'classification',
-                   'synthetic', 'key_point', 'withheld', 'scan_angle_rank',
-                   'user_data', 'point_source_id']
+                   'raw_classification', 'flag_byte', 'synthetic', 'key_point',
+                   'withheld', 'scan_angle_rank', 'user_data', 'point_source_id', 'pt_src_id']
 point_format[1] = point_format[0] + gps_time
 point_format[2] = point_format[0] + rgb
 point_format[3] = point_format[0] + gps_time + rgb
@@ -69,8 +69,9 @@ point_format[5] = point_format[0] + gps_time + rgb + wavepacket
 # Point formats for LAS 1.4
 point_format[6] = ['X', 'Y', 'Z', 'intensity', 'return_number', 'number_of_returns',
                    'synthetic', 'key_point', 'withheld', 'overlap', 'scanner_channel',
-                   'scan_direction_flag', 'edge_of_flight_line', 'classification',
-                   'user_data', 'scan_angle_rank', 'point_source_id', 'gps_time']
+                   'raw_classification', 'flag_byte', 'scan_direction_flag',
+                   'edge_of_flight_line', 'classification', 'user_data',
+                   'scan_angle_rank', 'point_source_id', 'pt_src_id', 'gps_time']
 point_format[7] = point_format[6] + rgb
 point_format[8] = point_format[6] + rgb + nir
 point_format[9] = point_format[6] + wavepacket
@@ -145,7 +146,7 @@ def file_to_pandasframe(data_path):
         for dim in extra_dims:
             frame[dim] = las[dim]
     else:
-        raise ValueError("Unknown Extension file !")
+        raise ValueError("Unknown Extension file!")
 
     return frame
 

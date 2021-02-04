@@ -30,6 +30,7 @@
 
 import argparse
 import yaml
+import json
 
 from common import *
 from predict import *
@@ -78,12 +79,12 @@ parser.add_argument("-i", "--importance",
                     action="store_true")
 
 parser.add_argument("-k", "--param_grid",
-                    help="Set the parameters to pass at the GridSearch as list(sep=',') in dict. NO SPACE\n"
-                         "If empty, GridSearchCV uses presets.\n"
-                         "Example: -k=\"{'n_estimators':[50,100,500],'loss':['deviance','exponential'],"
-                         "'hidden_layer_sizes':[[100,100],[50,100,50]]}\"\n"
-                         "Wrong parameters will be ignored\n",
-                    type=str, metavar="[=\"dict\"]")
+                    help='Set the parameters to pass at the GridSearch as list(sep=",") in dict. NO SPACE\n'
+                         'If empty, GridSearchCV uses presets.\n'
+                         'Example: -k=\'{"n_estimators":[50,100,500],"loss":["deviance","exponential"],'
+                         '"hidden_layer_sizes":[[100,100],[50,100,50]]}\'\n'
+                         'Wrong parameters will be ignored\n',
+                    type=str, metavar="[=\'dict\']")
 
 parser.add_argument("-m", "--model_to_import",
                     help="The model file to import to make predictions:\n"
@@ -95,9 +96,9 @@ parser.add_argument("-n", "--n_jobs",
                     type=int, metavar="[1,2,...,-1]", default=-1)
 
 parser.add_argument("-p", "--parameters",
-                    help="Set the parameters to pass at the classifier for training, as dict.\n"
-                         "Example: -p=\"{'n_estimators':50,'max_depth':5,'max_iter':500}\"",
-                    type=str, metavar="[=\"dict\"]")
+                    help='Set the parameters to pass at the classifier for training, as dict.\n'
+                         'Example: -p=\'{"n_estimators":50,"max_depth":5,"max_iter":500}\'',
+                    type=str, metavar="[=\'dict\']")
 
 parser.add_argument("--pca",
                     help="Set the PCA analysis and the number of principal components",
@@ -238,8 +239,10 @@ if mode == 'training':  # Training mode
         # Check param_grid exists
         if args.param_grid:
             param_grid = yaml.safe_load(args.param_grid)
+
         else:
             param_grid = None
+
         param_grid = check_grid_params(pipeline,
                                        grid_params=param_grid)
 

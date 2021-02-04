@@ -14,7 +14,7 @@
 #  ########\/_/####\_\/######\_____\/######\/___________/###########  #
 #  ---------- REMOTE -------- SENSING --------- GROUP --------------  #
 #  #################################################################  #
-#       'training.py' from cLASpy_T library to train dataset          #
+#       'training.py' from cLASpy_T library to train model            #
 #                    By Xavier PELLERIN LE BAS                        #
 #                         November 2019                               #
 #         REMOTE SENSING GROUP  -- https://rsg.m2c.cnrs.fr/ --        #
@@ -35,9 +35,7 @@ import pandas as pd
 
 from sklearn.ensemble import GradientBoostingClassifier
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.model_selection import GridSearchCV
-from sklearn.model_selection import cross_val_score, cross_validate, StratifiedShuffleSplit
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import *
 from sklearn.neural_network import MLPClassifier
 from sklearn.svm import LinearSVC
 
