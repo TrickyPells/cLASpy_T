@@ -150,26 +150,26 @@ cv_results = None
 model_to_load = None
 conf_mat = None
 test_report = None
+parameters = None
 
 # Check parameters exists
-parameters = None
 if args.parameters:
     parameters = yaml.safe_load(args.parameters)
 
 # Set the chosen learning classifier
-if args.algorithm == 'rf':
+if args.algorithm == 'rf' or args.algorithm == 'RandomForestClassifier':
     algo = 'RandomForestClassifier'
     classifier = set_random_forest(fit_params=parameters, n_jobs=args.n_jobs)
 
-elif args.algorithm == 'gb':
+elif args.algorithm == 'gb' or args.algorithm == 'GradientBoostingClassifier':
     algo = 'GradientBoostingClassifier'
     classifier = set_gradient_boosting(fit_params=parameters)
 
-elif args.algorithm == 'ann':
+elif args.algorithm == 'ann' or args.algorithm == 'MLPClassifier':
     algo = 'MLPClassifier'
     classifier = set_mlp_classifier(fit_params=parameters)
 
-elif args.algorithm == 'kmeans':
+elif args.algorithm == 'kmeans' or args.algorithm == 'KMeans':
     algo = 'KMeans'
     classifier = set_kmeans_cluster(fit_params=parameters)
 

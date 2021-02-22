@@ -50,21 +50,51 @@ class ClaspyGui(QMainWindow):
     def __init__(self, parent=None):
         super(ClaspyGui, self).__init__(parent)
         self.setWindowTitle("cLASpy_GUI")
-        self.setGeometry(400, 300, 400, 500)
+        self.setGeometry(300, 200, 900, 700)
         self.mainWidget = QWidget()
 
+        # Create the left part of GUI
         self.labelFile = QLabel("Input file:")
         self.lineFile = QLineEdit()
         self.lineFile.setPlaceholderText("Select LAS or CSV file as input")
         self.toolButtonFile = QToolButton()
         self.toolButtonFile.setText("Browse")
-
         self.hLayoutFile = QHBoxLayout()
         self.hLayoutFile.addWidget(self.lineFile)
         self.hLayoutFile.addWidget(self.toolButtonFile)
 
+        self.labelFolder = QLabel("Output folder:")
+        self.lineFolder = QLineEdit()
+        self.lineFolder.setPlaceholderText("Folder of model and report files")
+        self.toolButtonFolder = QToolButton()
+        self.toolButtonFolder.setText("Browse")
+        self.hLayoutFolder = QHBoxLayout()
+        self.hLayoutFolder.addWidget(self.lineFolder)
+        self.hLayoutFolder.addWidget(self.toolButtonFolder)
+
         self.labelHLine_1 = QLabel()
         self.labelHLine_1.setFrameStyle(QFrame.HLine | QFrame.Sunken)
+
+        self.labelPtCldInfo = QLabel("Point cloud info:")
+        self.labelPtCldFormat = QLabel("Format: ")
+        self.labelPtCount = QLabel("Number of points: ")
+        self.vLayoutInfo = QVBoxLayout()
+        self.vLayoutInfo.addWidget(self.labelPtCldFormat)
+        self.vLayoutInfo.addWidget(self.labelPtCount)
+
+        self.labelSampleSize = QLabel("Number of samples:")
+        self.spinSampleSize = QDoubleSpinBox()
+        self.spinSampleSize.setMaximumWidth(80)
+        self.spinSampleSize.setMinimum(0)
+        self.spinSampleSize.setDecimals(6)
+        self.spinSampleSize.setWrapping(True)
+        self.labelMillionPoints = QLabel("Million points")
+        self.hLayoutSize = QHBoxLayout()
+        self.hLayoutSize.addWidget(self.spinSampleSize)
+        self.hLayoutSize.addWidget(self.labelMillionPoints)
+
+        self.labelHLine_2 = QLabel()
+        self.labelHLine_2.setFrameStyle(QFrame.HLine | QFrame.Sunken)
 
         self.listAlgorithms = QListWidget()
         self.listAlgorithms.setMaximumSize(120, 80)
@@ -72,25 +102,36 @@ class ClaspyGui(QMainWindow):
         self.listAlgorithms.insertItem(1, "Gradient Boosting")
         self.listAlgorithms.insertItem(2, "Neural Network")
         self.listAlgorithms.insertItem(3, "K-Means Clustering")
+        self.listAlgorithms.setCurrentItem(self.listAlgorithms.item(0))
 
-        self.stack_0 = QWidget()
-        self.stack_1 = QWidget()
-        self.stack_2 = QWidget()
-        self.stack_3 = QWidget()
-        self.stackui_0()
-        self.stackui_1()
-        self.stackui_2()
-        self.stackui_3()
+        self.stack_RF = QWidget()
+        self.stack_GB = QWidget()
+        self.stack_NN = QWidget()
+        self.stack_KM = QWidget()
+        self.stackui_rf()
+        self.stackui_gb()
+        self.stackui_nn()
+        self.stackui_km()
         self.stack = QStackedWidget(self)
-        self.stack.addWidget(self.stack_0)
-        self.stack.addWidget(self.stack_1)
-        self.stack.addWidget(self.stack_2)
-        self.stack.addWidget(self.stack_3)
+        self.stack.addWidget(self.stack_RF)
+        self.stack.addWidget(self.stack_GB)
+        self.stack.addWidget(self.stack_NN)
+        self.stack.addWidget(self.stack_KM)
 
-        self.labelHLine_2 = QLabel()
-        self.labelHLine_2.setFrameStyle(QFrame.HLine | QFrame.Sunken)
+        # Fill the layout of the left part
+        self.formLayoutLeft = QFormLayout()
+        self.formLayoutLeft.addRow(self.labelFile, self.hLayoutFile)
+        self.formLayoutLeft.addRow(self.labelFolder, self.hLayoutFolder)
+        self.formLayoutLeft.addRow(self.labelHLine_1)
+        self.formLayoutLeft.addRow(self.labelPtCldInfo, self.vLayoutInfo)
+        self.formLayoutLeft.addRow(self.labelSampleSize, self.hLayoutSize)
+        self.formLayoutLeft.addRow(self.labelHLine_2)
+        self.formLayoutLeft.addRow("Select algorithm:", self.listAlgorithms)
+        self.formLayoutLeft.addRow("Algorithm parameters:", self.stack)
 
+        # Create the right part of GUI
         self.checkTarget = QCheckBox("Target field")
+        self.checkTarget.setEnabled(False)
         self.labelFields = QLabel("Select scalar fields:\n\n\n"
                                   "(press Ctrl+Shift\n"
                                   "for multiple selection)")
@@ -110,32 +151,41 @@ class ClaspyGui(QMainWindow):
         self.buttonRun.clicked.connect(self.run_claspy_t)
         self.buttonBox.addButton(self.buttonRun, QDialogButtonBox.ActionRole)
 
-        self.formLayout = QFormLayout(self.mainWidget)
-        self.formLayout.addRow(self.labelFile, self.hLayoutFile)
-        self.formLayout.addRow(self.labelHLine_1)
-        self.formLayout.addRow(QLabel("Select algorithm:"), QLabel("Select algorithm parameters:"))
-        self.formLayout.addRow(self.listAlgorithms, self.stack)
-        self.formLayout.addRow(self.labelHLine_2)
-        self.formLayout.addRow(self.labelFields, self.vLayoutFields)
-        self.formLayout.addWidget(self.buttonBox)
+        # Fill the layout of the right part
+        self.formLayoutRight = QFormLayout()
+        self.formLayoutRight.addRow(self.labelFields, self.vLayoutFields)
+        self.formLayoutRight.addWidget(self.buttonBox)
 
+        # Fill the main layout
+        self.hMainLayout = QHBoxLayout(self.mainWidget)
+        self.hMainLayout.addLayout(self.formLayoutLeft)
+        self.labelVLine = QLabel()
+        self.labelVLine.setFrameStyle(QFrame.VLine | QFrame.Sunken)
+        self.hMainLayout.addWidget(self.labelVLine)
+        self.hMainLayout.addLayout(self.formLayoutRight)
+
+        # Save, Run and Close buttons
         self.setCentralWidget(self.mainWidget)
 
+        # Status Bar
         self.statusBar = QStatusBar()
         self.setStatusBar(self.statusBar)
 
+        # Function call
         self.toolButtonFile.clicked.connect(self.get_file)
         self.lineFile.textChanged.connect(self.open_file)
+        self.toolButtonFolder.clicked.connect(self.get_folder)
         self.listAlgorithms.currentRowChanged.connect(self.display_stack)
 
     def get_file(self):
-        self.statusBar.showMessage("Select file...", 2000)
+        self.statusBar.showMessage("Select file...", 3000)
         filename = QFileDialog.getOpenFileName(self, 'Select CSV or LAS file',
                                                'D:/PostDoc_Temp/Article_Classif_Orne',
                                                "LAS files (*.las);;CSV files (*.csv)")
 
-        self.lineFile.setText(filename[0])
-        # self.statusBar.clearMessage()
+        if filename[0] != '':
+            self.lineFile.setText(filename[0])
+            self.lineFolder.setText(os.path.splitext(filename[0])[0])
 
     def open_file(self):
         file_path = os.path.normpath(self.lineFile.text())
@@ -147,7 +197,7 @@ class ClaspyGui(QMainWindow):
         elif root_ext[1] == '.las':
             field_names = self.open_las(file_path)
         else:
-            field_names = ["File error:", "Unknown", "extension file!"]
+            field_names = ["File error:", "Unknown extension file!"]
             self.statusBar.showMessage("File error: Unknown extension file!")
 
         # Check if the target field exist
@@ -158,6 +208,7 @@ class ClaspyGui(QMainWindow):
         else:
             self.checkTarget.setText("Target field is not available")
             self.checkTarget.setEnabled(False)
+            self.checkTarget.setChecked(False)
 
         # Rewrite listField
         self.listFields.clear()
@@ -174,12 +225,21 @@ class ClaspyGui(QMainWindow):
         version = las.header.version
         data_format = las.header.data_format_id
         point_count = las.header.records_count
-        point_count = '{:,}'.format(point_count).replace(',', ' ')  # Format with thousand separator
+
+        # Set value of the train size
+        number_mpts = float(point_count / 1000000.)  # Number of million points
+        self.spinSampleSize.setMaximum(number_mpts)
+        if number_mpts > 2:
+            self.spinSampleSize.setValue(1)
+        else:
+            self.spinSampleSize.setValue(number_mpts/2.)
 
         # Show LAS version and number of points in status bar
-        self.statusBar.showMessage("{} points | LAS Version: {}"
-                                   .format(point_count, version),
-                                   3000)
+        point_count = '{:,}'.format(point_count).replace(',', ' ')  # Format with thousand separator
+        self.labelPtCldFormat.setText("Format: LAS version {} | Data format: {}".format(version, data_format))
+        self.labelPtCount.setText("Number of points: {}".format(point_count))
+        self.statusBar.showMessage("{} points | LAS Version: {}".format(point_count, version),
+                                   5000)
 
         # List of the standard dimensions according the data_format of LAS
         standard_dimensions = point_format[data_format]
@@ -203,49 +263,373 @@ class ClaspyGui(QMainWindow):
 
         return extra_dimensions
 
-    def stackui_0(self):
-        layout = QFormLayout()
+    def get_folder(self):
+        """
+        Create folder to save model and report files
+        """
+        file_path = os.path.splitext(self.lineFile.text())[0]
+        # Open QFile Dialog with empty lineFile
+        if file_path == '':
+            foldername = QFileDialog.getExistingDirectory(self, 'Select output folder')
 
-        layout.addRow("Name", QLineEdit())
-        layout.addRow("Address", QLineEdit())
+        else:
+            foldername = QFileDialog.getExistingDirectory(self, 'Select output folder',
+                                                          file_path + '/..')
 
-        self.stack_0.setLayout(layout)
+        if foldername != '':
+            self.lineFolder.setText(foldername)
 
-    def stackui_1(self):
-        layout = QFormLayout()
+    def stackui_rf(self):
+        form_layout = QFormLayout()
 
-        sex = QHBoxLayout()
-        sex.addWidget(QRadioButton("Male"))
-        sex.addWidget(QRadioButton("Female"))
-        layout.addRow(QLabel("Sex"), sex)
-        layout.addRow("Date of Birth", QLineEdit())
+        self.RFspinRandomState = QSpinBox()
+        self.RFspinRandomState.setMaximumWidth(80)
+        self.RFspinRandomState.setMinimum(-1)
+        self.RFspinRandomState.setMaximum(999999)
+        self.RFspinRandomState.setValue(-1)
+        form_layout.addRow("random_state:", self.RFspinRandomState)
 
-        self.stack_1.setLayout(layout)
+        self.RFspinEstimators = QSpinBox()
+        self.RFspinEstimators.setMaximumWidth(80)
+        self.RFspinEstimators.setMinimum(2)
+        self.RFspinEstimators.setMaximum(999999)
+        self.RFspinEstimators.setValue(100)
+        form_layout.addRow("n_estimators:", self.RFspinEstimators)
 
-    def stackui_2(self):
-        layout = QHBoxLayout()
+        self.RFcriterion = ["gini", "entropy"]
+        self.RFcomboCriterion = QComboBox()
+        self.RFcomboCriterion.setMaximumWidth(80)
+        self.RFcomboCriterion.addItems(self.RFcriterion)
+        self.RFcomboCriterion.setCurrentIndex(self.RFcriterion.index("gini"))
+        form_layout.addRow("criterion:", self.RFcomboCriterion)
 
-        layout.addWidget(QLabel("Subjects"))
-        layout.addWidget(QCheckBox("Physics"))
-        layout.addWidget(QCheckBox("Maths"))
+        self.RFspinMaxDepth = QSpinBox()
+        self.RFspinMaxDepth.setMaximumWidth(80)
+        self.RFspinMaxDepth.setMinimum(0)
+        self.RFspinMaxDepth.setMaximum(9999)
+        self.RFspinMaxDepth.setValue(0)
+        form_layout.addRow("max_depth:", self.RFspinMaxDepth)
 
-        self.stack_2.setLayout(layout)
+        self.RFspinSamplesSplit = QSpinBox()
+        self.RFspinSamplesSplit.setMaximumWidth(80)
+        self.RFspinSamplesSplit.setMinimum(2)
+        self.RFspinSamplesSplit.setMaximum(999999)
+        self.RFspinSamplesSplit.setValue(2)
+        form_layout.addRow("min_samples_split:", self.RFspinSamplesSplit)
 
-    def stackui_3(self):
-        layout = QFormLayout()
+        self.RFspinSamplesLeaf = QSpinBox()
+        self.RFspinSamplesLeaf.setMaximumWidth(80)
+        self.RFspinSamplesLeaf.setMaximum(999999)
+        self.RFspinSamplesLeaf.setValue(1)
+        form_layout.addRow("min_samples_leaf:", self.RFspinSamplesLeaf)
 
-        sex = QHBoxLayout()
-        sex.addWidget(QRadioButton("Male"))
-        sex.addWidget(QRadioButton("Female"))
+        self.RFspinWeightLeaf = QDoubleSpinBox()
+        self.RFspinWeightLeaf.setMaximumWidth(80)
+        self.RFspinWeightLeaf.setDecimals(4)
+        self.RFspinWeightLeaf.setMaximum(1)
+        self.RFspinWeightLeaf.setValue(0)
+        form_layout.addRow("min_weight_fraction_leaf:", self.RFspinWeightLeaf)
 
-        layout_hbox = QHBoxLayout()
-        layout_hbox.addWidget(QCheckBox("Physics"))
-        layout_hbox.addWidget(QCheckBox("Maths"))
+        self.maxFeatures = ["auto", "sqrt", "log2"]
+        self.RFcomboMaxFeatures = QComboBox()
+        self.RFcomboMaxFeatures.setMaximumWidth(80)
+        self.RFcomboMaxFeatures.addItems(self.maxFeatures)
+        self.RFcomboMaxFeatures.setCurrentIndex(self.maxFeatures.index("auto"))
+        form_layout.addRow("max_features:", self.RFcomboMaxFeatures)
 
-        layout.addRow(QLabel("Sex"), sex)
-        layout.addRow("Date of Birth", QLineEdit())
-        layout.addRow(QLabel("Subject"), layout_hbox)
-        self.stack_3.setLayout(layout)
+        self.RFspinNJob = QSpinBox()
+        self.RFspinNJob.setMaximumWidth(80)
+        self.RFspinNJob.setMinimum(-1)
+        self.RFspinNJob.setValue(0)
+        form_layout.addRow("n_jobs:", self.RFspinNJob)
+
+        self.stack_RF.setLayout(form_layout)
+
+    def stackui_gb(self):
+        form_layout = QFormLayout()
+
+        self.GBspinRandomState = QSpinBox()
+        self.GBspinRandomState.setMaximumWidth(80)
+        self.GBspinRandomState.setMinimum(-1)
+        self.GBspinRandomState.setMaximum(999999)
+        self.GBspinRandomState.setValue(-1)
+        form_layout.addRow("random_state:", self.GBspinRandomState)
+
+        self.GBspinEstimators = QSpinBox()
+        self.GBspinEstimators.setMaximumWidth(80)
+        self.GBspinEstimators.setMinimum(2)
+        self.GBspinEstimators.setMaximum(9999999)
+        self.GBspinEstimators.setValue(100)
+        form_layout.addRow("n_estimators:", self.GBspinEstimators)
+
+        self.GBcriterion = ["friedman_mse", "mse"]
+        self.GBcomboCriterion = QComboBox()
+        self.GBcomboCriterion.setMaximumWidth(80)
+        self.GBcomboCriterion.addItems(self.GBcriterion)
+        self.GBcomboCriterion.setCurrentIndex(self.GBcriterion.index("friedman_mse"))
+        form_layout.addRow("criterion:", self.GBcomboCriterion)
+
+        self.GBspinMaxDepth = QSpinBox()
+        self.GBspinMaxDepth.setMaximumWidth(80)
+        self.GBspinMaxDepth.setMinimum(0)
+        self.GBspinMaxDepth.setMaximum(9999)
+        self.GBspinMaxDepth.setValue(3)
+        form_layout.addRow("max_depth:", self.GBspinMaxDepth)
+
+        self.GBspinSamplesSplit = QSpinBox()
+        self.GBspinSamplesSplit.setMaximumWidth(80)
+        self.GBspinSamplesSplit.setMinimum(2)
+        self.GBspinSamplesSplit.setMaximum(999999)
+        self.GBspinSamplesSplit.setValue(2)
+        form_layout.addRow("min_samples_split:", self.GBspinSamplesSplit)
+
+        self.GBspinSamplesLeaf = QSpinBox()
+        self.GBspinSamplesLeaf.setMaximumWidth(80)
+        self.GBspinSamplesLeaf.setMaximum(999999)
+        self.GBspinSamplesLeaf.setValue(1)
+        form_layout.addRow("min_samples_leaf:", self.GBspinSamplesLeaf)
+
+        self.GBspinWeightLeaf = QDoubleSpinBox()
+        self.GBspinWeightLeaf.setMaximumWidth(80)
+        self.GBspinWeightLeaf.setDecimals(4)
+        self.GBspinWeightLeaf.setMaximum(1)
+        self.GBspinWeightLeaf.setValue(0)
+        form_layout.addRow("min_weight_fraction_leaf:", self.GBspinWeightLeaf)
+
+        self.maxFeatures = ["None", "auto", "sqrt", "log2"]
+        self.GBcomboMaxFeatures = QComboBox()
+        self.GBcomboMaxFeatures.setMaximumWidth(80)
+        self.GBcomboMaxFeatures.addItems(self.maxFeatures)
+        self.GBcomboMaxFeatures.setCurrentIndex(self.maxFeatures.index("None"))
+        form_layout.addRow("max_features:", self.GBcomboMaxFeatures)
+
+        self.loss = ["deviance", "exponential"]
+        self.GBcomboLoss = QComboBox()
+        self.GBcomboLoss.setMaximumWidth(80)
+        self.GBcomboLoss.addItems(self.loss)
+        self.GBcomboLoss.setCurrentIndex(self.loss.index("deviance"))
+        form_layout.addRow("loss:", self.GBcomboLoss)
+
+        self.GBspinLearningRate = QDoubleSpinBox()
+        self.GBspinLearningRate.setMaximumWidth(80)
+        self.GBspinLearningRate.setDecimals(6)
+        self.GBspinLearningRate.setMinimum(0)
+        self.GBspinLearningRate.setValue(0.1)
+        form_layout.addRow("learning_rate:", self.GBspinLearningRate)
+
+        self.GBspinSubsample = QDoubleSpinBox()
+        self.GBspinSubsample.setMaximumWidth(80)
+        self.GBspinSubsample.setDecimals(4)
+        self.GBspinSubsample.setMinimum(0)
+        self.GBspinSubsample.setValue(1)
+        form_layout.addRow("subsample:", self.GBspinSubsample)
+
+        self.stack_GB.setLayout(form_layout)
+
+    def stackui_nn(self):
+        form_layout = QFormLayout()
+
+        self.NNspinRandomState = QSpinBox()
+        self.NNspinRandomState.setMaximumWidth(80)
+        self.NNspinRandomState.setMinimum(-1)
+        self.NNspinRandomState.setMaximum(999999)
+        self.NNspinRandomState.setValue(-1)
+        form_layout.addRow("random_state:", self.NNspinRandomState)
+
+        self.NNlineHiddenLayers = QLineEdit()
+        self.NNlineHiddenLayers.setPlaceholderText("Example: 50,100,50")
+        form_layout.addRow("hidden_layer_sizes:", self.NNlineHiddenLayers)
+
+        self.NNactivation = ["identity", "logistic", "tanh", "relu"]
+        self.NNcomboActivation = QComboBox()
+        self.NNcomboActivation.setMaximumWidth(80)
+        self.NNcomboActivation.addItems(self.NNactivation)
+        self.NNcomboActivation.setCurrentIndex(self.NNactivation.index("relu"))
+        form_layout.addRow("activation:", self.NNcomboActivation)
+
+        self.NNsolver = ["lbfgs", "sgd", "adam"]
+        self.NNcomboSolver = QComboBox()
+        self.NNcomboSolver.setMaximumWidth(80)
+        self.NNcomboSolver.addItems(self.NNsolver)
+        self.NNcomboSolver.setCurrentIndex(self.NNsolver.index("adam"))
+        form_layout.addRow("solver:", self.NNcomboSolver)
+
+        self.NNspinAlpha = QDoubleSpinBox()
+        self.NNspinAlpha.setMaximumWidth(80)
+        self.NNspinAlpha.setDecimals(8)
+        self.NNspinAlpha.setMinimum(0)
+        self.NNspinAlpha.setMaximum(999999)
+        self.NNspinAlpha.setValue(0.0001)
+        form_layout.addRow("alpha:", self.NNspinAlpha)
+
+        self.NNspinBatchSize = QSpinBox()
+        self.NNspinBatchSize.setMaximumWidth(80)
+        self.NNspinBatchSize.setMinimum(-1)
+        self.NNspinBatchSize.setMaximum(999999)
+        self.NNspinBatchSize.setValue(-1)
+        form_layout.addRow("batch_size:", self.NNspinBatchSize)
+
+        self.NNlearningRate = ["constant", "invscaling", "adaptive"]
+        self.NNcomboLearningRate = QComboBox()
+        self.NNcomboLearningRate.setMaximumWidth(80)
+        self.NNcomboLearningRate.addItems(self.NNlearningRate)
+        self.NNcomboLearningRate.setCurrentIndex(self.NNlearningRate.index("constant"))
+        self.NNcomboLearningRate.setEnabled(False)
+        form_layout.addRow("learning_rate:", self.NNcomboLearningRate)
+
+        self.NNspinLearningRateInit = QDoubleSpinBox()
+        self.NNspinLearningRateInit.setMaximumWidth(80)
+        self.NNspinLearningRateInit.setDecimals(6)
+        self.NNspinLearningRateInit.setMinimum(0)
+        self.NNspinLearningRateInit.setMaximum(9999)
+        self.NNspinLearningRateInit.setValue(0.001)
+        form_layout.addRow("learning_rate_init:", self.NNspinLearningRateInit)
+
+        self.NNspinPowerT = QDoubleSpinBox()
+        self.NNspinPowerT.setMaximumWidth(80)
+        self.NNspinPowerT.setDecimals(6)
+        self.NNspinPowerT.setMinimum(0)
+        self.NNspinPowerT.setMaximum(9999)
+        self.NNspinPowerT.setValue(0.5)
+        self.NNspinPowerT.setEnabled(False)
+        form_layout.addRow("power_t:", self.NNspinPowerT)
+
+        self.NNspinMaxIter = QSpinBox()
+        self.NNspinMaxIter.setMaximumWidth(80)
+        self.NNspinMaxIter.setMinimum(1)
+        self.NNspinMaxIter.setMaximum(99999)
+        self.NNspinMaxIter.setValue(200)
+        form_layout.addRow("max_iter:", self.NNspinMaxIter)
+
+        self.NNcheckShuffle = QCheckBox()
+        self.NNcheckShuffle.setChecked(True)
+        form_layout.addRow("shuffle:", self.NNcheckShuffle)
+
+        self.NNspinBeta_1 = QDoubleSpinBox()
+        self.NNspinBeta_1.setMaximumWidth(80)
+        self.NNspinBeta_1.setDecimals(6)
+        self.NNspinBeta_1.setMinimum(0)
+        self.NNspinBeta_1.setMaximum(1)
+        self.NNspinBeta_1.setValue(0.9)
+        form_layout.addRow("beta_1:", self.NNspinBeta_1)
+
+        self.NNspinBeta_2 = QDoubleSpinBox()
+        self.NNspinBeta_2.setMaximumWidth(80)
+        self.NNspinBeta_2.setDecimals(6)
+        self.NNspinBeta_2.setMinimum(0)
+        self.NNspinBeta_2.setMaximum(1)
+        self.NNspinBeta_2.setValue(0.999)
+        form_layout.addRow("beta_2:", self.NNspinBeta_2)
+
+        self.NNspinEpsilon = QDoubleSpinBox()
+        self.NNspinEpsilon.setMaximumWidth(80)
+        self.NNspinEpsilon.setDecimals(8)
+        self.NNspinEpsilon.setMinimum(0)
+        self.NNspinEpsilon.setValue(0.00000001)
+        form_layout.addRow("epsilon:", self.NNspinEpsilon)
+
+        self.stack_NN.setLayout(form_layout)
+
+        self.NNcomboSolver.currentTextChanged.connect(self.nn_solver_options)
+        self.NNcomboLearningRate.currentTextChanged.connect(self.nn_solver_options)
+
+    def nn_solver_options(self):
+        solver = self.NNcomboSolver.currentText()
+        learning_rate = self.NNcomboLearningRate.currentText()
+
+        if solver == 'lbfgs':
+            self.NNspinBatchSize.setEnabled(False)
+            self.NNcomboLearningRate.setEnabled(False)
+            self.NNspinLearningRateInit.setEnabled(False)
+            self.NNcheckShuffle.setEnabled(False)
+            self.NNspinBeta_1.setEnabled(False)
+            self.NNspinBeta_2.setEnabled(False)
+            self.NNspinEpsilon.setEnabled(False)
+        elif solver == 'sgd':
+            self.NNspinBatchSize.setEnabled(True)
+            self.NNcomboLearningRate.setEnabled(True)
+            self.NNspinLearningRateInit.setEnabled(True)
+            self.NNcheckShuffle.setEnabled(True)
+            self.NNspinBeta_1.setEnabled(False)
+            self.NNspinBeta_2.setEnabled(False)
+            self.NNspinEpsilon.setEnabled(False)
+        elif solver == 'adam':
+            self.NNspinBatchSize.setEnabled(True)
+            self.NNcomboLearningRate.setEnabled(False)
+            self.NNspinLearningRateInit.setEnabled(True)
+            self.NNcheckShuffle.setEnabled(True)
+            self.NNspinBeta_1.setEnabled(True)
+            self.NNspinBeta_2.setEnabled(True)
+            self.NNspinEpsilon.setEnabled(True)
+        else:
+            self.NNspinBatchSize.setEnabled(False)
+            self.NNcomboLearningRate.setEnabled(False)
+            self.NNspinLearningRateInit.setEnabled(False)
+            self.NNspinPowerT.setEnabled(False)
+            self.NNcheckShuffle.setEnabled(False)
+            self.NNspinBeta_1.setEnabled(False)
+            self.NNspinBeta_2.setEnabled(False)
+            self.NNspinEpsilon.setEnabled(False)
+
+        if solver == 'sgd' and learning_rate == 'invscaling':
+            self.NNspinPowerT.setEnabled(True)
+        else:
+            self.NNspinPowerT.setEnabled(False)
+
+    def stackui_km(self):
+        form_layout = QFormLayout()
+
+        self.KMspinRandomState = QSpinBox()
+        self.KMspinRandomState.setMaximumWidth(80)
+        self.KMspinRandomState.setMinimum(-1)
+        self.KMspinRandomState.setMaximum(999999)
+        self.KMspinRandomState.setValue(-1)
+        form_layout.addRow("random_state:", self.KMspinRandomState)
+
+        self.KMspinNClusters = QSpinBox()
+        self.KMspinNClusters.setMaximumWidth(80)
+        self.KMspinNClusters.setMinimum(2)
+        self.KMspinNClusters.setMaximum(9999)
+        self.KMspinNClusters.setValue(8)
+        form_layout.addRow("n_clusters:", self.KMspinNClusters)
+
+        self.KMinit = ["k-means++", "random"]
+        self.KMcomboInit = QComboBox()
+        self.KMcomboInit.setMaximumWidth(80)
+        self.KMcomboInit.addItems(self.KMinit)
+        self.KMcomboInit.setCurrentIndex(self.KMinit.index("k-means++"))
+        form_layout.addRow("init:", self.KMcomboInit)
+
+        self.KMspinNInit = QSpinBox()
+        self.KMspinNInit.setMaximumWidth(80)
+        self.KMspinNInit.setMinimum(1)
+        self.KMspinNInit.setMaximum(9999)
+        self.KMspinNInit.setValue(10)
+        form_layout.addRow("n_init:", self.KMspinNInit)
+
+        self.KMspinMaxIter = QSpinBox()
+        self.KMspinMaxIter.setMaximumWidth(80)
+        self.KMspinMaxIter.setMinimum(1)
+        self.KMspinMaxIter.setMaximum(99999)
+        self.KMspinMaxIter.setValue(300)
+        form_layout.addRow("max_iter:", self.KMspinMaxIter)
+
+        self.KMspinTol = QDoubleSpinBox()
+        self.KMspinTol.setMaximumWidth(80)
+        self.KMspinTol.setDecimals(8)
+        self.KMspinTol.setMinimum(0)
+        self.KMspinTol.setMaximum(9999)
+        self.KMspinTol.setValue(0.0001)
+        form_layout.addRow("tol:", self.KMspinTol)
+
+        self.KMalgorithm = ["auto", "full", "elkan"]
+        self.KMcomboAlgorithm = QComboBox()
+        self.KMcomboAlgorithm.setMaximumWidth(80)
+        self.KMcomboAlgorithm.addItems(self.KMalgorithm)
+        self.KMcomboAlgorithm.setCurrentIndex(self.KMalgorithm.index("auto"))
+        form_layout.addRow("algorithm:", self.KMcomboAlgorithm)
+
+        self.stack_KM.setLayout(form_layout)
 
     def display_stack(self, i):
         self.stack.setCurrentIndex(i)
@@ -256,6 +640,162 @@ class ClaspyGui(QMainWindow):
         """
         Save configuration as JSON file.
         """
+        # Create the json directory
+        json_dict = dict()
+
+        # Save input file, output folder and sample size
+        json_dict['input_file'] = self.lineFile.text()
+        json_dict['output_folder'] = self.lineFolder.text()
+        json_dict['samples'] = self.spinSampleSize.value()
+
+        # Get the selected algorithm and the parameters
+        param_dict = dict()
+        selected_algo = self.listAlgorithms.selectedItems()[0].text()
+        # if Random Forest
+        if selected_algo == "Random Forest":
+            json_dict['algo'] = 'RandomForestClassifier'
+
+            # n_estimators
+            param_dict['n_estimators'] = self.RFspinEstimators.value()
+            # criterion
+            param_dict['criterion'] = self.RFcomboCriterion.currentText()
+            # max_depth
+            if self.RFspinMaxDepth.value() == 0:
+                param_dict['max_depth'] = None
+            else:
+                param_dict['max_depth'] = self.RFspinMaxDepth.value()
+            # min_samples_split
+            param_dict['min_samples_split'] = self.RFspinSamplesSplit.value()
+            # min_samples_leaf
+            param_dict['min_samples_leaf'] = self.RFspinSamplesLeaf.value()
+            # min_weight_fraction_leaf
+            param_dict['min_weight_fraction_leaf'] = self.RFspinWeightLeaf.value()
+            # max_features
+            param_dict['max_features'] = self.RFcomboMaxFeatures.currentText()
+            # n_jobs
+            if self.RFspinNJob.value() == 0:
+                param_dict['n_jobs'] = None
+            else:
+                param_dict['n_jobs'] = self.RFspinNJob.value()
+            # random_state
+            if self.RFspinRandomState.value() == -1:
+                param_dict['random_state'] = None
+            else:
+                param_dict['random_state'] = self.RFspinRandomState.value()
+
+        # if Gradient Boosting
+        elif selected_algo == 'Gradient Boosting':
+            json_dict['algo'] = 'GradientBoostingClassifier'
+
+            # loss
+            param_dict['loss'] = self.GBcomboLoss.currentText()
+            # learning_rate
+            param_dict['learning_rate'] = self.GBspinLearningRate.value()
+            # n_estimators
+            param_dict['n_estimators'] = self.GBspinEstimators.value()
+            # subsample
+            param_dict['subsample'] = self.GBspinSubsample.value()
+            # criterion
+            param_dict['criterion'] = self.GBcomboCriterion.currentText()
+            # min_samples_split
+            param_dict['min_samples_split'] = self.GBspinSamplesSplit.value()
+            # min_samples_leaf
+            param_dict['min_samples_leaf'] = self.GBspinSamplesLeaf.value()
+            # min_weight_fraction_leaf
+            param_dict['min_weight_fraction_leaf'] = self.GBspinWeightLeaf.value()
+            # max_depth
+            if self.GBspinMaxDepth.value() == 0:
+                param_dict['max_depth'] = None
+            else:
+                param_dict['max_depth'] = self.GBspinMaxDepth.value()
+            # random_state
+            if self.GBspinRandomState.value() == -1:
+                param_dict['random_state'] = None
+            else:
+                param_dict['random_state'] = self.GBspinRandomState.value()
+            # max_features
+            if self.GBcomboMaxFeatures.currentText() == 'None':
+                param_dict['max_features'] = None
+            else:
+                param_dict['max_features'] = self.GBcomboMaxFeatures.currentText()
+
+        # if Neural Network
+        elif selected_algo == "Neural Network":
+            json_dict['algo'] = 'MLPClassifier'
+
+            # hidden_layer_sizes
+            hidden_layers = self.NNlineHiddenLayers.text().replace(' ', '')
+            if hidden_layers == '':
+                param_dict['hidden_layer_sizes'] = (100,)
+            else:
+                param_dict['hidden_layer_sizes'] = [int(layer) for layer in hidden_layers.split(',')]
+            # activation
+            param_dict['activation'] = self.NNcomboActivation.currentText()
+            # solver
+            param_dict['solver'] = self.NNcomboSolver.currentText()
+            # alpha
+            param_dict['alpha'] = self.NNspinAlpha.value()
+            # batch_size
+            if self.NNspinBatchSize.isEnabled():
+                if self.NNspinBatchSize.value() == -1:
+                    param_dict['batch_size'] = 'auto'
+                else:
+                    param_dict['batch_size'] = self.NNspinBatchSize.value()
+            # learning_rate
+            if self.NNcomboLearningRate.isEnabled():
+                param_dict['learning_rate'] = self.NNcomboLearningRate.currentText()
+            # learning_rate_init
+            if self.NNspinLearningRateInit.isEnabled():
+                param_dict['learning_rate_init'] = self.NNspinLearningRateInit.value()
+            # power_t
+            if self.NNspinPowerT.isEnabled():
+                param_dict['power_t'] = self.NNspinPowerT.value()
+            # max_iter
+            param_dict['max_iter'] = self.NNspinMaxIter.value()
+            # shuffle
+            if self.NNcheckShuffle.isEnabled():
+                param_dict['shuffle'] = self.NNcheckShuffle.isChecked()
+            # random_state
+            if self.NNspinRandomState.value() == -1:
+                param_dict['random_state'] = None
+            else:
+                param_dict['random_state'] = self.NNspinRandomState.value()
+            # beta_1, beta_2 and epsilon
+            if self.NNspinBeta_1.isEnabled():
+                param_dict['beta_1'] = self.NNspinBeta_1.value()
+            if self.NNspinBeta_2.isEnabled():
+                param_dict['beta_2'] = self.NNspinBeta_2.value()
+            if self.NNspinEpsilon.isEnabled():
+                param_dict['epsilon'] = self.NNspinEpsilon.value()
+
+        # if K-Means Clustering
+        elif selected_algo == "K-Means Clustering":
+            json_dict['algo'] = 'KMeans'
+
+            # n_clusters
+            param_dict['n_clusters'] = self.KMspinNClusters.value()
+            # init
+            param_dict['init'] = self.KMcomboInit.currentText()
+            # n_init
+            param_dict['n_init'] = self.KMspinNInit.value()
+            # max_iter
+            param_dict['max_iter'] = self.KMspinMaxIter.value()
+            # tol
+            param_dict['tol'] = self.KMspinTol.value()
+            # random_state
+            if self.KMspinRandomState.value() == -1:
+                param_dict['random_state'] = None
+            else:
+                param_dict['random_state'] = self.KMspinRandomState.value()
+            # algorithm
+            param_dict['algorithm'] = self.KMcomboAlgorithm.currentText()
+
+        # if anything else
+        else:
+            self.statusBar.showMessage('Error: Unknown selected algorithm!')
+
+        json_dict['parameters'] = param_dict
+
         # Get the current selected fields
         self.selectedFields = [item.text() for item in self.listFields.selectedItems()]
 
@@ -264,13 +804,24 @@ class ClaspyGui(QMainWindow):
             self.selectedFields.append(self.targetName)
 
         self.selectedFields.sort()
-        print(self.selectedFields)
+        json_dict['scalar_fields'] = self.selectedFields
+
+        # Save the JSON file
+        self.statusBar.showMessage("Writing JSON config file...", 3000)
+        json_file = QFileDialog.getSaveFileName(None, 'Save JSON config file',
+                                                '', "JSON files (*.json)")
+
+        if json_file[0] != '':
+            with open(json_file[0], 'w') as config_file:
+                json.dump(json_dict, config_file)
 
     def run_claspy_t(self):
         print("Run cLASpy_T")
 
     def reject(self):
-        print("Close pressed !")
+        """
+        Close the GUI
+        """
         self.close()
 
 
