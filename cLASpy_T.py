@@ -29,6 +29,8 @@
 # --------------------
 
 import argparse
+import textwrap
+
 import yaml
 import json
 
@@ -42,97 +44,146 @@ from sklearn.metrics import confusion_matrix, classification_report
 # ---- ARGUMENT_PARSER ----
 # -------------------------
 
-parser = argparse.ArgumentParser(description="\nThis library based on Sci-kit Learn library classify 3D point cloud\n"
-                                             "using machine learning algorithms. The input data must be CSV or LAS "
-                                             "file. Three supervised classifiers are available from the sklearn library"
-                                             "(RandomForestClassifier, GradientBoostingClassifier and MLPClassifier) "
-                                             "and one unsupervised clustering algorithm (KMeans).\n"
-                                             "\nFor training, data_file must contain:\n"
-                                             "    --> target field named 'target' AND data fields\n"
-                                             "For prediction, data_file must contain:\n"
-                                             "    --> data fields\n\n"
-                                             "If X, Y and/or Z fields are present, they are excluded.\n"
-                                             "All standard dimensions of LAS like 'intensity', 'scan_angle_rank'\n"
-                                             "are discarded.",
-                                 formatter_class=argparse.RawTextHelpFormatter)
+parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter,
+                                 description=textwrap.dedent('''\
+                                 -------------------------------------------------------------------------------
+                                                             cLASpy_T
+                                                     ------------------------
+                                 This program classifies 3D point clouds using machine learning algorithms based
+                                 on the Scikit-Learn library. Three supervised classifiers are available
+                                 (RandomForestClassifier, GradientBoostingClassifier and MLPClassifier)
+                                 and one unsupervised clustering algorithm (KMeans).
+                                 The input data must be CSV or LAS file.
+                                 
+                                 For training, input_data file must contain:
+                                    --> target field named 'target'
+                                    --> data fields
+                                 
+                                 For prediction, input_data file must contain:
+                                    --> data fields
+                                 
+                                 For CSV files:
+                                    If X, Y and/or Z fields are present, they are excluded.
+                                    To use them, rename them!
+                                
+                                 For LAS files:
+                                    All standard dimensions like 'intensity' or 'scan_angle_rank' are discarded.
+                                    To use them, rename them!
+                                    
+                                 -------------------------------------------------------------------------------
+                                 '''))
 
-parser.add_argument("algorithm",
-                    help="The available algorithms:\n"
+parser.add_argument("mode",
+                    help="set the mode for the algorithm, among training, prediction\n"
+                         "    and segmentation.",
+                    type=str, choices=['train', 'pred', 'seg'])
+
+parser.add_argument("-a", "--algorithm",
+                    help="set the algorithm:  ['rf', 'gb', 'ann', 'kmeans']\n"
                          "    'rf': RandomForestClassifier\n"
                          "    'gb': GradientBoostingClassifier\n"
                          "    'ann': MLPClassifier\n"
-                         "    'kmeans': KMeans\n",
-                    type=str, choices=['rf', 'gb', 'ann', 'kmeans'])
+                         "    'kmeans': KMeans\n\n",
+                    type=str, choices=['rf', 'gb', 'ann', 'kmeans'], metavar='')
 
-parser.add_argument("data_file",
-                    help="The data file:\n"
-                         "    [WINDOWS]: 'C:/path/to/the/data.file'\n"
-                         "    [UNIX]: '/path/to/the/data.file'",
-                    type=str, metavar="/path/to/data.file")
+parser.add_argument("-c", "--config",
+                    help="give the configuration file with all parameters\n"
+                         "    and selected scalar fields.\n"
+                         "    [WINDOWS]: 'X:/path/to/the/config.json'\n"
+                         "    [UNIX]: '/path/to/the/config.json'\n\n",
+                    type=str, metavar='')
+
+parser.add_argument("-i", "--input_data",
+                    help="set the input data file:\n"
+                         "    [WINDOWS]: 'X:/path/to/the/input_data.file'\n"
+                         "    [UNIX]: '/path/to/the/input_data.file'\n\n",
+                    type=str, metavar='')
+
+parser.add_argument("-o", "--output",
+                    help="set the output folder to save all result files:\n"
+                         "    [WINDOWS]: 'X:/path/to/the/output/folder'\n"
+                         "    [UNIX]: '/path/to/the/output/folder'\n"
+                         "    Default: '/path/to/the/input_data/'\n\n",
+                    type=str, metavar='')
 
 parser.add_argument("-g", "--grid_search",
-                    help="Perform the training with GridSearchCV",
-                    action="store_true")
-
-parser.add_argument("-i", "--importance",
-                    help="Export feature importance from randomForest and gradientBoosting model as a PNG image file.",
+                    help="perform the training with GridSearchCV.\n\n",
                     action="store_true")
 
 parser.add_argument("-k", "--param_grid",
-                    help='Set the parameters to pass at the GridSearch as list(sep=",") in dict. NO SPACE\n'
-                         'If empty, GridSearchCV uses presets.\n'
-                         'Example: -k=\'{"n_estimators":[50,100,500],"loss":["deviance","exponential"],'
-                         '"hidden_layer_sizes":[[100,100],[50,100,50]]}\'\n'
-                         'Wrong parameters will be ignored\n',
-                    type=str, metavar="[=\'dict\']")
+                    help="set the parameters to pass to the GridSearch as list\n"
+                         "    in dictionary. NO WHITESPACES!\n"
+                         "    If empty, GridSearchCV uses presets.\n"
+                         "    Wrong parameters will be ignored.\n\n"
+                         "Example:\n"
+                         "    -k=\"{'n_estimators':[50,100,500],'loss':['deviance',\n"
+                         "    'exponential'],'hidden_layer_sizes':[[100,100],[50,100,50]]}\"\n\n",
+                    type=str, metavar='')
 
-parser.add_argument("-m", "--model_to_import",
-                    help="The model file to import to make predictions:\n"
-                         "'/path/to/the/training/file.model'",
-                    type=str, metavar="[=\"/path/to/file.model\"]")
+parser.add_argument("-m", "--model",
+                    help="import the model file to make predictions:\n"
+                         "    '/path/to/the/training/file.model'\n\n",
+                    type=str, metavar='')
 
 parser.add_argument("-n", "--n_jobs",
-                    help="Set the number of CPU used, '-1' means all CPU available.",
-                    type=int, metavar="[1,2,...,-1]", default=-1)
+                    help="set the number of CPU used, '-1' means all CPU available.\n"
+                         "    Default: '-n=-1'\n\n",
+                    type=int, metavar='', default=-1)
 
 parser.add_argument("-p", "--parameters",
-                    help='Set the parameters to pass at the classifier for training, as dict.\n'
-                         'Example: -p=\'{"n_estimators":50,"max_depth":5,"max_iter":500}\'',
-                    type=str, metavar="[=\'dict\']")
+                    help="set the parameters to pass to the classifier for training,\n"
+                         "    as dictionary. NO WHITESPACES!\n\n"
+                         "Example:\n"
+                         "    -p=\"{'n_estimators':50,'max_depth':5,'max_iter':500}\"\n\n",
+                    type=str, metavar='')
 
 parser.add_argument("--pca",
-                    help="Set the PCA analysis and the number of principal components",
-                    type=int, metavar="--pca=8")
+                    help="set the Principal Component Analysis and the number of\n"
+                         "    principal components.\n"
+                         "    Default: '--pca=8'\n\n",
+                    type=int, metavar='')
+
+parser.add_argument("--png_features",
+                    help="export the feature importance from RandomForest and\n"
+                         "    GradientBoosting algorithms as a PNG image.\n\n",
+                    action="store_true")
 
 parser.add_argument("-s", "--samples",
-                    help="Set the number of samples, in Million points, for large dataset.\n"
-                         "If data length > samples:\n"
-                         "then train + test length = samples",
-                    type=float, metavar="[in Mpts]")
+                    help="set the number of samples for large dataset.\n"
+                         "    (float number in million points)\n"
+                         "    samples = train set + test set\n\n",
+                    type=float, metavar='')
 
 parser.add_argument("--scaler",
-                    help="Set method to scale the data before training.\n"
-                         "See the preprocessing documentation of scikit-learn.",
-                    type=str, choices=['Standard', 'Robust', 'MinMax'], default='Standard')
+                    help="set method to scale the data before training.\n"
+                         "    ['Standard', 'Robust', 'MinMax']\n"
+                         "    See the preprocessing documentation of scikit-learn.\n"
+                         "    Default: '--scaler=Standard'\n\n",
+                    type=str, choices=['Standard', 'Robust', 'MinMax'],
+                    default='Standard', metavar='')
 
 parser.add_argument("--scoring",
-                    help="Set scorer to GridSearchCV or cross_val_score according\n"
-                         "to scikit-learn documentation.",
-                    type=str, default='accuracy',
-                    metavar="[='accuracy','balanced_accuracy','average_precision',"
-                            "'precision','recall',...]")
+                    help="set scorer for GridSearchCV or cross_val_score:\n"
+                         "    ['accuracy','balanced_accuracy','precision','recall',...]\n"
+                         "    See the scikit-learn documentation.\n"
+                         "    Default: '--scoring=accuracy'\n\n",
+                    type=str, default='accuracy', metavar="")
 
-parser.add_argument("--test_ratio",
-                    help="Set the test ratio as float [0.0-1.0] to split into train and test data.\n"
-                         "If train_ratio + test_ratio > 1\n"
-                         "then test_ratio = 1 - train_ratio",
-                    type=float, default=0.5, metavar="[0.0-1.0]")
+parser.add_argument("--test_r",
+                    help="set the test ratio as float [0.0 - 1.0] to split into\n"
+                         "    train and test data.\n"
+                         "    If train_ratio + test_ratio > 1:\n"
+                         "        test_ratio = 1 - train_ratio\n"
+                         "    Default: '--test_r=0.5'\n\n",
+                    type=float, default=0.5, metavar="")
 
-parser.add_argument("--train_ratio",
-                    help="Set the train ratio as float number to split into train and test data.\n"
-                         "If train_ratio + test_ratio > 1:\n"
-                         "then test_ratio = 1 - train_ratio",
-                    type=float, default=0.5, metavar="[0.0-1.0]")
+parser.add_argument("--train_r",
+                    help="set the train ratio as float [0.0 - 1.0] to split into\n"
+                         "    train and test data.\n"
+                         "    If train_ratio + test_ratio > 1:\n"
+                         "        test_ratio = 1 - train_ratio\n"
+                         "    Default: '--train_r=0.5'\n\n",
+                    type=float, default=0.5, metavar="")
 
 args = parser.parse_args()
 
