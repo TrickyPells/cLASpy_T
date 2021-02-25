@@ -213,6 +213,9 @@ def predict(args):
     Make predictions according the passed arguments.
     :param args: the passed arguments.
     """
+    # Set mode for common functions
+    mode = 'predict'
+
     # Get model, scaler and pca
     print("\nLoading model...", end='')
     model_to_load = args.model  # Set variable for the report
@@ -226,14 +229,15 @@ def predict(args):
 
     # FORMAT DATA as XY & Z & target DataFrames and remove raw_classification from file.
     print("\n1. Formatting data as pandas.Dataframe...")
-    data, target = format_dataset(data_path, mode=args.mode)
+    data, target = format_dataset(data_path, mode=mode)
 
     # Get the number of points
     nbr_pts = number_of_points(data.shape[0], sample_size=args.samples)
     str_nbr_pts = format_nbr_pts(nbr_pts)  # Format nbr_pts as string for filename
 
     # Set the report filename
-    report_filename = str(folder_path + '/' + args.mode + '_' + args.algo + str_nbr_pts + str(timestamp))
+    algo = shortname_algo(algorithm)
+    report_filename = str(folder_path + '/' + mode + '_' + algo + str_nbr_pts + str(timestamp))
 
     # Get the field names
     # ADD TEST TO CHECK ALL MANDATORY FIELDS ARE PRESENT
@@ -286,8 +290,8 @@ def predict(args):
 
     # Write the entire report
     write_report(report_filename,
-                 mode=args.mode,
-                 algo=args.algorithm,
+                 mode=mode,
+                 algo=algorithm,
                  data_file=args.input_data,
                  start_time=start_time,
                  elapsed_time=spent_time,
@@ -308,6 +312,9 @@ def segment(args):
     Segment input_data point cloud according the passed arguments.
     :param args: the passed arguments.
     """
+    # Set mode for common functions
+    mode = 'segment'
+
     # Check parameters exists
     if args.parameters:
         parameters = yaml.safe_load(args.parameters)
@@ -315,6 +322,8 @@ def segment(args):
         parameters = None
 
     # Get the classifier
+    algo = 'kmeans'
+    algorithm = 'KMeans'
     classifier = set_kmeans_cluster(fit_params=parameters)
 
     # INTRODUCTION
@@ -323,14 +332,14 @@ def segment(args):
 
     # FORMAT DATA as XY & Z & target DataFrames and remove raw_classification from file.
     print("\n1. Formatting data as pandas.Dataframe...")
-    data, target = format_dataset(data_path, mode=args.mode)
+    data, target = format_dataset(data_path, mode=mode)
 
     # Get the number of points
     nbr_pts = number_of_points(data.shape[0], sample_size=args.samples)
     str_nbr_pts = format_nbr_pts(nbr_pts)  # Format nbr_pts as string for filename
 
     # Set the report filename
-    report_filename = str(folder_path + '/' + args.mode + '_' + args.algo + str_nbr_pts + str(timestamp))
+    report_filename = str(folder_path + '/' + mode + '_' + algo + str_nbr_pts + str(timestamp))
 
     # Get the field names
     field_names = data.columns.values.tolist()
@@ -359,9 +368,9 @@ def segment(args):
 
     # Write the entire report
     write_report(report_filename,
-                 mode=args.mode,
-                 algo=args.algorithm,
-                 data_file=args.data_file,
+                 mode=mode,
+                 algo=algorithm,
+                 data_file=args.input_data,
                  start_time=start_time,
                  elapsed_time=spent_time,
                  feat_names=field_names,

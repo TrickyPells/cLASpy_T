@@ -44,6 +44,7 @@ from sklearn.metrics import confusion_matrix, classification_report
 # ---- ARGUMENT_PARSER ----
 # -------------------------
 
+# Create global parser
 parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter,
                                  description=textwrap.dedent('''\
                                  -------------------------------------------------------------------------------
@@ -73,152 +74,203 @@ parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter,
                                  -------------------------------------------------------------------------------
                                  '''))
 
-parser.add_argument("mode",
-                    help="set the mode for the algorithm, among training, prediction\n"
-                         "    and segmentation.",
-                    type=str, choices=['train', 'predict', 'segment'])
+# Add subparsers
+subparsers = parser.add_subparsers(help="cLASpy_T modes:\n\n", metavar='')
 
-parser.add_argument("-a", "--algo",
-                    help="set the algorithm:  ['rf', 'gb', 'ann', 'kmeans']\n"
-                         "    'rf': RandomForestClassifier\n"
-                         "    'gb': GradientBoostingClassifier\n"
-                         "    'ann': MLPClassifier\n"
-                         "    'kmeans': KMeans\n\n",
-                    type=str, choices=['rf', 'gb', 'ann', 'kmeans'], metavar='')
+# Create sub-command for training
+parser_train = subparsers.add_parser('train', help="training mode",
+                                     formatter_class=argparse.RawTextHelpFormatter)
 
-parser.add_argument("-c", "--config",
-                    help="give the configuration file with all parameters\n"
-                         "    and selected scalar fields.\n"
-                         "    [WINDOWS]: 'X:/path/to/the/config.json'\n"
-                         "    [UNIX]: '/path/to/the/config.json'\n\n",
-                    type=str, metavar='')
+parser_train.add_argument("-a", "--algo",
+                          help="set the algorithm:  ['rf', 'gb', 'ann']\n"
+                               "    'rf': RandomForestClassifier\n"
+                               "    'gb': GradientBoostingClassifier\n"
+                               "    'ann': MLPClassifier\n\n",
+                          type=str, choices=['rf', 'gb', 'ann'], metavar='')
 
-parser.add_argument("-i", "--input_data",
-                    help="set the input data file:\n"
-                         "    [WINDOWS]: 'X:/path/to/the/input_data.file'\n"
-                         "    [UNIX]: '/path/to/the/input_data.file'\n\n",
-                    type=str, metavar='')
+parser_train.add_argument("-c", "--config",
+                          help="give the configuration file with all parameters\n"
+                               "    and selected scalar fields.\n"
+                               "    [WINDOWS]: 'X:/path/to/the/config.json'\n"
+                               "    [UNIX]: '/path/to/the/config.json'\n\n",
+                          type=str, metavar='')
 
-parser.add_argument("-o", "--output",
-                    help="set the output folder to save all result files:\n"
-                         "    [WINDOWS]: 'X:/path/to/the/output/folder'\n"
-                         "    [UNIX]: '/path/to/the/output/folder'\n"
-                         "    Default: '/path/to/the/input_data/'\n\n",
-                    type=str, metavar='')
+parser_train.add_argument("-i", "--input_data",
+                          help="set the input data file:\n"
+                               "    [WINDOWS]: 'X:/path/to/the/input_data.file'\n"
+                               "    [UNIX]: '/path/to/the/input_data.file'\n\n",
+                          type=str, metavar='')
 
-parser.add_argument("-g", "--grid_search",
-                    help="perform the training with GridSearchCV.\n\n",
-                    action="store_true")
+parser_train.add_argument("-o", "--output",
+                          help="set the output folder to save all result files:\n"
+                               "    [WINDOWS]: 'X:/path/to/the/output/folder'\n"
+                               "    [UNIX]: '/path/to/the/output/folder'\n"
+                               "    Default: '/path/to/the/input_data'\n\n",
+                          type=str, metavar='')
 
-parser.add_argument("-k", "--param_grid",
-                    help="set the parameters to pass to the GridSearch as list\n"
-                         "    in dictionary. NO WHITESPACES!\n"
-                         "    If empty, GridSearchCV uses presets.\n"
-                         "    Wrong parameters will be ignored.\n\n"
-                         "Example:\n"
-                         "    -k=\"{'n_estimators':[50,100,500],'loss':['deviance',\n"
-                         "    'exponential'],'hidden_layer_sizes':[[100,100],[50,100,50]]}\"\n\n",
-                    type=str, metavar='')
+parser_train.add_argument("-g", "--grid_search",
+                          help="perform the training with GridSearchCV.\n\n",
+                          action="store_true")
 
-parser.add_argument("-m", "--model",
-                    help="import the model file to make predictions:\n"
-                         "    '/path/to/the/training/file.model'\n\n",
-                    type=str, metavar='')
+parser_train.add_argument("-k", "--param_grid",
+                          help="set the parameters to pass to the GridSearch as list\n"
+                               "    in dictionary. NO WHITESPACES!\n"
+                               "    If empty, GridSearchCV uses presets.\n"
+                               "    Wrong parameters will be ignored.\n\n"
+                               "Example:\n"
+                               "    -k=\"{'n_estimators':[50,100,500],'loss':['deviance',\n"
+                               "    'exponential'],'hidden_layer_sizes':[[100,100],[50,100,50]]}\"\n\n",
+                          type=str, metavar='')
 
-parser.add_argument("-n", "--n_jobs",
-                    help="set the number of CPU used, '-1' means all CPU available.\n"
-                         "    Default: '-n=-1'\n\n",
-                    type=int, metavar='', default=-1)
+parser_train.add_argument("-n", "--n_jobs",
+                          help="set the number of CPU used, '-1' means all CPU available.\n"
+                               "    Default: '-n=-1'\n\n",
+                          type=int, metavar='', default=-1)
 
-parser.add_argument("-p", "--parameters",
-                    help="set the parameters to pass to the classifier for training,\n"
-                         "    as dictionary. NO WHITESPACES!\n\n"
-                         "Example:\n"
-                         "    -p=\"{'n_estimators':50,'max_depth':5,'max_iter':500}\"\n\n",
-                    type=str, metavar='')
+parser_train.add_argument("-p", "--parameters",
+                          help="set the parameters to pass to the classifier for training,\n"
+                               "    as dictionary. NO WHITESPACES!\n\n"
+                               "Example:\n"
+                               "    -p=\"{'n_estimators':50,'max_depth':5,'max_iter':500}\"\n\n",
+                          type=str, metavar='')
 
-parser.add_argument("--pca",
-                    help="set the Principal Component Analysis and the number of\n"
-                         "    principal components.\n"
-                         "    Default: '--pca=8'\n\n",
-                    type=int, metavar='')
+parser_train.add_argument("--pca",
+                          help="set the Principal Component Analysis and the number of\n"
+                               "    principal components. If it enabled, default\n"
+                               "    number of principal components is 8 ('--pca=8')\n\n",
+                          type=int, metavar='')
 
-parser.add_argument("--png_features",
-                    help="export the feature importance from RandomForest and\n"
-                         "    GradientBoosting algorithms as a PNG image.\n\n",
-                    action="store_true")
+parser_train.add_argument("--png_features",
+                          help="export the feature importance from RandomForest and\n"
+                               "    GradientBoosting algorithms as a PNG image.\n\n",
+                          action="store_true")
 
-parser.add_argument("-s", "--samples",
-                    help="set the number of samples for large dataset.\n"
-                         "    (float number in million points)\n"
-                         "    samples = train set + test set\n\n",
-                    type=float, metavar='')
+parser_train.add_argument("-s", "--samples",
+                          help="set the number of samples for large dataset.\n"
+                               "    (float number in million points)\n"
+                               "    samples = train set + test set\n\n",
+                          type=float, metavar='')
 
-parser.add_argument("--scaler",
-                    help="set method to scale the data before training.\n"
-                         "    ['Standard', 'Robust', 'MinMax']\n"
-                         "    See the preprocessing documentation of scikit-learn.\n"
-                         "    Default: '--scaler=Standard'\n\n",
-                    type=str, choices=['Standard', 'Robust', 'MinMax'],
-                    default='Standard', metavar='')
+parser_train.add_argument("--scaler",
+                          help="set method to scale the data before training.\n"
+                               "    ['Standard', 'Robust', 'MinMax']\n"
+                               "    See the preprocessing documentation of scikit-learn.\n"
+                               "    Default: '--scaler=Standard'\n\n",
+                          type=str, choices=['Standard', 'Robust', 'MinMax'],
+                          default='Standard', metavar='')
 
-parser.add_argument("--scoring",
-                    help="set scorer for GridSearchCV or cross_val_score:\n"
-                         "    ['accuracy','balanced_accuracy','precision','recall',...]\n"
-                         "    See the scikit-learn documentation.\n"
-                         "    Default: '--scoring=accuracy'\n\n",
-                    type=str, default='accuracy', metavar="")
+parser_train.add_argument("--scoring",
+                          help="set scorer for GridSearchCV or cross_val_score:\n"
+                               "    ['accuracy','balanced_accuracy','precision','recall',...]\n"
+                               "    See the scikit-learn documentation.\n"
+                               "    Default: '--scoring=accuracy'\n\n",
+                          type=str, default='accuracy', metavar="")
 
-parser.add_argument("--test_r",
-                    help="set the test ratio as float [0.0 - 1.0] to split into\n"
-                         "    train and test data.\n"
-                         "    If train_ratio + test_ratio > 1:\n"
-                         "        test_ratio = 1 - train_ratio\n"
-                         "    Default: '--test_r=0.5'\n\n",
-                    type=float, default=0.5, metavar="")
+parser_train.add_argument("--test_r",
+                          help="set the test ratio as float [0.0 - 1.0] to split into\n"
+                               "    train and test data.\n"
+                               "    If train_ratio + test_ratio > 1:\n"
+                               "        test_ratio = 1 - train_ratio\n"
+                               "    Default: '--test_r=0.5'\n\n",
+                          type=float, default=0.5, metavar="")
 
-parser.add_argument("--train_r",
-                    help="set the train ratio as float [0.0 - 1.0] to split into\n"
-                         "    train and test data.\n"
-                         "    If train_ratio + test_ratio > 1:\n"
-                         "        test_ratio = 1 - train_ratio\n"
-                         "    Default: '--train_r=0.5'\n\n",
-                    type=float, default=0.5, metavar="")
+parser_train.add_argument("--train_r",
+                          help="set the train ratio as float [0.0 - 1.0] to split into\n"
+                               "    train and test data.\n"
+                               "    If train_ratio + test_ratio > 1:\n"
+                               "        test_ratio = 1 - train_ratio\n"
+                               "    Default: '--train_r=0.5'\n\n",
+                          type=float, default=0.5, metavar="")
 
+parser_train.set_defaults(func=train)  # Use training function
+
+# Create sub-command for predictions
+parser_predict = subparsers.add_parser('predict', help="prediction mode",
+                                       formatter_class=argparse.RawTextHelpFormatter)
+
+parser_predict.add_argument("-c", "--config",
+                            help="give the configuration file with all parameters\n"
+                                 "    and selected scalar fields.\n"
+                                 "    [WINDOWS]: 'X:/path/to/the/config.json'\n"
+                                 "    [UNIX]: '/path/to/the/config.json'\n\n",
+                            type=str, metavar='')
+
+parser_predict.add_argument("-i", "--input_data",
+                            help="set the input data file:\n"
+                                 "    [WINDOWS]: 'X:/path/to/the/input_data.file'\n"
+                                 "    [UNIX]: '/path/to/the/input_data.file'\n\n",
+                            type=str, metavar='')
+
+parser_predict.add_argument("-o", "--output",
+                            help="set the output folder to save all result files:\n"
+                                 "    [WINDOWS]: 'X:/path/to/the/output/folder'\n"
+                                 "    [UNIX]: '/path/to/the/output/folder'\n"
+                                 "    Default: '/path/to/the/input_data/'\n\n",
+                            type=str, metavar='')
+
+parser_predict.add_argument("-m", "--model",
+                            help="import the model file to make predictions:\n"
+                                 "    '/path/to/the/training/file.model'\n\n",
+                            type=str, metavar='')
+
+parser_predict.add_argument("-s", "--samples",
+                            help="set the number of samples for large dataset.\n"
+                                 "    (float number in million points)\n"
+                                 "    samples = train set + test set\n\n",
+                            type=float, metavar='')
+
+parser_predict.add_argument("-n", "--n_jobs",
+                            help="set the number of CPU used, '-1' means all CPU available.\n"
+                                 "    Default: '-n=-1'\n\n",
+                            type=int, metavar='', default=-1)
+
+parser_predict.set_defaults(func=predict)  # Use predict function
+
+# Create sub-command for segmentation
+parser_segment = subparsers.add_parser('segment', help="segmentation mode",
+                                       formatter_class=argparse.RawTextHelpFormatter)
+
+
+parser_segment.add_argument("-c", "--config",
+                            help="give the configuration file with all parameters\n"
+                                 "    and selected scalar fields.\n"
+                                 "    [WINDOWS]: 'X:/path/to/the/config.json'\n"
+                                 "    [UNIX]: '/path/to/the/config.json'\n\n",
+                            type=str, metavar='')
+
+parser_segment.add_argument("-i", "--input_data",
+                            help="set the input data file:\n"
+                                 "    [WINDOWS]: 'X:/path/to/the/input_data.file'\n"
+                                 "    [UNIX]: '/path/to/the/input_data.file'\n\n",
+                            type=str, metavar='')
+
+parser_segment.add_argument("-o", "--output",
+                            help="set the output folder to save all result files:\n"
+                                 "    [WINDOWS]: 'X:/path/to/the/output/folder'\n"
+                                 "    [UNIX]: '/path/to/the/output/folder'\n"
+                                 "    Default: '/path/to/the/input_data/'\n\n",
+                            type=str, metavar='')
+
+parser_segment.add_argument("-n", "--n_jobs",
+                            help="set the number of CPU used, '-1' means all CPU available.\n"
+                                 "    Default: '-n=-1'\n\n",
+                            type=int, metavar='', default=-1)
+
+parser_segment.add_argument("-p", "--parameters",
+                            help="set the parameters to pass to the classifier for training,\n"
+                                 "    as dictionary. NO WHITESPACES!\n\n"
+                                 "Example:\n"
+                                 "    -p=\"{'n_estimators':50,'max_depth':5,'max_iter':500}\"\n\n",
+                            type=str, metavar='')
+
+parser_segment.add_argument("--pca",
+                            help="set the Principal Component Analysis and the number of\n"
+                                 "    principal components. If it enabled, default\n"
+                                 "    number of principal components is 8 ('--pca=8')\n\n",
+                            type=int, metavar='')
+
+parser_segment.set_defaults(func=segment)  # Use segment function
+
+# parse the args and call whatever function was selected
 args = parser.parse_args()
-
-# -------------------------
-# --------- MAIN ----------
-# -------------------------
-
-# Set non-common parameters as None
-train_size = None
-test_size = None
-pca = None
-pca_compo = None
-grid_results = None
-cv_results = None
-model_to_load = None
-conf_mat = None
-test_report = None
-parameters = None
-
-
-# INTRODUCTION
-data_path, folder_path, start_time = introduction(algo, args.data_file)  # Start prompt
-timestamp = start_time.strftime("%m%d_%H%M")  # Timestamp for file creation MonthDay_HourMinute
-
-# FORMAT DATA as XY & Z & target DataFrames and remove raw_classification from file.
-print("\n1. Formatting data as pandas.Dataframe...")
-data, target = format_dataset(data_path, mode=mode)
-
-# Get the number of points
-nbr_pts = number_of_points(data.shape[0], sample_size=args.samples)
-str_nbr_pts = format_nbr_pts(nbr_pts)  # Format nbr_pts as string for filename
-
-# Set the report filename
-report_filename = str(folder_path + '/' + args.mode + '_' +
-                      args.algorithm + str_nbr_pts + str(timestamp))
-
-# Get the feature names
-feature_names = data.columns.values.tolist()
+args.func(args)

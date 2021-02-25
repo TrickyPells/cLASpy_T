@@ -49,14 +49,15 @@ from common import *
 # -------------------------
 
 
-def get_classifier(args):
+def get_classifier(args, algorithm=None):
     """
     Return the classifier according to the selected algorithm.
     :param args: the passed arguments
     :return: the classifier
     """
-    # Update args.algo and args.algorithm
-    update_algo(args)
+    # Fullname of algorithm
+    if algorithm is None:
+        algorithm = fullname_algo(args.algo)
 
     # Check parameters exists
     if args.parameters:
@@ -65,22 +66,22 @@ def get_classifier(args):
         parameters = None
 
     # Set the chosen learning classifier
-    if args.algorithm == 'RandomForestClassifier':
+    if algorithm == 'RandomForestClassifier':
         classifier = set_random_forest(fit_params=parameters, n_jobs=args.n_jobs)
 
-    elif args.algorithm == 'GradientBoostingClassifier':
+    elif algorithm == 'GradientBoostingClassifier':
         classifier = set_gradient_boosting(fit_params=parameters)
 
-    elif args.algorithm == 'MLPClassifier':
+    elif algorithm == 'MLPClassifier':
         classifier = set_mlp_classifier(fit_params=parameters)
 
-    elif args.algorithm == 'KMeans':
-        raise ValueError("Use 'segment' to perform '{}' algorithm!".format(args.algorithm))
+    elif algorithm == 'KMeans':
+        raise ValueError("Use 'segment' for '{}' algorithm!".format(algorithm))
 
     else:
         raise ValueError("No valid classifier!")
 
-    return classifier
+    return algorithm, classifier
 
 
 def split_dataset(data_values, target_values, train_ratio=0.5, test_ratio=0.5, samples=0.5):
@@ -109,8 +110,8 @@ def split_dataset(data_values, target_values, train_ratio=0.5, test_ratio=0.5, s
     target_train = target_train.reshape(train_size)
     target_test = target_test.reshape(test_size)
 
-    print("\tNumber of used points: {} pts".format(train_size + test_size))
-    print("\tSize of train|test datasets: {} pts | {} pts".format(train_size, test_size))
+    print("\tNumber of used points: {:,} pts".format(train_size + test_size).replace(',', ' '))
+    print("\tSize of train|test datasets: {:,} pts | {:,} pts".format(train_size, test_size).replace(',', ' '))
 
     return data_train, data_test, target_train, target_test
 
@@ -365,28 +366,31 @@ def save_model(model_to_save, file_name):
 # -------------------------
 
 
-def training(args):
+def train(args):
     """
     Perform training according the passed arguments.
     :param args: the passed arguments.
     """
+    # Set mode for common functions
+    mode = 'training'
+
     # Get the classifier and update the selected algorithm
-    classifier = get_classifier(args)
+    algorithm, classifier = get_classifier(args)
 
     # INTRODUCTION
-    data_path, folder_path, start_time = introduction(args.algorithm, args.input_data, folder_path=args.output)  # Start prompt
+    data_path, folder_path, start_time = introduction(algorithm, args.input_data, folder_path=args.output)  # Start prompt
     timestamp = start_time.strftime("%m%d_%H%M")  # Timestamp for file creation MonthDay_HourMinute
 
     # FORMAT DATA as XY & Z & target DataFrames and remove raw_classification from file.
     print("\n1. Formatting data as pandas.Dataframe...")
-    data, target = format_dataset(data_path, mode=args.mode)
+    data, target = format_dataset(data_path, mode=mode)
 
     # Get the number of points
     nbr_pts = number_of_points(data.shape[0], sample_size=args.samples)
     str_nbr_pts = format_nbr_pts(nbr_pts)  # Format nbr_pts as string for filename
 
     # Set the report filename
-    report_filename = str(folder_path + '/' + args.mode + '_' + args.algo + str_nbr_pts + str(timestamp))
+    report_filename = str(folder_path + '/' + mode + '_' + args.algo + str_nbr_pts + str(timestamp))
 
     # Get the field names
     field_names = data.columns.values.tolist()
@@ -448,9 +452,9 @@ def training(args):
                                                   n_jobs=args.n_jobs)
 
     # Importance of each feature in RF and GB
-    if args.grid_search or args.algorithm == 'ann':
-        args.importance = False  # Overwrite 'False' if '-i' option set with grid, ann
-    if args.importance:
+    if args.grid_search or args.algo == 'ann':
+        args.png_features = False  # Overwrite 'False' if '-i' option set with grid, ann
+    if args.png_features:
         feat_imp_filename = str(report_filename + '_feat_imp.png')
         save_feature_importance(model, field_names, feat_imp_filename)
 
@@ -466,7 +470,7 @@ def training(args):
     print("\n6. Saving model and scaler in file:")
     model_filename = str(report_filename + '.model')
     model_dict = dict()
-    model_dict['algorithm'] = args.algorithm
+    model_dict['algorithm'] = algorithm
     model_dict['field_names'] = field_names
     model_dict['model'] = model
     save_model(model_dict, model_filename)
@@ -484,8 +488,8 @@ def training(args):
 
     # Write the entire report
     write_report(report_filename,
-                 mode=args.mode,
-                 algo=args.algorithm,
+                 mode=mode,
+                 algo=algorithm,
                  data_file=args.input_data,
                  start_time=start_time,
                  elapsed_time=spent_time,

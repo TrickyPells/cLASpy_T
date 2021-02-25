@@ -82,36 +82,46 @@ point_format[10] = point_format[6] + rgb + nir + wavepacket
 # -------------------------
 
 
-def update_algo(args):
+def fullname_algo(algo):
     """
-    Update the algo name in args parser.
-    :param args: the passed arguments.
-    :return: update args.algo and args.algorithm
+    Give the fullname of selected algorithm.
+    :param algo: the selected algo.
+    :return: the fullname of the algorithm
     """
-    # Update args.algo according args.algorithm
-    if args.algorithm is not None:
-        if args.algorithm == 'RandomForestClassifier':
-            args.algo = 'rf'
-        elif args.algorithm == 'GradientBoostingClassifier':
-            args.algo = 'gb'
-        elif args.algorithm == 'MLPClassifier':
-            args.algo = 'ann'
-        elif args.algorithm == 'KMeans':
-            args.algo = 'kmeans'
-
-    # Update args.algorithm according args.algo
-    elif args.algo is not None:
-        if args.algo == 'rf':
-            args.algorithm = 'RandomForestClassifier'
-        elif args.algo == 'gb':
-            args.algorithm = 'GradientBoostingClassifier'
-        elif args.algo == 'ann':
-            args.algorithm = 'MLPClassifier'
-        elif args.algo == 'kmeans':
-            args.algorithm = 'KMeans'
-
+    # Get fullname of algorithm according algo
+    if algo == 'rf':
+        algorithm = 'RandomForestClassifier'
+    elif algo == 'gb':
+        algorithm = 'GradientBoostingClassifier'
+    elif algo == 'ann':
+        algorithm = 'MLPClassifier'
+    elif algo == 'kmeans':
+        algorithm = 'KMeans'
     else:
         raise ValueError("Choose a machine learning algorithm ('--algo')!")
+
+    return algorithm
+
+
+def shortname_algo(algorithm):
+    """
+    Give the short name of selected algorithm
+    :param algo: the selected algo.
+    :return: the fullname of the algorithm
+    """
+    # Get short name of algorithm
+    if algorithm == 'RandomForestClassifier':
+        algo = 'rf'
+    elif algorithm == 'GradientBoostingClassifier':
+        algo = 'gb'
+    elif algorithm == 'MLPClassifier':
+        algo = 'ann'
+    elif algorithm == 'KMeans':
+        algo = 'kmeans'
+    else:
+        raise ValueError("Choose a machine learning algorithm ('--algo')!")
+
+    return algo
 
 
 def introduction(algorithm, file_path, folder_path=None):
@@ -185,11 +195,11 @@ def file_to_pandasframe(data_path):
     return frame
 
 
-def format_dataset(data_path, mode='train'):
+def format_dataset(data_path, mode='training'):
     """
     Format the input data as panda DataFrame. Exclude XYZ fields.
     :param data_path: path of the input data.
-    :param mode: set the mode ['train', 'pred', 'seg'] to check mandatory 'target' field in case of training.
+    :param mode: set the mode ['training', 'predict', 'segment'] to check mandatory 'target' field in case of training.
     :return: features_data and target as DataFrames.
     """
     # Load data into Pandas DataFrame
@@ -215,7 +225,7 @@ def format_dataset(data_path, mode='train'):
             field_t = field
 
     # Target is mandatory for training
-    if mode == 'train' and field_t is None:
+    if mode == 'training' and field_t is None:
         raise ValueError("A 'target' field is mandatory for training!")
 
     # Create target field if exist
@@ -439,7 +449,7 @@ def write_report(filename, mode, algo, data_file, start_time, elapsed_time, appl
     """
     Write the report of training or predictions in .TXT file.
     :param filename: Entire path and filename without extension.
-    :param mode: 'train', 'pred' or 'seg' modes.
+    :param mode: 'training', 'predict' or 'segment' modes.
     :param algo: Algorithm used for training or predictions.
     :param data_file: Data file used to make training or predictions.
     :param start_time: Time when the script began.
@@ -467,19 +477,19 @@ def write_report(filename, mode, algo, data_file, start_time, elapsed_time, appl
         report.write('\n\nScaling method:\n{}'.format(scaler))
 
         # Write the train and test size
-        if mode == 'train':
-            report.write('\n\nNumber of points for training: ' + str(data_len) + ' pts')
-            report.write('\nTrain size: ' + str(train_len) + ' pts')
-            report.write('\nTest size: ' + str(test_len) + ' pts')
+        if mode == 'training':
+            report.write('\n\nNumber of points for training: {:,} pts'.format(data_len).replace(',', ' '))
+            report.write('\nTrain size: {:,} pts'.format(train_len).replace(',', ' '))
+            report.write('\nTest size: {:,} pts'.format(test_len).replace(',', ' '))
 
         # Write the number of point to predict
-        if mode == 'pred':
-            report.write('\n\nNumber of points to predict: ' + str(data_len) + ' pts')
+        if mode == 'predict':
+            report.write('\n\nNumber of points to predict: {:,} pts'.format(data_len).replace(',', ' '))
             report.write('\nModel used: ' + model)
 
         # Write the number of point to segment
-        if mode == 'seg':
-            report.write('\n\nNumber of points to segment: ' + str(data_len) * ' pts')
+        if mode == 'segment':
+            report.write('\n\nNumber of points to segment: {:,} pts'.format(data_len).replace(',', ' '))
 
         if pca_compo:
             report.write('\n\nPCA Components:\n')
@@ -509,7 +519,7 @@ def write_report(filename, mode, algo, data_file, start_time, elapsed_time, appl
             report.write(score_report)
 
         # Write elapsed time
-        if mode == 'train':
+        if mode == 'training':
             report.write('\n\nModel trained in {}'.format(elapsed_time))
         else:
             report.write('\n\nPredictions done in {}'.format(elapsed_time))
