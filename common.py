@@ -82,6 +82,38 @@ point_format[10] = point_format[6] + rgb + nir + wavepacket
 # -------------------------
 
 
+def update_algo(args):
+    """
+    Update the algo name in args parser.
+    :param args: the passed arguments.
+    :return: update args.algo and args.algorithm
+    """
+    # Update args.algo according args.algorithm
+    if args.algorithm is not None:
+        if args.algorithm == 'RandomForestClassifier':
+            args.algo = 'rf'
+        elif args.algorithm == 'GradientBoostingClassifier':
+            args.algo = 'gb'
+        elif args.algorithm == 'MLPClassifier':
+            args.algo = 'ann'
+        elif args.algorithm == 'KMeans':
+            args.algo = 'kmeans'
+
+    # Update args.algorithm according args.algo
+    elif args.algo is not None:
+        if args.algo == 'rf':
+            args.algorithm = 'RandomForestClassifier'
+        elif args.algo == 'gb':
+            args.algorithm = 'GradientBoostingClassifier'
+        elif args.algo == 'ann':
+            args.algorithm = 'MLPClassifier'
+        elif args.algo == 'kmeans':
+            args.algorithm = 'KMeans'
+
+    else:
+        raise ValueError("Choose a machine learning algorithm ('--algo')!")
+
+
 def introduction(algorithm, file_path, folder_path=None):
     """
     Prompt the introduction, create folder to store results
@@ -183,7 +215,7 @@ def format_dataset(data_path, mode='train'):
             field_t = field
 
     # Target is mandatory for training
-    if mode == 'training' and field_t is None:
+    if mode == 'train' and field_t is None:
         raise ValueError("A 'target' field is mandatory for training!")
 
     # Create target field if exist

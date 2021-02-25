@@ -65,12 +65,16 @@ def load_model(path_to_model):
     :param path_to_model: The path to the model to load
     :return: loaded_model
     """
-
     # Check if path_to_model variable is str and load model
     if isinstance(path_to_model, str):
         loaded_model = joblib.load(path_to_model)
     else:
         raise TypeError("Argument 'model_to_import' must be a string!")
+
+    # Retrieve algorithm, model and field_names
+    algorithm = loaded_model['algorithm']
+    field_names = loaded_model['field_names']
+    loaded_model = loaded_model['model']
 
     # Check if the model is GridSearchCV or Pipeline
     if isinstance(loaded_model, GridSearchCV):
@@ -90,7 +94,7 @@ def load_model(path_to_model):
         print('\tAny PCA data to load from model.')
         pca = None
 
-    return model, scaler, pca
+    return algorithm, model, scaler, pca, field_names
 
 
 def predict_with_proba(model, data_to_predic):
@@ -197,3 +201,172 @@ def save_predictions(predictions, file_name, source_file):
 
     else:
         print("Unknown extension!")
+
+
+# -------------------------
+# --------- MAIN ----------
+# -------------------------
+
+
+def predict(args):
+    """
+    Make predictions according the passed arguments.
+    :param args: the passed arguments.
+    """
+    # Get model, scaler and pca
+    print("\nLoading model...", end='')
+    model_to_load = args.model  # Set variable for the report
+    algorithm, model, scaler, pca, field_names = load_model(model_to_load)
+    print("Done\n")
+    print(field_names)
+
+    # INTRODUCTION
+    data_path, folder_path, start_time = introduction(algorithm, args.input_data, folder_path=args.output)  # Start prompt
+    timestamp = start_time.strftime("%m%d_%H%M")  # Timestamp for file creation MonthDay_HourMinute
+
+    # FORMAT DATA as XY & Z & target DataFrames and remove raw_classification from file.
+    print("\n1. Formatting data as pandas.Dataframe...")
+    data, target = format_dataset(data_path, mode=args.mode)
+
+    # Get the number of points
+    nbr_pts = number_of_points(data.shape[0], sample_size=args.samples)
+    str_nbr_pts = format_nbr_pts(nbr_pts)  # Format nbr_pts as string for filename
+
+    # Set the report filename
+    report_filename = str(folder_path + '/' + args.mode + '_' + args.algo + str_nbr_pts + str(timestamp))
+
+    # Get the field names
+    # ADD TEST TO CHECK ALL MANDATORY FIELDS ARE PRESENT
+    field_names = data.columns.values.tolist()
+
+    # Apply scaler to data
+    print("\n2. Scaling data...")
+    data_scaled = scaler.transform(data)
+    data_scaled = pd.DataFrame.from_records(data_scaled, columns=field_names)
+
+    # Apply pca to data if exists
+    if pca:
+        data_scaled = apply_pca(pca, data_scaled)
+        pca_compo = np.array2string(pca.components_)
+    else:
+        pca_compo = None
+
+    # Predic target of input data
+    print("\n4. Making predictions for entire dataset...")
+    # y_pred = model.predict(data_scaled.values)
+    y_pred = predict_with_proba(model, data_scaled.values)
+
+    if target is not None:
+        # Save confusion matrix
+        print("\nCreating confusion matrix...")
+        conf_mat = confusion_matrix(target.values, y_pred.transpose()[0])
+        conf_mat = precision_recall(conf_mat)  # return Dataframe
+        test_report = classification_report(target.values, y_pred.transpose()[0])  # Get classification report
+        print("\n{}\n".format(test_report))
+    else:
+        conf_mat = None
+        test_report = None
+
+    # Save classifaction result as point cloud file with all data
+    print("\n5. Saving classified point cloud:")
+    predic_filename = report_filename
+    print(predic_filename)
+    save_predictions(y_pred, predic_filename, data_path)
+
+    # Create and save prediction report
+    print("\n6. Creating classification report:")
+    print(report_filename + '.txt')
+
+    # Get the model parameters to print in the report
+    applied_parameters = ["{}: {}".format(param, model.get_params()[param])
+                          for param in model.get_params()]
+
+    # Compute elapsed time
+    spent_time = datetime.now() - start_time
+
+    # Write the entire report
+    write_report(report_filename,
+                 mode=args.mode,
+                 algo=args.algorithm,
+                 data_file=args.input_data,
+                 start_time=start_time,
+                 elapsed_time=spent_time,
+                 feat_names=field_names,
+                 scaler=scaler,
+                 data_len=nbr_pts,
+                 applied_param=applied_parameters,
+                 pca_compo=pca_compo,
+                 model=model_to_load,
+                 conf_mat=conf_mat,
+                 score_report=test_report)
+
+    print("\nPredictions done in {}".format(spent_time))
+
+
+def segment(args):
+    """
+    Segment input_data point cloud according the passed arguments.
+    :param args: the passed arguments.
+    """
+    # Check parameters exists
+    if args.parameters:
+        parameters = yaml.safe_load(args.parameters)
+    else:
+        parameters = None
+
+    # Get the classifier
+    classifier = set_kmeans_cluster(fit_params=parameters)
+
+    # INTRODUCTION
+    data_path, folder_path, start_time = introduction('KMeans', args.input_data, folder_path=args.output)  # Start prompt
+    timestamp = start_time.strftime("%m%d_%H%M")  # Timestamp for file creation MonthDay_HourMinute
+
+    # FORMAT DATA as XY & Z & target DataFrames and remove raw_classification from file.
+    print("\n1. Formatting data as pandas.Dataframe...")
+    data, target = format_dataset(data_path, mode=args.mode)
+
+    # Get the number of points
+    nbr_pts = number_of_points(data.shape[0], sample_size=args.samples)
+    str_nbr_pts = format_nbr_pts(nbr_pts)  # Format nbr_pts as string for filename
+
+    # Set the report filename
+    report_filename = str(folder_path + '/' + args.mode + '_' + args.algo + str_nbr_pts + str(timestamp))
+
+    # Get the field names
+    field_names = data.columns.values.tolist()
+
+    # Clustering the input data
+    print("\n2. Clustering the dataset...")
+    y_pred = classifier.fit_predict(data)
+
+    # Save clustering result as point cloud file with all data
+    print("\n3. Saving segmented point cloud as CSV file:")
+    predic_filename = str(report_filename + '.csv')
+    print(predic_filename)
+    save_predictions(y_pred, predic_filename, data_path)
+    scaler = None
+
+    # Create and save prediction report
+    print("\n4. Creating segmentation report:")
+    print(report_filename + '.txt')
+
+    # Get the model parameters to print in the report
+    applied_parameters = ["{}: {}".format(param, classifier.get_params()[param])
+                          for param in classifier.get_params()]
+
+    # Compute elapsed time
+    spent_time = datetime.now() - start_time
+
+    # Write the entire report
+    write_report(report_filename,
+                 mode=args.mode,
+                 algo=args.algorithm,
+                 data_file=args.data_file,
+                 start_time=start_time,
+                 elapsed_time=spent_time,
+                 feat_names=field_names,
+                 scaler=scaler,
+                 data_len=nbr_pts,
+                 applied_param=applied_parameters)
+
+    print("\nSegmentation done in {}".format(spent_time))
