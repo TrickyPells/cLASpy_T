@@ -32,17 +32,68 @@ import time
 import joblib
 import numpy as np
 import pandas as pd
+import yaml
 
 from sklearn.ensemble import GradientBoostingClassifier
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import *
 from sklearn.neural_network import MLPClassifier
 from sklearn.svm import LinearSVC
+from sklearn.metrics import confusion_matrix, classification_report
+
+from common import *
+from predict import set_kmeans_cluster, save_predictions
 
 
 # -------------------------
 # ------ FUNCTIONS --------
 # -------------------------
+
+
+def get_classifier(args):
+    """
+    Return the selected algorithm for training.
+    :param args: the passed arguments.
+    :return: the classifier and update args.algo and args.algorithm
+    """
+    # Give the corresponding algorithm
+    if args.algo is not None:
+        if args.algo == 'rf':
+            args.algorithm = 'RandomForestClassifier'
+        elif args.algo == 'gb':
+            args.algorithm = 'GradientBoostingClassifier'
+        elif args.algo == 'ann':
+            args.algorithm = 'MLPClassifier'
+        elif args.algo == 'kmeans':
+            args.algorithm = 'KMeans'
+
+    # Check parameters exists
+    if args.parameters:
+        parameters = yaml.safe_load(args.parameters)
+    else:
+        parameters = None
+
+    # Set the chosen learning classifier
+    if args.algorithm == 'RandomForestClassifier':
+        args.algo = 'rf'
+        classifier = set_random_forest(fit_params=parameters, n_jobs=args.n_jobs)
+
+    elif args.algorithm == 'GradientBoostingClassifier':
+        args.algo = 'gb'
+        classifier = set_gradient_boosting(fit_params=parameters)
+
+    elif args.algorithm == 'MLPClassifier':
+        args.algo = 'ann'
+        classifier = set_mlp_classifier(fit_params=parameters)
+
+    elif args.algorithm == 'KMeans':
+        args.algo = 'kmeans'
+        classifier = set_kmeans_cluster(fit_params=parameters)
+
+    else:
+        raise ValueError("No valid classifier!")
+
+    return classifier
 
 
 def split_dataset(data_values, target_values, train_ratio=0.5, test_ratio=0.5, samples=0.5):
@@ -192,7 +243,7 @@ def set_gradient_boosting(fit_params=None):
 def set_linear_svc(fit_params=None):
     """
     Set the learning algorithm as LinearSVC.
-    :param fit_params: A dict with the parameters to set up.
+    :param fit_params: a dict with the parameters to set up.
     :return: classifier: the desired classifier with the required parameters
     """
     # Set the classifier
@@ -216,7 +267,7 @@ def set_linear_svc(fit_params=None):
 def set_mlp_classifier(fit_params=None):
     """
     Set the learning algorithm as MLPClassifier.
-    :param fit_params: A dict with the parameters to set up.
+    :param fit_params: a dict with the parameters to set up.
     :return: classifier: the desired classifier with the required parameters
     """
     # Set the classifier
@@ -240,13 +291,13 @@ def set_mlp_classifier(fit_params=None):
 def training_gridsearch(pipeline, training_data, training_target, grid_params=None, n_jobs=-1, scoring='accuracy'):
     """
     Train model with GridSearchCV meta-estimator according the chosen learning algorithm.
-    :param pipeline: Set the algorithm to train the model.
-    :param training_data: The training dataset.
-    :param training_target: The targets corresponding to the training dataset.
-    :param grid_params: The parameters for the GridSearchCV.
-    :param n_jobs: Number of CPU used.
-    :param scoring: Set the scorer according scikit-learn documentation.
-    :return: classifier, results: Classifier with best parameters and results from grid search.
+    :param pipeline: set the algorithm to train the model.
+    :param training_data: the training dataset.
+    :param training_target: the targets corresponding to the training dataset.
+    :param grid_params: the parameters for the GridSearchCV.
+    :param n_jobs: the number of CPU used.
+    :param scoring: set the scorer according scikit-learn documentation.
+    :return: classifier, results: classifier with best parameters and results from grid search.
     """
 
     # Set cross_validation method with train_size 80% and validation_size 20%
@@ -278,12 +329,12 @@ def training_gridsearch(pipeline, training_data, training_target, grid_params=No
 def training_nogridsearch(pipeline, training_data, training_target, n_jobs=-1, scoring='accuracy'):
     """
     Train model with cross-validation according the chosen classifier.
-    :param pipeline: Set the algorithm to train the model.
-    :param training_data: The training dataset.
-    :param training_target: The targets corresponding to the training dataset.
-    :param n_jobs: Number of CPU used.
-    :param scoring: Set the scorer according scikit-learn documentation.
-    :return: model, training_scores: The training model and the scores of n_splits training.
+    :param pipeline: set the algorithm to train the model.
+    :param training_data: the training dataset.
+    :param training_target: the targets corresponding to the training dataset.
+    :param n_jobs: the number of used CPU.
+    :param scoring: set the scorer according scikit-learn documentation.
+    :return: model, training_scores: the training model and the scores of n_splits training.
     """
     # Set cross_validation method with train_size 80% and validation_size 20%
     cross_val = StratifiedShuffleSplit(n_splits=5,
@@ -315,8 +366,8 @@ def training_nogridsearch(pipeline, training_data, training_target, n_jobs=-1, s
 def save_model(model_to_save, file_name):
     """
     Save the passing model into a file.
-    :param model_to_save: The model to save.
-    :param file_name: The path and name of the file.
+    :param model_to_save: the model to save.
+    :param file_name: the path and name of the file.
     """
     joblib.dump(model_to_save, file_name)
     print("Model path: {}/".format('/'.join(file_name.split('/')[:-1])))
@@ -326,4 +377,175 @@ def save_model(model_to_save, file_name):
 # --------- MAIN ----------
 # -------------------------
 
-# if __name__ == '__main__':
+
+def training(args):
+    """
+    Perform training according the passed arguments.
+    :param args: the passed arguments.
+    """
+    # Get the classifier and update the selected algorithm
+    classifier = get_classifier(args)
+
+    # INTRODUCTION
+    data_path, folder_path, start_time = introduction(args.algorithm, args.input_data, folder_path=args.output)  # Start prompt
+    timestamp = start_time.strftime("%m%d_%H%M")  # Timestamp for file creation MonthDay_HourMinute
+
+    # FORMAT DATA as XY & Z & target DataFrames and remove raw_classification from file.
+    print("\n1. Formatting data as pandas.Dataframe...")
+    data, target = format_dataset(data_path, mode=args.mode)
+
+    # Get the number of points
+    nbr_pts = number_of_points(data.shape[0], sample_size=args.samples)
+    str_nbr_pts = format_nbr_pts(nbr_pts)  # Format nbr_pts as string for filename
+
+    # Set the report filename
+    report_filename = str(folder_path + '/' + args.mode + '_' + args.algo + str_nbr_pts + str(timestamp))
+
+    # Get the field names
+    field_names = data.columns.values.tolist()
+
+    if args.mode == 'train':
+
+        # Split data into training and testing sets
+        print("\n2. Splitting data in train and test sets...")
+        x_train_val, x_test, y_train_val, y_test = split_dataset(data.values, target.values,
+                                                                 train_ratio=args.train_r,
+                                                                 test_ratio=args.test_r,
+                                                                 samples=nbr_pts)
+
+        # Get the train and test sizes
+        train_size = len(y_train_val)
+        test_size = len(y_test)
+
+        # Scale the dataset as 'Standard', 'Robust' or 'MinMaxScaler'
+        print("\n3. Scaling data...")
+        scaler = set_scaler(method=args.scaler)
+
+        # Create PCA if it's called
+        if args.pca:
+            pca_filename = str(report_filename + '_pca.png')
+            pca = set_pca(n_components=args.pca)
+        else:
+            pca = None
+
+        # Create Pipeline for GridSearchCV or CV
+        pipeline = set_pipeline(scaler, classifier, pca=pca)
+
+        # TYPE OF TRAINING
+        if args.grid_search:  # Training with GridSearchCV
+            print('\n4. Training model with GridSearchCV...\n')
+            cv_results = None
+
+            # Check param_grid exists
+            if args.param_grid:
+                param_grid = yaml.safe_load(args.param_grid)
+
+            else:
+                param_grid = None
+
+            param_grid = check_grid_params(pipeline,
+                                           grid_params=param_grid)
+
+            model, grid_results = training_gridsearch(pipeline,
+                                                      x_train_val,
+                                                      y_train_val,
+                                                      grid_params=param_grid,
+                                                      scoring=args.scoring,
+                                                      n_jobs=args.n_jobs)
+
+        else:  # Training with Cross Validation
+            print("\n4. Training model with cross validation...\n")
+            grid_results = None
+
+            model, cv_results = training_nogridsearch(pipeline,
+                                                      x_train_val,
+                                                      y_train_val,
+                                                      scoring=args.scoring,
+                                                      n_jobs=args.n_jobs)
+
+        # Importance of each feature in RF and GB
+        if args.grid_search or args.algorithm == 'ann':
+            args.importance = False  # Overwrite 'False' if '-i' option set with grid, ann
+        if args.importance:
+            feat_imp_filename = str(report_filename + '_feat_imp.png')
+            save_feature_importance(model, field_names, feat_imp_filename)
+
+        # Create confusion matrix
+        print("\n5. Creating confusion matrix...")
+        y_test_pred = model.predict(x_test)
+        conf_mat = confusion_matrix(y_test, y_test_pred)
+        conf_mat = precision_recall(conf_mat)  # return Dataframe
+        test_report = classification_report(y_test, y_test_pred)  # Get classification report
+        print("\n{}".format(test_report))
+
+        # Save model and scaler and pca
+        print("\n6. Saving model and scaler in file:")
+        model_filename = str(report_filename + '.model')
+        save_model(model, model_filename)
+
+        # Create and save prediction report
+        print("\n7. Creating classification report:")
+        print(report_filename + '.txt')
+
+        # Get the model parameters to print in the report
+        applied_parameters = ["{}: {}".format(param, model.get_params()[param])
+                              for param in model.get_params()]
+
+        # Compute elapsed time
+        spent_time = datetime.now() - start_time
+
+        # Write the entire report
+        write_report(report_filename,
+                     mode=args.mode,
+                     algo=args.algorithm,
+                     data_file=args.input_data,
+                     start_time=start_time,
+                     elapsed_time=spent_time,
+                     feat_names=field_names,
+                     scaler=scaler,
+                     data_len=nbr_pts,
+                     train_len=train_size,
+                     test_len=test_size,
+                     applied_param=applied_parameters,
+                     grid_results=grid_results,
+                     cv_results=cv_results,
+                     conf_mat=conf_mat,
+                     score_report=test_report)
+
+        print("\nModel trained in {}".format(spent_time))
+
+    else:
+        print("\n2. Clustering the entire dataset...")
+        y_pred = classifier.fit_predict(data)
+
+        # Save clustering result as point cloud file with all data
+        print("\n3. Saving segmented point cloud as CSV file:")
+        predic_filename = str(report_filename + '.csv')
+        print(predic_filename)
+        save_predictions(y_pred, predic_filename, data_path)
+        scaler = None
+
+        # Create and save prediction report
+        print("\n4. Creating segmentation report:")
+        print(report_filename + '.txt')
+
+        # Get the model parameters to print in the report
+        applied_parameters = ["{}: {}".format(param, classifier.get_params()[param])
+                              for param in classifier.get_params()]
+
+        # Compute elapsed time
+        spent_time = datetime.now() - start_time
+
+        # Write the entire report
+        write_report(report_filename,
+                     mode=args.mode,
+                     algo=args.algorithm,
+                     data_file=args.data_file,
+                     start_time=start_time,
+                     elapsed_time=spent_time,
+                     feat_names=field_names,
+                     scaler=scaler,
+                     data_len=nbr_pts,
+                     applied_param=applied_parameters)
+
+        print("\nSegmentation done in {}".format(spent_time))

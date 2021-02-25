@@ -173,7 +173,7 @@ class ClaspyGui(QMainWindow):
 
         # Function call
         self.toolButtonFile.clicked.connect(self.get_file)
-        self.lineFile.textChanged.connect(self.open_file)
+        self.lineFile.editingFinished.connect(self.open_file)
         self.toolButtonFolder.clicked.connect(self.get_folder)
         self.listAlgorithms.currentRowChanged.connect(self.display_stack)
 
@@ -184,13 +184,14 @@ class ClaspyGui(QMainWindow):
                                                "LAS files (*.las);;CSV files (*.csv)")
 
         if filename[0] != '':
-            self.lineFile.setText(filename[0])
-            self.lineFolder.setText(os.path.splitext(filename[0])[0])
+            self.lineFile.setText(os.path.normpath(filename[0]))
+            self.open_file()
 
     def open_file(self):
         file_path = os.path.normpath(self.lineFile.text())
-
         root_ext = os.path.splitext(file_path)
+        self.lineFolder.setText(os.path.splitext(root_ext[0])[0])
+
         if root_ext[1] == '.csv':
             field_names = ["Encore", "en", "Test"]
             self.target = False
@@ -653,7 +654,7 @@ class ClaspyGui(QMainWindow):
         selected_algo = self.listAlgorithms.selectedItems()[0].text()
         # if Random Forest
         if selected_algo == "Random Forest":
-            json_dict['algo'] = 'RandomForestClassifier'
+            json_dict['algorithm'] = 'RandomForestClassifier'
 
             # n_estimators
             param_dict['n_estimators'] = self.RFspinEstimators.value()
@@ -685,7 +686,7 @@ class ClaspyGui(QMainWindow):
 
         # if Gradient Boosting
         elif selected_algo == 'Gradient Boosting':
-            json_dict['algo'] = 'GradientBoostingClassifier'
+            json_dict['algorithm'] = 'GradientBoostingClassifier'
 
             # loss
             param_dict['loss'] = self.GBcomboLoss.currentText()
@@ -721,7 +722,7 @@ class ClaspyGui(QMainWindow):
 
         # if Neural Network
         elif selected_algo == "Neural Network":
-            json_dict['algo'] = 'MLPClassifier'
+            json_dict['algorithm'] = 'MLPClassifier'
 
             # hidden_layer_sizes
             hidden_layers = self.NNlineHiddenLayers.text().replace(' ', '')
@@ -770,7 +771,7 @@ class ClaspyGui(QMainWindow):
 
         # if K-Means Clustering
         elif selected_algo == "K-Means Clustering":
-            json_dict['algo'] = 'KMeans'
+            json_dict['algorithm'] = 'KMeans'
 
             # n_clusters
             param_dict['n_clusters'] = self.KMspinNClusters.value()

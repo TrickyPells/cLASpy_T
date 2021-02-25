@@ -78,7 +78,7 @@ parser.add_argument("mode",
                          "    and segmentation.",
                     type=str, choices=['train', 'pred', 'seg'])
 
-parser.add_argument("-a", "--algorithm",
+parser.add_argument("-a", "--algo",
                     help="set the algorithm:  ['rf', 'gb', 'ann', 'kmeans']\n"
                          "    'rf': RandomForestClassifier\n"
                          "    'gb': GradientBoostingClassifier\n"
@@ -203,38 +203,6 @@ conf_mat = None
 test_report = None
 parameters = None
 
-# Check parameters exists
-if args.parameters:
-    parameters = yaml.safe_load(args.parameters)
-
-# Set the chosen learning classifier
-if args.algorithm == 'rf' or args.algorithm == 'RandomForestClassifier':
-    algo = 'RandomForestClassifier'
-    classifier = set_random_forest(fit_params=parameters, n_jobs=args.n_jobs)
-
-elif args.algorithm == 'gb' or args.algorithm == 'GradientBoostingClassifier':
-    algo = 'GradientBoostingClassifier'
-    classifier = set_gradient_boosting(fit_params=parameters)
-
-elif args.algorithm == 'ann' or args.algorithm == 'MLPClassifier':
-    algo = 'MLPClassifier'
-    classifier = set_mlp_classifier(fit_params=parameters)
-
-elif args.algorithm == 'kmeans' or args.algorithm == 'KMeans':
-    algo = 'KMeans'
-    classifier = set_kmeans_cluster(fit_params=parameters)
-
-else:
-    raise ValueError("No valid classifier!")
-
-# Set mode as 'training', 'prediction' or 'unsupervised'
-if args.model_to_import is None:
-    if any(args.algorithm in s for s in ['rf', 'gb', 'ann']):
-        mode = 'training'
-    else:
-        mode = 'unsupervised'
-else:
-    mode = 'prediction'
 
 # INTRODUCTION
 data_path, folder_path, start_time = introduction(algo, args.data_file)  # Start prompt
@@ -245,7 +213,7 @@ print("\n1. Formatting data as pandas.Dataframe...")
 data, target = format_dataset(data_path, mode=mode)
 
 # Get the number of points
-nbr_pts = nbr_pts(data_length=data.shape[0], sample_size=args.samples, mode=mode)
+nbr_pts = number_of_points(data.shape[0], sample_size=args.samples)
 str_nbr_pts = format_nbr_pts(nbr_pts)  # Format nbr_pts as string for filename
 
 # Set the report filename
@@ -255,94 +223,9 @@ report_filename = str(folder_path + '/' + mode[0:5] + '_' +
 # Get the feature names
 feature_names = data.columns.values.tolist()
 
-# TRAINING or PREDICTION
-if mode == 'training':  # Training mode
-
-    # Split data into training and testing sets
-    print("\n2. Splitting data in train and test sets...")
-    X_train_val, X_test, y_train_val, y_test = split_dataset(
-        data.values,
-        target.values,
-        train_ratio=args.train_ratio,
-        test_ratio=args.test_ratio,
-        samples=nbr_pts)
-
-    # Get the train and test sizes
-    train_size = len(y_train_val)
-    test_size = len(y_test)
-
-    # Scale the dataset as 'Standard', 'Robust' or 'MinMaxScaler'
-    print("\n3. Scaling data...")
-    scaler = set_scaler(method=args.scaler)
-
-    # Create PCA if it's called
-    if args.pca:
-        pca_filename = str(report_filename + '_pca.png')
-        pca = set_pca(n_components=args.pca)
-
-    # Create Pipeline for GridSearchCV or CV
-    pipeline = set_pipeline(scaler, classifier, pca=pca)
-
-    # TYPE OF TRAINING
-    if args.grid_search:  # Training with GridSearchCV
-        print('\n4.1 Training model with GridSearchCV...\n')
-
-        # Check param_grid exists
-        if args.param_grid:
-            param_grid = yaml.safe_load(args.param_grid)
-
-        else:
-            param_grid = None
-
-        param_grid = check_grid_params(pipeline,
-                                       grid_params=param_grid)
-
-        model, grid_results = training_gridsearch(pipeline,
-                                                  X_train_val,
-                                                  y_train_val,
-                                                  grid_params=param_grid,
-                                                  scoring=args.scoring,
-                                                  n_jobs=args.n_jobs)
-
-    else:  # Training with Cross Validation
-        print("\n4.1 Training model with cross validation...\n")
-        model, cv_results = training_nogridsearch(pipeline,
-                                                  X_train_val,
-                                                  y_train_val,
-                                                  scoring=args.scoring,
-                                                  n_jobs=args.n_jobs)
-
-    # Importance of each feature in RF and GB
-    if args.grid_search or args.algorithm == 'ann':
-        args.importance = False  # Overwrite 'False' if '-i' option set with grid, ann
-    if args.importance:
-        feat_imp_filename = str(report_filename + '_feat_imp.png')
-        save_feature_importance(model, feature_names, feat_imp_filename)
-
-    # Create confusion matrix
-    print("\n4.2. Creating confusion matrix...")
-    y_test_pred = model.predict(X_test)
-    conf_mat = confusion_matrix(y_test, y_test_pred)
-    conf_mat = precision_recall(conf_mat)  # return Dataframe
-    test_report = classification_report(y_test, y_test_pred)  # Get classification report
-    print("\n{}".format(test_report))
-
-    # Save model and scaler and pca
-    print("\n5. Saving model and scaler in file:")
-    model_filename = str(report_filename + '.model')
-    save_model(model, model_filename)
 
 elif mode == 'unsupervised':
-    print("\n2. Clustering the entire dataset...")
-    y_pred = classifier.fit_predict(data)
 
-    # Save clustering result as point cloud file with all data
-    print("\n3. Saving segmented point cloud as CSV file:")
-    predic_filename = str(report_filename + '.csv')
-    print(predic_filename)
-    save_predictions(y_pred, predic_filename, data_path)
-    model = classifier
-    scaler = None
 
 else:  # Prediction mode
 
@@ -411,7 +294,7 @@ write_report(report_filename,
              conf_mat=conf_mat,
              score_report=test_report)
 
-if mode == 'training':
+if mode == 'train':
     print("\nModel trained in {}".format(spent_time))
 else:
     print("\nPredictions done in {}".format(spent_time))

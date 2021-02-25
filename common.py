@@ -82,18 +82,18 @@ point_format[10] = point_format[6] + rgb + nir + wavepacket
 # -------------------------
 
 
-def introduction(algo, file_path):
+def introduction(algorithm, file_path, folder_path=None):
     """
     Prompt the introduction, create folder to store results
-    and return the start_time
-    :param algo: Algorithm used
-    :param file_path: CSV or LAS file of used data
-    :return: raw_data, folder_path and start time
+    and return the start_time.
+    :param algorithm: algorithm used.
+    :param file_path: CSV or LAS file of used data.
+    :return: raw_data, folder_path and start time.
     """
     # Prompt information about algorithm and file
     data_path = os.path.normpath(file_path)
     print("\n####### POINT CLOUD CLASSIFICATION #######\n"
-          "Algorithm used: {}".format(algo))
+          "Algorithm used: {}".format(algorithm))
 
     # Check CSV or LAS file
     root_ext = os.path.splitext(data_path)  # split file_path into root and extension
@@ -106,7 +106,9 @@ def introduction(algo, file_path):
 
     # Create a folder to store models, reports and predictions
     print("Create a new folder to store the result files...", end='')
-    folder_path = root_ext[0]  # remove extension so give folder path
+    if folder_path is None:
+        folder_path = root_ext[0]  # remove extension so give folder path
+
     try:
         os.mkdir(folder_path)  # Using file path to create new folder
         print(" Done.")
@@ -151,12 +153,12 @@ def file_to_pandasframe(data_path):
     return frame
 
 
-def format_dataset(data_path, mode='training'):
+def format_dataset(data_path, mode='train'):
     """
     Format the input data as panda DataFrame. Exclude XYZ fields.
-    :param data_path: Path of the input data as text file (.CSV).
-    :param mode: Set the mode ['training', 'prediction'] to check mandatory 'target' field in case of training.
-    :return: features_data, coord, height and target as DataFrames.
+    :param data_path: path of the input data.
+    :param mode: set the mode ['train', 'pred', 'seg'] to check mandatory 'target' field in case of training.
+    :return: features_data and target as DataFrames.
     """
     # Load data into Pandas DataFrame
     frame = file_to_pandasframe(data_path)
@@ -343,40 +345,32 @@ def precision_recall(conf_mat):
     return conf_mat_up
 
 
-def nbr_pts(data_length, sample_size=None, mode='training'):
+def number_of_points(data_length, sample_size=None, magnitude=1000000):
     """
     Set the number of point according the magnitude.
-    :param sample_size: Float of the number of point for training.
-    :param data_length: Total number of points in data file.
-    :param mode: 'training', 'unsupervised' and 'prediction' modes.
-    :return: nbr_pts: Integer of the number of points.
+    :param sample_size: float of the number of point for training.
+    :param data_length: total number of points in data file.
+    :return: int_nbr_pts: integer of the number of points.
     """
-    # Initiation
-    magnitude = 1000000
-
     # Tests data_length and sample_size exist as number
     try:
         data_length = float(data_length)
     except ValueError as ve:
-        raise ValueError("'data_length' parameter must be a number")
+        raise ValueError("ValueError: 'data_length' parameter must be a number!")
 
-    if sample_size is not None:  # Check if the sample_size and is a number
+    if sample_size is not None:  # Check if the sample_size is a number
         try:
             samples_size = float(sample_size)
         except ValueError as ve:
             sample_size = 0.05
-            print("ValueError: sample size must be a number\n"
-                  "sample size set to default: 0.05 Mpts.")
+            print("ValueError: 'sample_size' must be a number!\n"
+                  "Sample size set to default value: 0.05 Mpts.")
 
-    # Crop data only on training mode
-    if mode == 'training':
-        # Sample size > Data size
-        if sample_size is None or sample_size * magnitude >= data_length:
-            int_nbr_pts = int(data_length)  # Number of points of entire point cloud
-        else:
-            int_nbr_pts = int(sample_size * magnitude)  # Number of points < sample size
+    # Sample size > Data size or not ?
+    if sample_size is None or sample_size * magnitude >= data_length:
+        int_nbr_pts = int(data_length)  # Number of points of entire point cloud
     else:
-        int_nbr_pts = int(data_length)
+        int_nbr_pts = int(sample_size * magnitude)  # Sample size
 
     return int_nbr_pts
 
@@ -413,7 +407,7 @@ def write_report(filename, mode, algo, data_file, start_time, elapsed_time, appl
     """
     Write the report of training or predictions in .TXT file.
     :param filename: Entire path and filename without extension.
-    :param mode: 'train' or 'pred' mode.
+    :param mode: 'train', 'pred' or 'seg' modes.
     :param algo: Algorithm used for training or predictions.
     :param data_file: Data file used to make training or predictions.
     :param start_time: Time when the script began.
@@ -441,15 +435,19 @@ def write_report(filename, mode, algo, data_file, start_time, elapsed_time, appl
         report.write('\n\nScaling method:\n{}'.format(scaler))
 
         # Write the train and test size
-        if mode == 'training':
+        if mode == 'train':
             report.write('\n\nNumber of points for training: ' + str(data_len) + ' pts')
             report.write('\nTrain size: ' + str(train_len) + ' pts')
             report.write('\nTest size: ' + str(test_len) + ' pts')
 
         # Write the number of point to predict
-        if mode == 'prediction':
+        if mode == 'pred':
             report.write('\n\nNumber of points to predict: ' + str(data_len) + ' pts')
             report.write('\nModel used: ' + model)
+
+        # Write the number of point to segment
+        if mode == 'seg':
+            report.write('\n\nNumber of points to segment: ' + str(data_len) * ' pts')
 
         if pca_compo:
             report.write('\n\nPCA Components:\n')
@@ -479,7 +477,7 @@ def write_report(filename, mode, algo, data_file, start_time, elapsed_time, appl
             report.write(score_report)
 
         # Write elapsed time
-        if mode == 'training':
+        if mode == 'train':
             report.write('\n\nModel trained in {}'.format(elapsed_time))
         else:
             report.write('\n\nPredictions done in {}'.format(elapsed_time))
