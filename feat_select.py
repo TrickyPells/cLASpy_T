@@ -14,14 +14,14 @@
 #  ########\/_/####\_\/######\_____\/######\/___________/###########  #
 #  ---------- REMOTE -------- SENSING --------- GROUP --------------  #
 #  #################################################################  #
-#            'feat_select.py' from classer library                    #
+#            'feat_select.py' from cLASpy_T library                   #
 #                By Xavier PELLERIN LE BAS and                        #
 #                         November 2019                               #
 #         REMOTE SENSING GROUP  -- https://rsg.m2c.cnrs.fr/ --        #
 #        M2C laboratory (FRANCE)  -- https://m2c.cnrs.fr/ --          #
 #  #################################################################  #
 #  Description: Feature selection based on the scikit-learn library.  #
-#  Run the code and select the data_file.csv to extract the features  #
+#  Run the code and select the data file to extract the features      #
 #  according to SelectKBest or SelectPercentile.                      #
 #######################################################################
 
