@@ -61,7 +61,10 @@ def get_classifier(args, algorithm=None):
 
     # Check parameters exists
     if args.parameters:
-        parameters = yaml.safe_load(args.parameters)
+        if isinstance(args.parameters, str):
+            parameters = yaml.safe_load(args.parameters)
+        else:
+            parameters = args.parameters
     else:
         parameters = None
 
@@ -374,6 +377,11 @@ def train(args):
     # Set mode for common functions
     mode = 'training'
 
+    # Config file exists ?
+    if args.config:
+        update_arguments(args)  # Get the arguments from the config file
+
+    print(args.parameters)
     # Get the classifier and update the selected algorithm
     algorithm, classifier = get_classifier(args)
 

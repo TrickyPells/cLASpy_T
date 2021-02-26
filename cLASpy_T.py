@@ -260,7 +260,7 @@ parser_segment.add_argument("-p", "--parameters",
                             help="set the parameters to pass to the classifier for training,\n"
                                  "    as dictionary. NO WHITESPACES!\n\n"
                                  "Example:\n"
-                                 "    -p=\"{'n_estimators':50,'max_depth':5,'max_iter':500}\"\n\n",
+                                 "    -p={'n_estimators':50,'max_depth':5,'max_iter':500}\n\n",
                             type=str, metavar='')
 
 parser_segment.add_argument("--pca",

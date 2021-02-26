@@ -33,6 +33,7 @@ import os
 from datetime import datetime
 
 import pylas
+import json
 import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt
@@ -122,6 +123,24 @@ def shortname_algo(algorithm):
         raise ValueError("Choose a machine learning algorithm ('--algo')!")
 
     return algo
+
+
+def update_arguments(args):
+    """
+    Update the arguments from the config file given in args.config.
+    :param args: the argument parser
+    """
+    # Open the config file
+    args.config = os.path.normpath(args.config)
+    with open(args.config, 'r') as config_file:
+        config = json.load(config_file)
+
+    print(config)
+    args.input_data = os.path.normpath(config['input_file'])
+    args.output = os.path.normpath(config['output_folder'])
+    args.samples = config['samples']
+    args.algo = shortname_algo(config['algorithm'])
+    args.parameters = config['parameters']
 
 
 def introduction(algorithm, file_path, folder_path=None):
