@@ -31,14 +31,8 @@
 import argparse
 import textwrap
 
-import yaml
-import json
-
-from common import *
 from predict import *
 from training import *
-from sklearn.metrics import confusion_matrix, classification_report
-
 
 # -------------------------
 # ---- ARGUMENT_PARSER ----
@@ -79,6 +73,29 @@ subparsers = parser.add_subparsers(help="cLASpy_T modes:\n\n", metavar='')
 
 # Create sub-command for training
 parser_train = subparsers.add_parser('train', help="training mode",
+                                     description=textwrap.dedent('''\
+                                     -------------------------------------------------------------------------------
+                                                             cLASpy_T
+                                                        train sub-command
+                                                     ------------------------
+                                     'train' allows to perform training according the selected supervised algorithm,
+                                     among Random Forest ('rf'), Gradient Boosting ('gb') and Neural Network ('ann').
+                                 
+                                     For training, input_data file must contain:
+                                        --> target field named 'target'
+                                        --> data fields
+                                     
+                                     For CSV files:
+                                        If X, Y and/or Z fields are present, they are excluded.
+                                        To use them, rename them!
+                                    
+                                     For LAS files:
+                                        All standard dimensions like 'intensity' or 'scan_angle_rank' are discarded.
+                                        To use them, rename them!
+                                    
+                                     -------------------------------------------------------------------------------
+                                         
+                                     '''),
                                      formatter_class=argparse.RawTextHelpFormatter)
 
 parser_train.add_argument("-a", "--algo",
@@ -107,6 +124,13 @@ parser_train.add_argument("-o", "--output",
                                "    [UNIX]: '/path/to/the/output/folder'\n"
                                "    Default: '/path/to/the/input_data'\n\n",
                           type=str, metavar='')
+
+parser_train.add_argument("-f", "--features",
+                          help="select the features to used to train the model.\n"
+                               "    Give a list of feature names. Whitespaces"
+                               "    will be replaced by underscore '_'."
+                               "Example: f=['Anisotropy_5m', 'R', 'G', 'B', ...]",
+                          type=str, default=None, metavar='')
 
 parser_train.add_argument("-g", "--grid_search",
                           help="perform the training with GridSearchCV.\n\n",
@@ -250,6 +274,13 @@ parser_segment.add_argument("-o", "--output",
                                  "    [UNIX]: '/path/to/the/output/folder'\n"
                                  "    Default: '/path/to/the/input_data/'\n\n",
                             type=str, metavar='')
+
+parser_segment.add_argument("-f", "--features",
+                            help="select the features to used to train the model.\n"
+                                 "    Give a list of feature names. Whitespaces"
+                                 "    will be replaced by underscore '_'."
+                                 "Example: f=['Anisotropy_5m', 'R', 'G', 'B', ...]",
+                            type=str, default=None, metavar='')
 
 parser_segment.add_argument("-n", "--n_jobs",
                             help="set the number of CPU used, '-1' means all CPU available.\n"

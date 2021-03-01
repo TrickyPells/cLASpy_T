@@ -33,6 +33,7 @@ import os
 from datetime import datetime
 
 import pylas
+import yaml
 import json
 import numpy as np
 import pandas as pd
@@ -107,7 +108,7 @@ def fullname_algo(algo):
 def shortname_algo(algorithm):
     """
     Give the short name of selected algorithm
-    :param algo: the selected algo.
+    :param algorithm: the selected algo.
     :return: the fullname of the algorithm
     """
     # Get short name of algorithm
@@ -135,12 +136,12 @@ def update_arguments(args):
     with open(args.config, 'r') as config_file:
         config = json.load(config_file)
 
-    print(config)
     args.input_data = os.path.normpath(config['input_file'])
     args.output = os.path.normpath(config['output_folder'])
     args.samples = config['samples']
     args.algo = shortname_algo(config['algorithm'])
     args.parameters = config['parameters']
+    args.features = config['feature_names']
 
 
 def introduction(algorithm, file_path, folder_path=None):
@@ -149,6 +150,7 @@ def introduction(algorithm, file_path, folder_path=None):
     and return the start_time.
     :param algorithm: algorithm used.
     :param file_path: CSV or LAS file of used data.
+    :param folder_path: the folder where to save result files.
     :return: raw_data, folder_path and start time.
     """
     # Prompt information about algorithm and file
@@ -214,18 +216,53 @@ def file_to_pandasframe(data_path):
     return frame
 
 
-def format_dataset(data_path, mode='training'):
+def get_selected_features(features, temp_features):
+    """
+    :param features: the wanted features (selected by user).
+    :param temp_features: all features in input_data except ('x', 'y', 'z' and 'target').
+    :return: selected_features, the final selected features.
+    """
+    # Initialization
+    selected_features = list()
+
+    # Check if features is a list()
+    if isinstance(features, list):
+        features = [feature.casefold() for feature in features]
+        for feature in temp_features:
+            print("\nGet selected features:")
+            if feature.casefold() in features:
+                selected_features.append(feature)
+                print(" - {} feature added".format(feature))
+        # print comparison between given feature list and final selected features
+        features.sort()
+        selected_features.sort()
+        print("\nLength of given feature list: {}".format(len(features)))
+        print(features)
+        print("\nLength of final selected features: {}".format(len(selected_features)))
+        print("{}\n".format(selected_features))
+        if len(features) == len(selected_features):
+            print(" --> All required features are present!\n")
+        else:
+            raise ValueError("One or several features are missing in 'input_data'!")
+    else:
+        raise TypeError("Selected features must be a list of string!")
+
+    return selected_features
+
+
+def format_dataset(data_path, mode='training', features=None):
     """
     Format the input data as panda DataFrame. Exclude XYZ fields.
     :param data_path: path of the input data.
     :param mode: set the mode ['training', 'predict', 'segment'] to check mandatory 'target' field in case of training.
+    :param features: the features selected to train the model or make predictions.
     :return: features_data and target as DataFrames.
     """
     # Load data into Pandas DataFrame
     frame = file_to_pandasframe(data_path)
 
     # Create list name of all fields
-    all_field_names = frame.columns.values.tolist()
+    all_features = frame.columns.values.tolist()
 
     # Search X, Y, Z, target and raw_classif fields
     field_x = None
@@ -233,7 +270,7 @@ def format_dataset(data_path, mode='training'):
     field_z = None
     field_t = None
 
-    for field in all_field_names:
+    for field in all_features:
         if field.casefold() == 'x':  # casefold() to be non case-sensitive
             field_x = field
         if field.casefold() == 'y':
@@ -254,19 +291,34 @@ def format_dataset(data_path, mode='training'):
         target = None
 
     # Select only features fields by removing X, Y, Z and target fields
-    sel_feat_names = all_field_names
+    temp_features = all_features
     for field in [field_x, field_y, field_z, field_t]:
         if field:
-            sel_feat_names.remove(field)
+            temp_features.remove(field)
+
+    # Get only the selected features among temp_features
+    if features is None:
+        print("All features in input_data will be used!")
+        selected_features = temp_features
+
+    elif isinstance(features, str):
+        features = yaml.safe_load(features)
+        selected_features = get_selected_features(features, temp_features)
+
+    elif isinstance(features, list):
+        selected_features = get_selected_features(features, temp_features)
+
+    else:
+        raise TypeError("Selected features must be a list of string!")
 
     # Sort data by field names
-    sel_feat_names.sort()  # Sort to be compatible between formats
+    selected_features.sort()  # Sort to be compatible between formats
 
     # data without X, Y, Z and target fields
-    data = frame.filter(sel_feat_names, axis=1)
+    data = frame.filter(selected_features, axis=1)
 
     # Replace NAN values by median
-    data.fillna(value=data.median(0), inplace=True)  # .median(0) computes median/col
+    data.fillna(value=data.median(0), inplace=True)  # .median(0) computes median by column
 
     return data, target
 
@@ -411,18 +463,19 @@ def number_of_points(data_length, sample_size=None, magnitude=1000000):
     Set the number of point according the magnitude.
     :param sample_size: float of the number of point for training.
     :param data_length: total number of points in data file.
+    :param magnitude: the order of magnitude.
     :return: int_nbr_pts: integer of the number of points.
     """
     # Tests data_length and sample_size exist as number
     try:
         data_length = float(data_length)
-    except ValueError as ve:
+    except ValueError:
         raise ValueError("ValueError: 'data_length' parameter must be a number!")
 
     if sample_size is not None:  # Check if the sample_size is a number
         try:
-            samples_size = float(sample_size)
-        except ValueError as ve:
+            sample_size = float(sample_size)
+        except ValueError:
             sample_size = 0.05
             print("ValueError: 'sample_size' must be a number!\n"
                   "Sample size set to default value: 0.05 Mpts.")

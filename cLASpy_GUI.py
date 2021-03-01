@@ -132,17 +132,17 @@ class ClaspyGui(QMainWindow):
         # Create the right part of GUI
         self.checkTarget = QCheckBox("Target field")
         self.checkTarget.setEnabled(False)
-        self.labelFields = QLabel("Select scalar fields:\n\n\n"
-                                  "(press Ctrl+Shift\n"
-                                  "for multiple selection)")
-        self.labelFields.setAlignment(Qt.AlignLeft | Qt.AlignTop)
-        self.listFields = QListWidget()
-        self.listFields.setSelectionMode(QAbstractItemView.ExtendedSelection)
-        self.listFields.setSortingEnabled(True)
+        self.labelFeatures = QLabel("Select features:\n\n\n"
+                                    "(press Ctrl+Shift\n"
+                                    "for multiple selection)")
+        self.labelFeatures.setAlignment(Qt.AlignLeft | Qt.AlignTop)
+        self.listFeatures = QListWidget()
+        self.listFeatures.setSelectionMode(QAbstractItemView.ExtendedSelection)
+        self.listFeatures.setSortingEnabled(True)
 
-        self.vLayoutFields = QVBoxLayout()
-        self.vLayoutFields.addWidget(self.checkTarget)
-        self.vLayoutFields.addWidget(self.listFields)
+        self.vLayoutFeatures = QVBoxLayout()
+        self.vLayoutFeatures.addWidget(self.checkTarget)
+        self.vLayoutFeatures.addWidget(self.listFeatures)
 
         self.buttonBox = QDialogButtonBox(QDialogButtonBox.Save | QDialogButtonBox.Close)
         self.buttonBox.accepted.connect(self.save_config)
@@ -153,7 +153,7 @@ class ClaspyGui(QMainWindow):
 
         # Fill the layout of the right part
         self.formLayoutRight = QFormLayout()
-        self.formLayoutRight.addRow(self.labelFields, self.vLayoutFields)
+        self.formLayoutRight.addRow(self.labelFeatures, self.vLayoutFeatures)
         self.formLayoutRight.addWidget(self.buttonBox)
 
         # Fill the main layout
@@ -193,12 +193,12 @@ class ClaspyGui(QMainWindow):
         self.lineFolder.setText(os.path.splitext(root_ext[0])[0])
 
         if root_ext[1] == '.csv':
-            field_names = ["Encore", "en", "Test"]
+            feature_names = ["Encore", "en", "Test"]
             self.target = False
         elif root_ext[1] == '.las':
-            field_names = self.open_las(file_path)
+            feature_names = self.open_las(file_path)
         else:
-            field_names = ["File error:", "Unknown extension file!"]
+            feature_names = ["File error:", "Unknown extension file!"]
             self.statusBar.showMessage("File error: Unknown extension file!")
 
         # Check if the target field exist
@@ -211,10 +211,10 @@ class ClaspyGui(QMainWindow):
             self.checkTarget.setEnabled(False)
             self.checkTarget.setChecked(False)
 
-        # Rewrite listField
-        self.listFields.clear()
-        for item in field_names:
-            self.listFields.addItem(str(item))
+        # Rewrite listFeature
+        self.listFeatures.clear()
+        for item in feature_names:
+            self.listFeatures.addItem(str(item))
 
     def open_las(self, file_path):
         """
@@ -797,15 +797,15 @@ class ClaspyGui(QMainWindow):
 
         json_dict['parameters'] = param_dict
 
-        # Get the current selected fields
-        self.selectedFields = [item.text() for item in self.listFields.selectedItems()]
+        # Get the current selected features
+        self.selectedFeatures = [item.text() for item in self.listFeatures.selectedItems()]
 
-        # If Target is checked, add to listField
+        # If Target is checked, add to listFeatures
         if self.checkTarget.isChecked():
-            self.selectedFields.append(self.targetName)
+            self.selectedFeatures.append(self.targetName)
 
-        self.selectedFields.sort()
-        json_dict['scalar_fields'] = self.selectedFields
+        self.selectedFeatures.sort()
+        json_dict['feature_names'] = self.selectedFeatures
 
         # Save the JSON file
         self.statusBar.showMessage("Writing JSON config file...", 3000)

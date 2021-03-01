@@ -34,11 +34,11 @@ import numpy as np
 import pandas as pd
 import yaml
 
-from sklearn.ensemble import GradientBoostingClassifier
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.model_selection import *
-from sklearn.neural_network import MLPClassifier
+from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
 from sklearn.svm import LinearSVC
+from sklearn.neural_network import MLPClassifier
+from sklearn.cluster import KMeans
+from sklearn.model_selection import *
 from sklearn.metrics import confusion_matrix, classification_report
 
 from common import *
@@ -49,12 +49,18 @@ from common import *
 # -------------------------
 
 
-def get_classifier(args, algorithm=None):
+def get_classifier(args, mode='training', algorithm=None):
     """
     Return the classifier according to the selected algorithm.
-    :param args: the passed arguments
+    :param args: the passed arguments.
+    :param mode: set the mode between 'training' and 'segment'.
+    :param algorithm: the selected algorithm.
     :return: the classifier
     """
+    # Initialization for KMeans
+    if mode == 'segment':
+        args.algo = 'kmeans'
+
     # Fullname of algorithm
     if algorithm is None:
         algorithm = fullname_algo(args.algo)
@@ -79,7 +85,7 @@ def get_classifier(args, algorithm=None):
         classifier = set_mlp_classifier(fit_params=parameters)
 
     elif algorithm == 'KMeans':
-        raise ValueError("Use 'segment' for '{}' algorithm!".format(algorithm))
+        classifier = set_kmeans_cluster(fit_params=parameters)
 
     else:
         raise ValueError("No valid classifier!")
@@ -279,6 +285,24 @@ def set_mlp_classifier(fit_params=None):
     return classifier
 
 
+def set_kmeans_cluster(fit_params):
+    """
+    Set the clustering algorithm as KMeans.
+    :param fit_params: A dict with the parameters to set up.
+    :return: classifier: the desired classifier with the required parameters
+    """
+    # Set the classifier
+    if isinstance(fit_params, dict):
+        fit_params['random_state'] = 0
+        classifier = KMeans()
+        classifier = check_parameters(classifier, fit_params)  # Check and set parameters
+
+    else:
+        classifier = KMeans()
+
+    return classifier
+
+
 def training_gridsearch(pipeline, training_data, training_target, grid_params=None, n_jobs=-1, scoring='accuracy'):
     """
     Train model with GridSearchCV meta-estimator according the chosen learning algorithm.
@@ -381,17 +405,16 @@ def train(args):
     if args.config:
         update_arguments(args)  # Get the arguments from the config file
 
-    print(args.parameters)
     # Get the classifier and update the selected algorithm
-    algorithm, classifier = get_classifier(args)
+    algorithm, classifier = get_classifier(args, mode=mode)
 
     # INTRODUCTION
-    data_path, folder_path, start_time = introduction(algorithm, args.input_data, folder_path=args.output)  # Start prompt
+    data_path, folder_path, start_time = introduction(algorithm, args.input_data, folder_path=args.output)
     timestamp = start_time.strftime("%m%d_%H%M")  # Timestamp for file creation MonthDay_HourMinute
 
     # FORMAT DATA as XY & Z & target DataFrames and remove raw_classification from file.
     print("\n1. Formatting data as pandas.Dataframe...")
-    data, target = format_dataset(data_path, mode=mode)
+    data, target = format_dataset(data_path, mode=mode, features=args.features)
 
     # Get the number of points
     nbr_pts = number_of_points(data.shape[0], sample_size=args.samples)
@@ -401,7 +424,7 @@ def train(args):
     report_filename = str(folder_path + '/' + mode + '_' + args.algo + str_nbr_pts + str(timestamp))
 
     # Get the field names
-    field_names = data.columns.values.tolist()
+    feature_names = data.columns.values.tolist()
 
     # Split data into training and testing sets
     print("\n2. Splitting data in train and test sets...")
@@ -464,22 +487,22 @@ def train(args):
         args.png_features = False  # Overwrite 'False' if '-i' option set with grid, ann
     if args.png_features:
         feat_imp_filename = str(report_filename + '_feat_imp.png')
-        save_feature_importance(model, field_names, feat_imp_filename)
+        save_feature_importance(model, feature_names, feat_imp_filename)
 
     # Create confusion matrix
     print("\n5. Creating confusion matrix...")
     y_test_pred = model.predict(x_test)
     conf_mat = confusion_matrix(y_test, y_test_pred)
     conf_mat = precision_recall(conf_mat)  # return Dataframe
-    test_report = classification_report(y_test, y_test_pred)  # Get classification report
+    test_report = classification_report(y_test, y_test_pred, zero_division=0)  # Get classification report
     print("\n{}".format(test_report))
 
-    # Save algorithm, model, scaler, pca and field_names
+    # Save algorithm, model, scaler, pca and feature_names
     print("\n6. Saving model and scaler in file:")
     model_filename = str(report_filename + '.model')
     model_dict = dict()
     model_dict['algorithm'] = algorithm
-    model_dict['field_names'] = field_names
+    model_dict['feature_names'] = feature_names
     model_dict['model'] = model
     save_model(model_dict, model_filename)
 
@@ -501,7 +524,7 @@ def train(args):
                  data_file=args.input_data,
                  start_time=start_time,
                  elapsed_time=spent_time,
-                 feat_names=field_names,
+                 feat_names=feature_names,
                  scaler=scaler,
                  data_len=nbr_pts,
                  train_len=train_size,
@@ -513,4 +536,3 @@ def train(args):
                  score_report=test_report)
 
     print("\nModel trained in {}".format(spent_time))
-

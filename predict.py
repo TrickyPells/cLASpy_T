@@ -41,24 +41,6 @@ from sklearn.model_selection import GridSearchCV
 # ------ FUNCTIONS --------
 # -------------------------
 
-def set_kmeans_cluster(fit_params):
-    """
-    Set the clustering algorithm as KMeans.
-    :param fit_params: A dict with the parameters to set up.
-    :return: classifier: the desired classifier with the required parameters
-    """
-    # Set the classifier
-    if isinstance(fit_params, dict):
-        fit_params['random_state'] = 0
-        classifier = KMeans()
-        classifier = check_parameters(classifier, fit_params)  # Check and set parameters
-
-    else:
-        classifier = KMeans()
-
-    return classifier
-
-
 def load_model(path_to_model):
     """
     Load the given model using joblib.
@@ -73,7 +55,7 @@ def load_model(path_to_model):
 
     # Retrieve algorithm, model and field_names
     algorithm = loaded_model['algorithm']
-    field_names = loaded_model['field_names']
+    feature_names = loaded_model['feature_names']
     loaded_model = loaded_model['model']
 
     # Check if the model is GridSearchCV or Pipeline
@@ -90,11 +72,11 @@ def load_model(path_to_model):
     scaler = loaded_model.named_steps['scaler']  # Load scaler
     try:
         pca = loaded_model.named_steps['pca']  # Load PCA if exists
-    except KeyError as ke:
+    except KeyError:
         print('\tAny PCA data to load from model.')
         pca = None
 
-    return algorithm, model, scaler, pca, field_names
+    return algorithm, model, scaler, pca, feature_names
 
 
 def predict_with_proba(model, data_to_predic):
@@ -216,20 +198,23 @@ def predict(args):
     # Set mode for common functions
     mode = 'predict'
 
+    # Config file exists ?
+    if args.config:
+        update_arguments(args)  # Get the arguments from the config file
+
     # Get model, scaler and pca
     print("\nLoading model...", end='')
     model_to_load = args.model  # Set variable for the report
-    algorithm, model, scaler, pca, field_names = load_model(model_to_load)
+    algorithm, model, scaler, pca, feature_names = load_model(model_to_load)
     print("Done\n")
-    print(field_names)
 
     # INTRODUCTION
-    data_path, folder_path, start_time = introduction(algorithm, args.input_data, folder_path=args.output)  # Start prompt
+    data_path, folder_path, start_time = introduction(algorithm, args.input_data, folder_path=args.output)
     timestamp = start_time.strftime("%m%d_%H%M")  # Timestamp for file creation MonthDay_HourMinute
 
     # FORMAT DATA as XY & Z & target DataFrames and remove raw_classification from file.
     print("\n1. Formatting data as pandas.Dataframe...")
-    data, target = format_dataset(data_path, mode=mode)
+    data, target = format_dataset(data_path, mode=mode, features=feature_names)
 
     # Get the number of points
     nbr_pts = number_of_points(data.shape[0], sample_size=args.samples)
@@ -241,12 +226,12 @@ def predict(args):
 
     # Get the field names
     # ADD TEST TO CHECK ALL MANDATORY FIELDS ARE PRESENT
-    field_names = data.columns.values.tolist()
+    feature_names = data.columns.values.tolist()
 
     # Apply scaler to data
     print("\n2. Scaling data...")
     data_scaled = scaler.transform(data)
-    data_scaled = pd.DataFrame.from_records(data_scaled, columns=field_names)
+    data_scaled = pd.DataFrame.from_records(data_scaled, columns=feature_names)
 
     # Apply pca to data if exists
     if pca:
@@ -256,7 +241,7 @@ def predict(args):
         pca_compo = None
 
     # Predic target of input data
-    print("\n4. Making predictions for entire dataset...")
+    print("\n3. Making predictions for entire dataset...")
     # y_pred = model.predict(data_scaled.values)
     y_pred = predict_with_proba(model, data_scaled.values)
 
@@ -272,13 +257,13 @@ def predict(args):
         test_report = None
 
     # Save classifaction result as point cloud file with all data
-    print("\n5. Saving classified point cloud:")
+    print("\n4. Saving classified point cloud:")
     predic_filename = report_filename
     print(predic_filename)
     save_predictions(y_pred, predic_filename, data_path)
 
     # Create and save prediction report
-    print("\n6. Creating classification report:")
+    print("\n5. Creating classification report:")
     print(report_filename + '.txt')
 
     # Get the model parameters to print in the report
@@ -295,7 +280,7 @@ def predict(args):
                  data_file=args.input_data,
                  start_time=start_time,
                  elapsed_time=spent_time,
-                 feat_names=field_names,
+                 feat_names=feature_names,
                  scaler=scaler,
                  data_len=nbr_pts,
                  applied_param=applied_parameters,
@@ -315,19 +300,15 @@ def segment(args):
     # Set mode for common functions
     mode = 'segment'
 
-    # Check parameters exists
-    if args.parameters:
-        parameters = yaml.safe_load(args.parameters)
-    else:
-        parameters = None
+    # Config file exists ?
+    if args.config:
+        update_arguments(args)  # Get the arguments from the config file
 
-    # Get the classifier
-    algo = 'kmeans'
-    algorithm = 'KMeans'
-    classifier = set_kmeans_cluster(fit_params=parameters)
+    # Get the classifier and update the selected algorithm
+    algorithm, classifier = get_classifier(args, mode=mode)
 
     # INTRODUCTION
-    data_path, folder_path, start_time = introduction('KMeans', args.input_data, folder_path=args.output)  # Start prompt
+    data_path, folder_path, start_time = introduction('KMeans', args.input_data, folder_path=args.output)
     timestamp = start_time.strftime("%m%d_%H%M")  # Timestamp for file creation MonthDay_HourMinute
 
     # FORMAT DATA as XY & Z & target DataFrames and remove raw_classification from file.
@@ -342,7 +323,7 @@ def segment(args):
     report_filename = str(folder_path + '/' + mode + '_' + algo + str_nbr_pts + str(timestamp))
 
     # Get the field names
-    field_names = data.columns.values.tolist()
+    feature_names = data.columns.values.tolist()
 
     # Clustering the input data
     print("\n2. Clustering the dataset...")
@@ -373,7 +354,7 @@ def segment(args):
                  data_file=args.input_data,
                  start_time=start_time,
                  elapsed_time=spent_time,
-                 feat_names=field_names,
+                 feat_names=feature_names,
                  scaler=scaler,
                  data_len=nbr_pts,
                  applied_param=applied_parameters)
