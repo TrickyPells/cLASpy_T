@@ -30,14 +30,15 @@
 # --------------------
 
 import os
-from datetime import datetime
-
-import pylas
 import yaml
 import json
+import laspy
 import numpy as np
 import pandas as pd
+
+from datetime import datetime
 from matplotlib import pyplot as plt
+from laspy import file
 from sklearn.decomposition import PCA
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler, RobustScaler, MinMaxScaler
@@ -202,14 +203,30 @@ def file_to_pandasframe(data_path):
                 frame = frame.rename(columns={"//X": "X"})
 
     elif root_ext[1] == '.las':
-        las = pylas.read(data_path)
+        # las = pylas.read(data_path)
+        # print("LAS Version: {}".format(las.header.version))
+        # print("LAS point format: {}".format(las.point_format.id))
+        # print("Number of points: {}".format(las.header.point_count))
+        # extra_dims = list(las.point_format.extra_dimension_names)  # Only get the extra dimensions
+
+        las = laspy.file.File(data_path, mode='r')
         print("LAS Version: {}".format(las.header.version))
-        print("LAS point format: {}".format(las.point_format.id))
-        print("Number of points: {}".format(las.header.point_count))
-        extra_dims = list(las.point_format.extra_dimension_names)  # Only get the extra dimensions
+        print("LAS point format: {}".format(las.header.data_format_id))
+        print("Number of points: {}".format(las.header.records_count))
+
+        # Get only the extra dimensions
+        standard_dimensions = point_format[las.header.data_format_id]
+        extra_dimensions = list()
+        for dim in las.point_format.specs:  # Get all dimensions
+            extra_dimensions.append(str(dim.name))
+
+        for dim in standard_dimensions:  # Remove all standard dimensions
+            if dim in extra_dimensions:
+                extra_dimensions.remove(dim)
+
         frame = pd.DataFrame()
-        for dim in extra_dims:
-            frame[dim] = las[dim]
+        for dim in extra_dimensions:
+            frame[dim] = las.get_reader().get_dimension(dim)
     else:
         raise ValueError("Unknown Extension file!")
 
@@ -228,8 +245,8 @@ def get_selected_features(features, temp_features):
     # Check if features is a list()
     if isinstance(features, list):
         features = [feature.casefold() for feature in features]
+        print("\nGet selected features:")
         for feature in temp_features:
-            print("\nGet selected features:")
             if feature.casefold() in features:
                 selected_features.append(feature)
                 print(" - {} feature added".format(feature))

@@ -29,16 +29,11 @@
 # --------------------
 
 import sys
-import os
-import json
-import pylas
+import laspy
 
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
-
-from laspy import file
-
 from common import *
 
 # -------------------------
@@ -289,7 +284,7 @@ class ClaspyGui(QMainWindow):
         :param file_path: The path to the LAS file.
         :return: The list of the extra dimensions (with 'Target' field).
         """
-        las = file.File(file_path, mode='r')
+        las = laspy.file.File(file_path, mode='r')
         version = las.header.version
         data_format = las.header.data_format_id
         point_count = las.header.records_count

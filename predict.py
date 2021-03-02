@@ -28,11 +28,9 @@
 # --- DEPENDENCIES ---
 # --------------------
 
-import os
-import pylas
-from training import *
+import laspy
 
-from sklearn.cluster import KMeans
+from training import *
 from sklearn.pipeline import Pipeline
 from sklearn.model_selection import GridSearchCV
 
@@ -129,24 +127,55 @@ def save_pred_las(predictions, las_name, source_file):
     :param las_name: Output file name with path.
     :param source_file: LAS source file name with path.
     """
+    # # Get LAS data in copy_data
+    # copy_data = pylas.read(source_file)
+    #
+    # # Add dimensions according the predictions dataframe
+    # copy_data.add_extra_dim(name='Prediction', type='u1',  # First dimension is 'u1' type
+    #                         description='Prediction done by the model')
+    # copy_data['Prediction'] = predictions['Prediction']
+    #
+    # if predictions.shape[1] > 1:
+    #     dimension_list = predictions.columns.values.tolist()
+    #     dimension_list.remove('Prediction')
+    #     for dim in dimension_list:
+    #         copy_data.add_extra_dim(name=dim, type='f4', description='Probability for this class')
+    #         copy_data[dim] = predictions[dim]
+    #
+    # # Write all data in the LAS output file
+    # las_name = str(las_name + '.las')
+    # copy_data.write(las_name)
+
     # Get LAS data in copy_data
-    copy_data = pylas.read(source_file)
+    copy_data = laspy.file.File(source_file, mode='r')
 
-    # Add dimensions according the predictions dataframe
-    copy_data.add_extra_dim(name='Prediction', type='u1',  # First dimension is 'u1' type
-                            description='Prediction done by the model')
-    copy_data['Prediction'] = predictions['Prediction']
+    # Create new LAS file
+    las_name = str(las_name + '.las')
+    output_las = laspy.file.File(las_name, mode='w', header=copy_data.header)
 
+    # Define new dimensions according the predictions dataframe
+    output_las.define_new_dimension(name='Prediction', data_type=5,
+                                    description='Prediction done by the model')
+
+    dimension_list = predictions.columns.values.tolist()
     if predictions.shape[1] > 1:
-        dimension_list = predictions.columns.values.tolist()
         dimension_list.remove('Prediction')
         for dim in dimension_list:
-            copy_data.add_extra_dim(name=dim, type='f4', description='Probability for this class')
-            copy_data[dim] = predictions[dim]
+            output_las.define_new_dimension(name=dim, data_type=9,
+                                            description='Probability fir this class')
 
-    # Write all data in the LAS output file
-    las_name = str(las_name + '.las')
-    copy_data.write(las_name)
+    # Fill output_las with original dimensions
+    for dim in copy_data.point_format:
+        data = copy_data.reader.get_dimension(dim.name)
+        output_las.writer.set_dimension(dim.name, data)
+    copy_data.close()
+
+    # Now fill output_las with new data
+    output_las.Prediction = predictions['Prediction']
+    if predictions.shape[1] > 1:
+        for dim in dimension_list:
+            output_las.writer.set_dimension(dim, predictions[dim].values)
+    output_las.close()
 
 
 def save_predictions(predictions, file_name, source_file):
@@ -162,12 +191,12 @@ def save_predictions(predictions, file_name, source_file):
     if predictions.shape[1] > 2:
         # Get number of class in prediction array (number of column - 2)
         numb_class = predictions.shape[1] - 2
-        pred_header = ['Prediction', 'BestProba'] + ['Proba' + str(cla) for cla in range(0, numb_class)]
+        pred_header = ['Prediction', 'BestProba'] + ['ProbaClass_' + str(cla) for cla in range(0, numb_class)]
     else:
         pred_header = ['Prediction']
 
     # Set the np.array of target_pred pd.Dataframe
-    predictions = pd.DataFrame(predictions, columns=pred_header, dtype='float32').round(decimals=3)
+    predictions = pd.DataFrame(predictions, columns=pred_header, dtype='float32').round(decimals=4)
 
     # Reload data into DataFrame
     root_ext = os.path.splitext(source_file)  # split file path into root and extension
@@ -320,7 +349,7 @@ def segment(args):
     str_nbr_pts = format_nbr_pts(nbr_pts)  # Format nbr_pts as string for filename
 
     # Set the report filename
-    report_filename = str(folder_path + '/' + mode + '_' + algo + str_nbr_pts + str(timestamp))
+    report_filename = str(folder_path + '/' + mode + '_' + args.algo + str_nbr_pts + str(timestamp))
 
     # Get the field names
     feature_names = data.columns.values.tolist()
