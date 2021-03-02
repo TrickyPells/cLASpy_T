@@ -127,25 +127,6 @@ def save_pred_las(predictions, las_name, source_file):
     :param las_name: Output file name with path.
     :param source_file: LAS source file name with path.
     """
-    # # Get LAS data in copy_data
-    # copy_data = pylas.read(source_file)
-    #
-    # # Add dimensions according the predictions dataframe
-    # copy_data.add_extra_dim(name='Prediction', type='u1',  # First dimension is 'u1' type
-    #                         description='Prediction done by the model')
-    # copy_data['Prediction'] = predictions['Prediction']
-    #
-    # if predictions.shape[1] > 1:
-    #     dimension_list = predictions.columns.values.tolist()
-    #     dimension_list.remove('Prediction')
-    #     for dim in dimension_list:
-    #         copy_data.add_extra_dim(name=dim, type='f4', description='Probability for this class')
-    #         copy_data[dim] = predictions[dim]
-    #
-    # # Write all data in the LAS output file
-    # las_name = str(las_name + '.las')
-    # copy_data.write(las_name)
-
     # Get LAS data in copy_data
     copy_data = laspy.file.File(source_file, mode='r')
 
