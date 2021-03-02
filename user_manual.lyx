@@ -250,7 +250,7 @@ cLASpy_T
 \shape default
 \emph default
  is a Python 3 based program.
- It needs a Python 3.7 interpreter installed or earlier versions.
+ It needs a Python 3.7 64-bit interpreter installed or earlier versions.
  See the Download section of the Beginners Guide
 \begin_inset Foot
 status collapsed
@@ -268,60 +268,548 @@ literal "true"
 
 \end_inset
 
-from the Python documentation.
+ from the Python documentation.
  
 \end_layout
 
 \begin_layout Section
-Install dependancies
+Install cLASpy_T on Windows
+\end_layout
+
+\begin_layout Subsection
+Get cLASpy_T source code
 \end_layout
 
 \begin_layout Standard
-Once Python 3 interpreter installed, 
-\emph on
-cLASpy_T
-\emph default
- requires the following dependancies:
+First, open the Command Prompt 'cmd.exe'.
+ You can easily open the Command Prompt by clicking Start and then typing
+ 'cmd' into the search box.
 \end_layout
 
-\begin_layout Itemize
-joblib (0.17.0)
+\begin_layout Standard
+Move to a directory where put the cLASpy_T source code.
+ For example, 'Me' user moves to his 'Code' directory, then gets the cLASpy_T
+ source code with the git command to clone 'cLASpy_T.git': 
 \end_layout
 
-\begin_layout Itemize
-matplotlib (3.3.3)
+\begin_layout LyX-Code
+C:
+\backslash
+Users
+\backslash
+Me>cd Code
 \end_layout
 
-\begin_layout Itemize
-numpy (1.19.0)
+\begin_layout LyX-Code
+C:
+\backslash
+Users
+\backslash
+Me
+\backslash
+Code>git clone https://github.com/TrickyPells/cLASpy_T.git
 \end_layout
 
-\begin_layout Itemize
-pandas (1.1.2)
+\begin_layout Standard
+If you do not know what 'git' is, you also can download cLASpy_T source
+ code on the github page.
+ Choose the branch you want to download, click on 'Code', then 'Download
+ ZIP'.
+ Once downloaded, decompress the ZIP archive in the directory you want,
+ for example, in 'Code' directory.
 \end_layout
 
-\begin_layout Itemize
-psutil (5.8.0)
+\begin_layout Standard
+Once you clone or download/decompress source code, move to the cLASpy_T
+ directory:
 \end_layout
 
-\begin_layout Itemize
-pylas (0.4.3)
+\begin_layout LyX-Code
+C:
+\backslash
+Users
+\backslash
+Me
+\backslash
+Code>cd cLASpy_T
 \end_layout
 
-\begin_layout Itemize
-PyYAML (5.3.1)
+\begin_layout Subsection
+Create a Virtual Environment
 \end_layout
 
-\begin_layout Itemize
-scikit-learn (0.23.2)
+\begin_layout Standard
+Python uses many packages, depending of your usages.
+ To prevent a dirty installation and package incompatibilities, it's could
+ be a great idea to use virtual environments.
+ Here, you will create a specific virtual environment for cLASpy_T.
+ 
 \end_layout
 
-\begin_layout Itemize
-scipy (1.5.4)
+\begin_layout Standard
+First, create a new directory call '.venv' and use venv command from python
+ to create a new virtual environment call 'claspy_venv':
+\end_layout
+
+\begin_layout LyX-Code
+C:
+\backslash
+Users
+\backslash
+Me
+\backslash
+Code
+\backslash
+cLASpy_T> mkdir .venv
+\end_layout
+
+\begin_layout LyX-Code
+C:
+\backslash
+Users
+\backslash
+Me
+\backslash
+Code
+\backslash
+cLASpy_T>python -m venv .venv
+\backslash
+claspy_venv
+\end_layout
+
+\begin_layout Standard
+Now, you can use this new virtual environment with:
+\end_layout
+
+\begin_layout LyX-Code
+C:
+\backslash
+Users
+\backslash
+Me
+\backslash
+Code
+\backslash
+cLASpy_T>.venv
+\backslash
+claspy_venv
+\backslash
+Scripts
+\backslash
+activate
+\end_layout
+
+\begin_layout Standard
+Your Command Prompt must return something like this:
+\end_layout
+
+\begin_layout LyX-Code
+(claspy_venv) C:
+\backslash
+Users
+\backslash
+Me
+\backslash
+Code
+\backslash
+cLASpy_T>
+\end_layout
+
+\begin_layout Standard
+If you want to deactivate the virtual environment, just type:
+\end_layout
+
+\begin_layout LyX-Code
+(claspy_venv) C:
+\backslash
+Users
+\backslash
+Me
+\backslash
+Code
+\backslash
+cLASpy_T>deactivate
+\end_layout
+
+\begin_layout Subsection
+Install all dependencies
+\end_layout
+
+\begin_layout Standard
+All required packages are listed in the 'requirements.txt' file.
+ We will use 'pip' command to install all dependencies automatically.
+\end_layout
+
+\begin_layout Standard
+Open a Command Prompt, go to the cLASpy_T directory and activate the already
+ created virtual environment:
+\end_layout
+
+\begin_layout LyX-Code
+C:
+\backslash
+Users
+\backslash
+Me
+\backslash
+Code
+\backslash
+cLASpy_T>.venv
+\backslash
+claspy_venv
+\backslash
+Scripts
+\backslash
+activate
+\end_layout
+
+\begin_layout Standard
+First, check if 'pip' needs to be upgraded:
+\end_layout
+
+\begin_layout LyX-Code
+(claspy_venv) C:
+\backslash
+Users
+\backslash
+Me
+\backslash
+Code
+\backslash
+cLASpy_T>python -m pip install --upgrade pip
+\end_layout
+
+\begin_layout Standard
+Once done, you will install all dependencies:
+\end_layout
+
+\begin_layout LyX-Code
+(claspy_venv) C:
+\backslash
+Users
+\backslash
+Me
+\backslash
+Code
+\backslash
+cLASpy_T>python -m pip install -r requirements.txt
 \end_layout
 
 \begin_layout Section
+Install cLASpy_T on Linux
+\end_layout
+
+\begin_layout Subsection
 Get cLASpy_T source code
+\end_layout
+
+\begin_layout Standard
+First, open the Command Prompt 'cmd.exe'.
+ You can easily open the Command Prompt by clicking Start and then typing
+ 'cmd' into the search box.
+\end_layout
+
+\begin_layout Standard
+Move to a directory where put the cLASpy_T source code.
+ For example, 'Me' user moves to his 'Code' directory, then gets the cLASpy_T
+ source code with the git command to clone 'cLASpy_T.git': 
+\end_layout
+
+\begin_layout LyX-Code
+C:
+\backslash
+Users
+\backslash
+Me>cd Code
+\end_layout
+
+\begin_layout LyX-Code
+C:
+\backslash
+Users
+\backslash
+Me
+\backslash
+Code>git clone https://github.com/TrickyPells/cLASpy_T.git
+\end_layout
+
+\begin_layout Standard
+If you do not know what 'git' is, you also can download cLASpy_T source
+ code on the github page.
+ Choose the branch you want to download, click on 'Code', then 'Download
+ ZIP'.
+ Once downloaded, decompress the ZIP archive in the directory you want,
+ for example, in 'Code' directory.
+\end_layout
+
+\begin_layout Standard
+Once you clone or download/decompress source code, move to the cLASpy_T
+ directory:
+\end_layout
+
+\begin_layout LyX-Code
+C:
+\backslash
+Users
+\backslash
+Me
+\backslash
+Code>cd cLASpy_T
+\end_layout
+
+\begin_layout Subsection
+Create a Virtual Environment
+\end_layout
+
+\begin_layout Standard
+Python uses many packages, depending of your usages.
+ To prevent a dirty installation and package incompatibilities, it's could
+ be a great idea to use virtual environments.
+ Here, you will create a specific virtual environment for cLASpy_T.
+ 
+\end_layout
+
+\begin_layout Standard
+First, create a new directory call '.venv' and use venv command from python
+ to create a new virtual environment call 'claspy_venv':
+\end_layout
+
+\begin_layout LyX-Code
+C:
+\backslash
+Users
+\backslash
+Me
+\backslash
+Code
+\backslash
+cLASpy_T> mkdir .venv
+\end_layout
+
+\begin_layout LyX-Code
+C:
+\backslash
+Users
+\backslash
+Me
+\backslash
+Code
+\backslash
+cLASpy_T>python -m venv .venv
+\backslash
+claspy_venv
+\end_layout
+
+\begin_layout Standard
+Now, you can use this new virtual environment with:
+\end_layout
+
+\begin_layout LyX-Code
+C:
+\backslash
+Users
+\backslash
+Me
+\backslash
+Code
+\backslash
+cLASpy_T>.venv
+\backslash
+claspy_venv
+\backslash
+Scripts
+\backslash
+activate
+\end_layout
+
+\begin_layout Standard
+Your Command Prompt must return something like this:
+\end_layout
+
+\begin_layout LyX-Code
+(claspy_venv) C:
+\backslash
+Users
+\backslash
+Me
+\backslash
+Code
+\backslash
+cLASpy_T>
+\end_layout
+
+\begin_layout Standard
+If you want to deactivate the virtual environment, just type:
+\end_layout
+
+\begin_layout LyX-Code
+(claspy_venv) C:
+\backslash
+Users
+\backslash
+Me
+\backslash
+Code
+\backslash
+cLASpy_T>deactivate
+\end_layout
+
+\begin_layout Subsection
+Install all dependencies
+\end_layout
+
+\begin_layout Standard
+All required packages are listed in the 'requirements.txt' file.
+ We will use 'pip' command to install all dependencies automatically.
+\end_layout
+
+\begin_layout Standard
+Open a Command Prompt, go to the cLASpy_T directory and activate the already
+ created virtual environment:
+\end_layout
+
+\begin_layout LyX-Code
+C:
+\backslash
+Users
+\backslash
+Me
+\backslash
+Code
+\backslash
+cLASpy_T>.venv
+\backslash
+claspy_venv
+\backslash
+Scripts
+\backslash
+activate
+\end_layout
+
+\begin_layout Standard
+First, check if 'pip' needs to be upgraded:
+\end_layout
+
+\begin_layout LyX-Code
+(claspy_venv) C:
+\backslash
+Users
+\backslash
+Me
+\backslash
+Code
+\backslash
+cLASpy_T>python -m pip install --upgrade pip
+\end_layout
+
+\begin_layout Standard
+Once done, you will install all dependencies:
+\end_layout
+
+\begin_layout LyX-Code
+(claspy_venv) C:
+\backslash
+Users
+\backslash
+Me
+\backslash
+Code
+\backslash
+cLASpy_T>python -m pip install -r requirements.txt
+\end_layout
+
+\begin_layout Section
+List of dependencies
+\end_layout
+
+\begin_layout Standard
+
+\emph on
+package (minimal version)
+\end_layout
+
+\begin_layout Itemize
+colorclass (2.2.0)
+\end_layout
+
+\begin_layout Itemize
+cycler (0.10.0)
+\end_layout
+
+\begin_layout Itemize
+joblib (1.0.1)
+\end_layout
+
+\begin_layout Itemize
+kiwisolver (1.3.1)
+\end_layout
+
+\begin_layout Itemize
+laspy (1.7.0)
+\end_layout
+
+\begin_layout Itemize
+matplotlib (3.3.4)
+\end_layout
+
+\begin_layout Itemize
+numpy (1.20.1)
+\end_layout
+
+\begin_layout Itemize
+pandas (1.2.3)
+\end_layout
+
+\begin_layout Itemize
+Pillow (8.1.1)
+\end_layout
+
+\begin_layout Itemize
+pyparsing (2.4.7)
+\end_layout
+
+\begin_layout Itemize
+PyQt5 (5.15.3)
+\end_layout
+
+\begin_layout Itemize
+PyQt5-Qt (5.15.2)
+\end_layout
+
+\begin_layout Itemize
+PyQt5-sip (12.8.1)
+\end_layout
+
+\begin_layout Itemize
+python-dateutil (2.8.1)
+\end_layout
+
+\begin_layout Itemize
+pytz (2021.1)
+\end_layout
+
+\begin_layout Itemize
+PyYAML (5.4.1)
+\end_layout
+
+\begin_layout Itemize
+scikit-learn (0.24.1)
+\end_layout
+
+\begin_layout Itemize
+scipy (1.6.1)
+\end_layout
+
+\begin_layout Itemize
+six (1.15.0)
+\end_layout
+
+\begin_layout Itemize
+terminaltables (3.1.0)
+\end_layout
+
+\begin_layout Itemize
+threadpoolctl (2.1.0)
 \end_layout
 
 \begin_layout Chapter
