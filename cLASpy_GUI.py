@@ -54,27 +54,27 @@ class ClaspyGui(QMainWindow):
         self.mainWidget = QWidget()
 
         # Create the left part of GUI
-        self.labelFile = QLabel("Input file:")
-        self.lineFile = QLineEdit()
-        self.lineFile.setPlaceholderText("Select LAS or CSV file as input")
-        self.toolButtonFile = QToolButton()
-        self.toolButtonFile.setText("Browse")
-        self.hLayoutFile = QHBoxLayout()
-        self.hLayoutFile.addWidget(self.lineFile)
-        self.hLayoutFile.addWidget(self.toolButtonFile)
+        self.labelLocalServer = QLabel("Compute on:")
+        self.layoutLocalServer = QHBoxLayout(self)
+        self.radioLocal = QRadioButton("local")
+        self.layoutLocalServer.addWidget(self.radioLocal)
+        self.radioServer = QRadioButton("server")
+        self.layoutLocalServer.addWidget(self.radioServer)
+        self.radioLocal.setChecked(True)
 
-        self.labelFolder = QLabel("Output folder:")
-        self.lineFolder = QLineEdit()
-        self.lineFolder.setPlaceholderText("Folder of model and report files")
-        self.toolButtonFolder = QToolButton()
-        self.toolButtonFolder.setText("Browse")
-        self.hLayoutFolder = QHBoxLayout()
-        self.hLayoutFolder.addWidget(self.lineFolder)
-        self.hLayoutFolder.addWidget(self.toolButtonFolder)
+        # Stacks for input point cloud
+        self.stack_Local = QWidget()
+        self.stack_Server = QWidget()
+        self.stackui_local()
+        self.stackui_server()
+        self.stackInput = QStackedWidget(self)
+        self.stackInput.addWidget(self.stack_Local)
+        self.stackInput.addWidget(self.stack_Server)
 
         self.labelHLine_1 = QLabel()
         self.labelHLine_1.setFrameStyle(QFrame.HLine | QFrame.Sunken)
 
+        # Info about the input point cloud
         self.labelPtCldInfo = QLabel("Point cloud info:")
         self.labelPtCldFormat = QLabel("Format: ")
         self.labelPtCount = QLabel("Number of points: ")
@@ -96,6 +96,7 @@ class ClaspyGui(QMainWindow):
         self.labelHLine_2 = QLabel()
         self.labelHLine_2.setFrameStyle(QFrame.HLine | QFrame.Sunken)
 
+        # Selection of the algorithm
         self.listAlgorithms = QListWidget()
         self.listAlgorithms.setMaximumSize(120, 80)
         self.listAlgorithms.insertItem(0, "Random Forest")
@@ -104,6 +105,7 @@ class ClaspyGui(QMainWindow):
         self.listAlgorithms.insertItem(3, "K-Means Clustering")
         self.listAlgorithms.setCurrentItem(self.listAlgorithms.item(0))
 
+        # Stacks for the parameters of the algo
         self.stack_RF = QWidget()
         self.stack_GB = QWidget()
         self.stack_NN = QWidget()
@@ -112,22 +114,22 @@ class ClaspyGui(QMainWindow):
         self.stackui_gb()
         self.stackui_nn()
         self.stackui_km()
-        self.stack = QStackedWidget(self)
-        self.stack.addWidget(self.stack_RF)
-        self.stack.addWidget(self.stack_GB)
-        self.stack.addWidget(self.stack_NN)
-        self.stack.addWidget(self.stack_KM)
+        self.stackAlgo = QStackedWidget(self)
+        self.stackAlgo.addWidget(self.stack_RF)
+        self.stackAlgo.addWidget(self.stack_GB)
+        self.stackAlgo.addWidget(self.stack_NN)
+        self.stackAlgo.addWidget(self.stack_KM)
 
         # Fill the layout of the left part
         self.formLayoutLeft = QFormLayout()
-        self.formLayoutLeft.addRow(self.labelFile, self.hLayoutFile)
-        self.formLayoutLeft.addRow(self.labelFolder, self.hLayoutFolder)
+        self.formLayoutLeft.addRow(self.labelLocalServer, self.layoutLocalServer)
+        self.formLayoutLeft.addRow(self.stackInput)
         self.formLayoutLeft.addRow(self.labelHLine_1)
         self.formLayoutLeft.addRow(self.labelPtCldInfo, self.vLayoutInfo)
         self.formLayoutLeft.addRow(self.labelSampleSize, self.hLayoutSize)
         self.formLayoutLeft.addRow(self.labelHLine_2)
         self.formLayoutLeft.addRow("Select algorithm:", self.listAlgorithms)
-        self.formLayoutLeft.addRow("Algorithm parameters:", self.stack)
+        self.formLayoutLeft.addRow("Algorithm parameters:", self.stackAlgo)
 
         # Create the right part of GUI
         self.checkTarget = QCheckBox("Target field")
@@ -172,10 +174,66 @@ class ClaspyGui(QMainWindow):
         self.setStatusBar(self.statusBar)
 
         # Function call
+        self.listAlgorithms.currentRowChanged.connect(self.display_stack_algo)
+        self.radioLocal.toggled.connect(self.display_stack_input)
+
+    def stackui_local(self):
+        form_layout = QFormLayout()
+
+        self.lineLocalFile = QLineEdit()
+        self.lineLocalFile.setPlaceholderText("Select LAS or CSV file as input")
+        self.toolButtonFile = QToolButton()
+        self.toolButtonFile.setText("Browse")
+        self.hLayoutFile = QHBoxLayout()
+        self.hLayoutFile.addWidget(self.lineLocalFile)
+        self.hLayoutFile.addWidget(self.toolButtonFile)
+        form_layout.addRow("Input file:", self.hLayoutFile)
+
+        self.lineLocalFolder = QLineEdit()
+        self.lineLocalFolder.setPlaceholderText("Folder where save result files")
+        self.toolButtonFolder = QToolButton()
+        self.toolButtonFolder.setText("Browse")
+        self.hLayoutFolder = QHBoxLayout()
+        self.hLayoutFolder.addWidget(self.lineLocalFolder)
+        self.hLayoutFolder.addWidget(self.toolButtonFolder)
+        form_layout.addRow("Output folder:", self.hLayoutFolder)
+
+        self.stack_Local.setLayout(form_layout)
+
+        self.toolButtonFile.clicked.connect(self.get_file)
+        self.lineLocalFile.editingFinished.connect(self.open_file)
+        self.toolButtonFolder.clicked.connect(self.get_folder)
+
+    def stackui_server(self):
+        form_layout = QFormLayout()
+
+        self.lineFile = QLineEdit()
+        self.lineFile.setPlaceholderText("Local file to get features")
+        self.toolButtonFile = QToolButton()
+        self.toolButtonFile.setText("Browse")
+        self.hLayoutFile = QHBoxLayout()
+        self.hLayoutFile.addWidget(self.lineFile)
+        self.hLayoutFile.addWidget(self.toolButtonFile)
+        form_layout.addRow("Local input file:", self.hLayoutFile)
+
+        self.lineServerFile = QLineEdit()
+        self.lineServerFile.setPlaceholderText("File on server to compute on")
+        form_layout.addRow("Server input file:", self.lineServerFile)
+
+        self.lineServerFolder = QLineEdit()
+        self.lineServerFolder.setPlaceholderText("Folder on server where save result files")
+        form_layout.addRow("Server output folder:", self.lineServerFolder)
+
+        self.stack_Server.setLayout(form_layout)
+
         self.toolButtonFile.clicked.connect(self.get_file)
         self.lineFile.editingFinished.connect(self.open_file)
-        self.toolButtonFolder.clicked.connect(self.get_folder)
-        self.listAlgorithms.currentRowChanged.connect(self.display_stack)
+
+    def display_stack_input(self):
+        if self.radioLocal.isChecked():
+            self.stackInput.setCurrentIndex(0)
+        else:
+            self.stackInput.setCurrentIndex(1)
 
     def get_file(self):
         self.statusBar.showMessage("Select file...", 3000)
@@ -184,13 +242,22 @@ class ClaspyGui(QMainWindow):
                                                "LAS files (*.las);;CSV files (*.csv)")
 
         if filename[0] != '':
-            self.lineFile.setText(os.path.normpath(filename[0]))
+            if self.radioLocal.isChecked():
+                self.lineLocalFile.setText(os.path.normpath(filename[0]))
+            else:
+                self.lineFile.setText(os.path.normpath(filename[0]))
+
             self.open_file()
 
     def open_file(self):
-        file_path = os.path.normpath(self.lineFile.text())
+        if self.radioLocal.isChecked():
+            file_path = os.path.normpath(self.lineLocalFile.text())
+        else:
+            file_path = os.path.normpath(self.lineFile.text())
+
         root_ext = os.path.splitext(file_path)
-        self.lineFolder.setText(os.path.splitext(root_ext[0])[0])
+        if self.radioLocal.isChecked():
+            self.lineLocalFolder.setText(os.path.splitext(root_ext[0])[0])
 
         if root_ext[1] == '.csv':
             feature_names = ["Encore", "en", "Test"]
@@ -268,7 +335,7 @@ class ClaspyGui(QMainWindow):
         """
         Create folder to save model and report files
         """
-        file_path = os.path.splitext(self.lineFile.text())[0]
+        file_path = os.path.splitext(self.lineLocalFile.text())[0]
         # Open QFile Dialog with empty lineFile
         if file_path == '':
             foldername = QFileDialog.getExistingDirectory(self, 'Select output folder')
@@ -278,7 +345,8 @@ class ClaspyGui(QMainWindow):
                                                           file_path + '/..')
 
         if foldername != '':
-            self.lineFolder.setText(foldername)
+            if self.radioLocal.isChecked():
+                self.lineLocalFolder.setText(foldername)
 
     def stackui_rf(self):
         form_layout = QFormLayout()
@@ -632,8 +700,8 @@ class ClaspyGui(QMainWindow):
 
         self.stack_KM.setLayout(form_layout)
 
-    def display_stack(self, i):
-        self.stack.setCurrentIndex(i)
+    def display_stack_algo(self, i):
+        self.stackAlgo.setCurrentIndex(i)
         algo_list = ["Random Forest", "Gradient Boosting", "Neural Network", "K-Means clustering"]
         self.statusBar.showMessage(algo_list[i] + " parameters", 2000)
 
@@ -645,8 +713,13 @@ class ClaspyGui(QMainWindow):
         json_dict = dict()
 
         # Save input file, output folder and sample size
-        json_dict['input_file'] = self.lineFile.text()
-        json_dict['output_folder'] = self.lineFolder.text()
+        if self.radioLocal.isChecked():
+            json_dict['input_file'] = self.lineLocalFile.text()
+            json_dict['output_folder'] = self.lineLocalFolder.text()
+        else:
+            json_dict['input_file'] = self.lineServerFile.text()
+            json_dict['output_folder'] = self.lineServerFolder.text()
+
         json_dict['samples'] = self.spinSampleSize.value()
 
         # Get the selected algorithm and the parameters
@@ -815,6 +888,8 @@ class ClaspyGui(QMainWindow):
         if json_file[0] != '':
             with open(json_file[0], 'w') as config_file:
                 json.dump(json_dict, config_file)
+
+        self.statusBar.showMessage("JSON config file saved!", 3000)
 
     def run_claspy_t(self):
         print("Run cLASpy_T")
