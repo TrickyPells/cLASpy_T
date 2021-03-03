@@ -127,8 +127,7 @@ class ClaspyGui(QMainWindow):
         self.formLayoutLeft.addRow("Algorithm parameters:", self.stackAlgo)
 
         # Create the right part of GUI
-        self.checkTarget = QCheckBox("Target field")
-        self.checkTarget.setEnabled(False)
+        self.labelTarget = QLabel("Target field")
         self.labelFeatures = QLabel("Select features:\n\n\n"
                                     "(press Ctrl+Shift\n"
                                     "for multiple selection)")
@@ -138,7 +137,7 @@ class ClaspyGui(QMainWindow):
         self.listFeatures.setSortingEnabled(True)
 
         self.vLayoutFeatures = QVBoxLayout()
-        self.vLayoutFeatures.addWidget(self.checkTarget)
+        self.vLayoutFeatures.addWidget(self.labelTarget)
         self.vLayoutFeatures.addWidget(self.listFeatures)
 
         self.buttonBox = QDialogButtonBox(QDialogButtonBox.Save | QDialogButtonBox.Close)
@@ -265,13 +264,9 @@ class ClaspyGui(QMainWindow):
 
         # Check if the target field exist
         if self.target:
-            self.checkTarget.setText("Target field is available")
-            self.checkTarget.setEnabled(True)
-            self.checkTarget.setChecked(True)
+            self.labelTarget.setText("Target field is available")
         else:
-            self.checkTarget.setText("Target field is not available")
-            self.checkTarget.setEnabled(False)
-            self.checkTarget.setChecked(False)
+            self.labelTarget.setText("Mandatory target field not found!!")
 
         # Rewrite listFeature
         self.listFeatures.clear()
@@ -284,6 +279,10 @@ class ClaspyGui(QMainWindow):
         :param file_path: The path to the LAS file.
         :return: The list of the extra dimensions (with 'Target' field).
         """
+        # Initialize target bool
+        self.target = False
+
+        # Infos about LAS file
         las = laspy.file.File(file_path, mode='r')
         version = las.header.version
         data_format = las.header.data_format_id
@@ -867,10 +866,6 @@ class ClaspyGui(QMainWindow):
 
         # Get the current selected features
         self.selectedFeatures = [item.text() for item in self.listFeatures.selectedItems()]
-
-        # If Target is checked, add to listFeatures
-        if self.checkTarget.isChecked():
-            self.selectedFeatures.append(self.targetName)
 
         self.selectedFeatures.sort()
         json_dict['feature_names'] = self.selectedFeatures

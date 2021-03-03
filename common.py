@@ -233,34 +233,37 @@ def file_to_pandasframe(data_path):
     return frame
 
 
-def get_selected_features(features, temp_features):
+def get_selected_features(sel_features, data_features):
     """
-    :param features: the wanted features (selected by user).
-    :param temp_features: all features in input_data except ('x', 'y', 'z' and 'target').
+    :param sel_features: the wanted features (selected by user).
+    :param data_features: all features in input_data except ('x', 'y', 'z' and 'target').
     :return: selected_features, the final selected features.
     """
     # Initialization
-    selected_features = list()
+    selected_features = list()  # The final list of all features found in input data
 
     # Check if features is a list()
-    if isinstance(features, list):
-        features = [feature.casefold() for feature in features]
+    if isinstance(sel_features, list):
+        # sel_features = [feature.casefold() for feature in sel_features]
         print("\nGet selected features:")
-        for feature in temp_features:
-            if feature.casefold() in features:
-                selected_features.append(feature)
-                print(" - {} feature added".format(feature))
+        for feature in sel_features:
+            for dt_feature in data_features:
+                if dt_feature.casefold() == feature.casefold():
+                    selected_features.append(dt_feature)
+                    print(" - {} asked --> {} found".format(feature, dt_feature))
+
         # print comparison between given feature list and final selected features
-        features.sort()
-        selected_features.sort()
-        print("\nLength of given feature list: {}".format(len(features)))
-        print(features)
-        print("\nLength of final selected features: {}".format(len(selected_features)))
-        print("{}\n".format(selected_features))
-        if len(features) == len(selected_features):
+        # features.sort()
+        # selected_features.sort()
+        print("\nNumber of wanted features: {}".format(len(sel_features)))
+        # print(features)
+        print("Number of final selected features: {}\n".format(len(selected_features)))
+        # print("{}\n".format(selected_features))
+        if len(sel_features) == len(selected_features):
             print(" --> All required features are present!\n")
         else:
-            raise ValueError("One or several features are missing in 'input_data'!")
+            differences = list(set(sel_features) - set(selected_features))
+            raise ValueError("{} features are missing in 'input_data'!".format(differences))
     else:
         raise TypeError("Selected features must be a list of string!")
 
