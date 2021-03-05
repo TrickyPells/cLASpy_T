@@ -550,7 +550,7 @@ First, open the shell and check for updates:
 \end_layout
 
 \begin_layout LyX-Code
-Me@MyComputer:~$ sudo apt update
+me@MyComputer:~$ sudo apt update
 \begin_inset Foot
 status open
 
@@ -569,7 +569,7 @@ Apply upgrades if needed:
 \end_layout
 
 \begin_layout LyX-Code
-Me@MyComputer:~$ sudo apt upgrade -y
+me@MyComputer:~$ sudo apt upgrade -y
 \end_layout
 
 \begin_layout Standard
@@ -590,11 +590,11 @@ cLASpy_T
 \end_layout
 
 \begin_layout LyX-Code
-Me@MyComputer:~$ cd Code
+me@MyComputer:~$ cd Code
 \end_layout
 
 \begin_layout LyX-Code
-Me@MyComputer:~/Code$ git clone https://github.com/TrickyPells/cLASpy_T.git
+me@MyComputer:~/Code$ git clone https://github.com/TrickyPells/cLASpy_T.git
 \end_layout
 
 \begin_layout Standard
@@ -615,7 +615,7 @@ Once you clone or download/decompress source code, move to the 'cLASpy_T'
 \end_layout
 
 \begin_layout LyX-Code
-Me@MyComputer:~/Code$ cd cLASpy_T
+me@MyComputer:~/Code$ cd cLASpy_T
 \end_layout
 
 \begin_layout Subsection
@@ -640,7 +640,7 @@ First, install 'pip' to manager and install all needed packages and 'venv'
 \end_layout
 
 \begin_layout LyX-Code
-Me@MyComputer:~/Code/cLASpy_T$ sudo apt install python3-pip python3-venv
+me@MyComputer:~/Code/cLASpy_T$ sudo apt install python3-pip python3-venv
 \end_layout
 
 \begin_layout Standard
@@ -649,11 +649,11 @@ Then, create a new directory call '.venv' and use venv command from python
 \end_layout
 
 \begin_layout LyX-Code
-Me@MyComputer:~/Code/cLASpy_T$ mkdir .venv
+me@MyComputer:~/Code/cLASpy_T$ mkdir .venv
 \end_layout
 
 \begin_layout LyX-Code
-Me@MyComputer:~/Code/cLASpy_T$ python3 -m venv .venv/claspy_venv
+me@MyComputer:~/Code/cLASpy_T$ python3 -m venv .venv/claspy_venv
 \end_layout
 
 \begin_layout Standard
@@ -661,7 +661,7 @@ Now, you can use this new virtual environment with:
 \end_layout
 
 \begin_layout LyX-Code
-Me@MyComputer:~/Code/cLASpy_T$ source .venv/claspy_venv/bin/activate
+me@MyComputer:~/Code/cLASpy_T$ source .venv/claspy_venv/bin/activate
 \end_layout
 
 \begin_layout Standard
@@ -669,7 +669,7 @@ Your Command Prompt must return something like this:
 \end_layout
 
 \begin_layout LyX-Code
-(claspy_venv) Me@MyComputer:~/Code/cLASpy_T$
+(claspy_venv) me@MyComputer:~/Code/cLASpy_T$
 \end_layout
 
 \begin_layout Standard
@@ -677,7 +677,7 @@ If you want to deactivate the virtual environment, just type:
 \end_layout
 
 \begin_layout LyX-Code
-(claspy_venv) Me@MyComputer:~/Code/cLASpy_T$ deactivate
+(claspy_venv) me@MyComputer:~/Code/cLASpy_T$ deactivate
 \end_layout
 
 \begin_layout Subsection
@@ -695,7 +695,7 @@ Open a Command Prompt, go to the cLASpy_T directory and activate the already
 \end_layout
 
 \begin_layout LyX-Code
-Me@MyComputer:~/Code/cLASpy_T$ source .venv/claspy_venv/bin/activate
+me@MyComputer:~/Code/cLASpy_T$ source .venv/claspy_venv/bin/activate
 \end_layout
 
 \begin_layout Standard
@@ -703,7 +703,7 @@ First, check if 'pip' needs to be upgraded:
 \end_layout
 
 \begin_layout LyX-Code
-(claspy_venv) Me@MyComputer:~/Code/cLASpy_T$ python3 -m pip install
+(claspy_venv) me@MyComputer:~/Code/cLASpy_T$ python3 -m pip install
 \end_layout
 
 \begin_layout LyX-Code
@@ -715,7 +715,7 @@ Once done, install all dependencies:
 \end_layout
 
 \begin_layout LyX-Code
-(claspy_venv) Me@MyComputer:~/Code/cLASpy_T$ python3 -m pip install
+(claspy_venv) me@MyComputer:~/Code/cLASpy_T$ python3 -m pip install
 \end_layout
 
 \begin_layout LyX-Code

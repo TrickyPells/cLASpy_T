@@ -169,6 +169,11 @@ parser_train.add_argument("--png_features",
                                "    GradientBoosting algorithms as a PNG image.\n\n",
                           action="store_true")
 
+parser_train.add_argument("--random_state",
+                          help="set the random_state for data split and\n"
+                               "    the GridSearchCV or the cross-validation.\n\n",
+                          type=int, default=0, metavar='')
+
 parser_train.add_argument("-s", "--samples",
                           help="set the number of samples for large dataset.\n"
                                "    (float number in million points)\n"

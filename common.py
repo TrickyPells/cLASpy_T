@@ -141,6 +141,8 @@ def update_arguments(args):
     args.output = os.path.normpath(config['output_folder'])
     args.samples = config['samples']
     args.algo = shortname_algo(config['algorithm'])
+    args.png_features = config['png_features']
+    args.random_state = config['random_state']
     args.parameters = config['parameters']
     args.features = config['feature_names']
 

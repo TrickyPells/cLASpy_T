@@ -406,6 +406,14 @@ class ClaspyGui(QMainWindow):
         self.RFspinNJob.setValue(0)
         form_layout.addRow("n_jobs:", self.RFspinNJob)
 
+        label_h_line = QLabel()
+        label_h_line.setFrameStyle(QFrame.HLine | QFrame.Sunken)
+        form_layout.addRow(label_h_line)
+
+        self.RFcheckImportance = QCheckBox()
+        self.RFcheckImportance.setChecked(False)
+        form_layout.addRow("Export feature importances:", self.RFcheckImportance)
+
         self.stack_RF.setLayout(form_layout)
 
     def stackui_gb(self):
@@ -486,6 +494,14 @@ class ClaspyGui(QMainWindow):
         self.GBspinSubsample.setMinimum(0)
         self.GBspinSubsample.setValue(1)
         form_layout.addRow("subsample:", self.GBspinSubsample)
+
+        label_h_line = QLabel()
+        label_h_line.setFrameStyle(QFrame.HLine | QFrame.Sunken)
+        form_layout.addRow(label_h_line)
+
+        self.GBcheckImportance = QCheckBox()
+        self.GBcheckImportance.setChecked(False)
+        form_layout.addRow("Export feature importances:", self.GBcheckImportance)
 
         self.stack_GB.setLayout(form_layout)
 
@@ -722,6 +738,7 @@ class ClaspyGui(QMainWindow):
         # if Random Forest
         if selected_algo == "Random Forest":
             json_dict['algorithm'] = 'RandomForestClassifier'
+            json_dict['png_features'] = self.RFcheckImportance.isChecked()
 
             # n_estimators
             param_dict['n_estimators'] = self.RFspinEstimators.value()
@@ -754,6 +771,7 @@ class ClaspyGui(QMainWindow):
         # if Gradient Boosting
         elif selected_algo == 'Gradient Boosting':
             json_dict['algorithm'] = 'GradientBoostingClassifier'
+            json_dict['png_features'] = self.GBcheckImportance.isChecked()
 
             # loss
             param_dict['loss'] = self.GBcomboLoss.currentText()
@@ -860,26 +878,29 @@ class ClaspyGui(QMainWindow):
 
         # if anything else
         else:
-            self.statusBar.showMessage('Error: Unknown selected algorithm!')
+            self.statusBar.showMessage('Error: Unknown selected algorithm!',
+                                       3000)
 
         json_dict['parameters'] = param_dict
 
+        # Save the random_state for data split, GridSearchCV or cross_val
+        json_dict['random_state'] = param_dict['random_state']
+
         # Get the current selected features
         self.selectedFeatures = [item.text() for item in self.listFeatures.selectedItems()]
-
         self.selectedFeatures.sort()
         json_dict['feature_names'] = self.selectedFeatures
 
         # Save the JSON file
-        self.statusBar.showMessage("Writing JSON config file...", 3000)
+        self.statusBar.showMessage("Saving JSON config file...", 3000)
         json_file = QFileDialog.getSaveFileName(None, 'Save JSON config file',
                                                 '', "JSON files (*.json)")
 
         if json_file[0] != '':
             with open(json_file[0], 'w') as config_file:
                 json.dump(json_dict, config_file)
-
-        self.statusBar.showMessage("JSON config file saved!", 3000)
+                self.statusBar.showMessage("Config file saved: {}".format(json_file[0]),
+                                           5000)
 
     def run_claspy_t(self):
         print("Run cLASpy_T")

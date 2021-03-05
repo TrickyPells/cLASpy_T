@@ -73,7 +73,7 @@ def get_classifier(args, mode='training', algorithm=None):
 
     # Set the chosen learning classifier
     if algorithm == 'RandomForestClassifier':
-        classifier = set_random_forest(fit_params=parameters, n_jobs=args.n_jobs)
+        classifier = set_random_forest(fit_params=parameters)
 
     elif algorithm == 'GradientBoostingClassifier':
         classifier = set_gradient_boosting(fit_params=parameters)
@@ -90,15 +90,17 @@ def get_classifier(args, mode='training', algorithm=None):
     return algorithm, classifier
 
 
-def split_dataset(data_values, target_values, train_ratio=0.5, test_ratio=0.5, samples=0.5):
+def split_dataset(data_values, target_values, random_state,
+                  train_ratio=0.5, test_ratio=0.5, samples=0.5):
     """
     Split the input data and target in data_train, data_test, target_train and target_test.
     :param data_values: the np.ndarray with the data features.
     :param target_values: the np.ndarray with the target.
+    :param random_state: set the random_state for the split dataset.
     :param train_ratio: (optional) Ratio of the size of training dataset.
     :param test_ratio: (optional) Ratio of the size of testing dataset.
     :param samples: (optional) Number of samples beyond which the dataset
-    is splitted with two integers, for train_size and test_size.
+    is split with two integers, for train_size and test_size.
     The samples is paired with train_ratio and test_ratio.
     :return: data_train, data_test, target_train and target_test as np.ndarray.
     """
@@ -108,7 +110,7 @@ def split_dataset(data_values, target_values, train_ratio=0.5, test_ratio=0.5, s
 
     # Perform the train test split
     data_train, data_test, target_train, target_test = train_test_split(data_values, target_values,
-                                                                        random_state=0,
+                                                                        random_state=random_state,
                                                                         train_size=train_size,
                                                                         test_size=test_size,
                                                                         stratify=target_values)
@@ -190,16 +192,14 @@ def check_grid_params(pipeline, grid_params):
     return pipe_params
 
 
-def set_random_forest(fit_params=None, n_jobs=-1):
+def set_random_forest(fit_params=None):
     """
     Set the learning algorithm as RandomForestClassier.
     :param fit_params: A dict with the parameters to set up.
-    :param n_jobs: The number of CPU used.
     :return: classifier: the desired classifier with the required parameters
     """
     # Set the classifier
     if isinstance(fit_params, dict):
-        fit_params['random_state'] = 0
         classifier = RandomForestClassifier()
         classifier = check_parameters(classifier, fit_params)  # Check and set parameters
 
@@ -207,7 +207,7 @@ def set_random_forest(fit_params=None, n_jobs=-1):
         classifier = RandomForestClassifier(n_estimators=100,
                                             max_depth=8,
                                             min_samples_leaf=500,
-                                            n_jobs=n_jobs,
+                                            n_jobs=-1,
                                             random_state=0)
 
     return classifier
@@ -221,7 +221,6 @@ def set_gradient_boosting(fit_params=None):
     """
     # Set the classifier
     if isinstance(fit_params, dict):
-        fit_params['random_state'] = 0
         classifier = GradientBoostingClassifier()
         classifier = check_parameters(classifier, fit_params)
     else:
@@ -242,7 +241,6 @@ def set_linear_svc(fit_params=None):
     """
     # Set the classifier
     if isinstance(fit_params, dict):
-        fit_params['random_state'] = 0
         fit_params['dual'] = False
         classifier = LinearSVC()
         classifier = check_parameters(classifier, fit_params)
@@ -266,8 +264,6 @@ def set_mlp_classifier(fit_params=None):
     """
     # Set the classifier
     if isinstance(fit_params, dict):
-        fit_params['random_state'] = 0
-        fit_params['max_iter'] = 10000
         classifier = MLPClassifier()
         classifier = check_parameters(classifier, fit_params)
 
@@ -290,7 +286,6 @@ def set_kmeans_cluster(fit_params):
     """
     # Set the classifier
     if isinstance(fit_params, dict):
-        fit_params['random_state'] = 0
         classifier = KMeans()
         classifier = check_parameters(classifier, fit_params)  # Check and set parameters
 
@@ -300,12 +295,14 @@ def set_kmeans_cluster(fit_params):
     return classifier
 
 
-def training_gridsearch(pipeline, training_data, training_target, grid_params=None, n_jobs=-1, scoring='accuracy'):
+def training_gridsearch(pipeline, training_data, training_target, random_state,
+                        grid_params=None, n_jobs=-1, scoring='accuracy'):
     """
     Train model with GridSearchCV meta-estimator according the chosen learning algorithm.
     :param pipeline: set the algorithm to train the model.
     :param training_data: the training dataset.
     :param training_target: the targets corresponding to the training dataset.
+    :param random_state: Set the random_state for the StratifiedShuffleSplit.
     :param grid_params: the parameters for the GridSearchCV.
     :param n_jobs: the number of CPU used.
     :param scoring: set the scorer according scikit-learn documentation.
@@ -316,7 +313,7 @@ def training_gridsearch(pipeline, training_data, training_target, grid_params=No
     cross_val = StratifiedShuffleSplit(n_splits=5,
                                        train_size=0.8,
                                        test_size=0.2,
-                                       random_state=0)
+                                       random_state=random_state)
 
     # Set the GridSearchCV
     print("\tSearching best parameters...")
@@ -338,12 +335,14 @@ def training_gridsearch(pipeline, training_data, training_target, grid_params=No
     return grid, results
 
 
-def training_nogridsearch(pipeline, training_data, training_target, n_jobs=-1, scoring='accuracy'):
+def training_nogridsearch(pipeline, training_data, training_target,
+                          random_state, n_jobs=-1, scoring='accuracy'):
     """
     Train model with cross-validation according the chosen classifier.
     :param pipeline: set the algorithm to train the model.
     :param training_data: the training dataset.
     :param training_target: the targets corresponding to the training dataset.
+    :param random_state: Set the random_state for the StratifiedShuffleSplit.
     :param n_jobs: the number of used CPU.
     :param scoring: set the scorer according scikit-learn documentation.
     :return: model, training_scores: the training model and the scores of n_splits training.
@@ -352,7 +351,7 @@ def training_nogridsearch(pipeline, training_data, training_target, n_jobs=-1, s
     cross_val = StratifiedShuffleSplit(n_splits=5,
                                        train_size=0.8,
                                        test_size=0.2,
-                                       random_state=0)
+                                       random_state=random_state)
 
     # Get the training scores
     results = cross_validate(pipeline,
@@ -402,7 +401,7 @@ def train(args):
     if args.config:
         update_arguments(args)  # Get the arguments from the config file
 
-    # Get the classifier and update the selected algorithm
+    # Get the classifier type
     algorithm, classifier = get_classifier(args, mode=mode)
 
     # INTRODUCTION
@@ -425,10 +424,12 @@ def train(args):
 
     # Split data into training and testing sets
     print("\n2. Splitting data in train and test sets...")
+    print("Random_state to split data: {}".format(args.random_state))
     x_train_val, x_test, y_train_val, y_test = split_dataset(data.values, target.values,
                                                              train_ratio=args.train_r,
                                                              test_ratio=args.test_r,
-                                                             samples=nbr_pts)
+                                                             samples=nbr_pts,
+                                                             random_state=args.random_state)
 
     # Get the train and test sizes
     train_size = len(y_train_val)
@@ -451,6 +452,7 @@ def train(args):
     # TYPE OF TRAINING
     if args.grid_search:  # Training with GridSearchCV
         print('\n4. Training model with GridSearchCV...\n')
+        print("Random_state for the StratifiedShuffleSplit: {}".format(args.random_state))
         cv_results = None
 
         # Check param_grid exists
@@ -465,17 +467,20 @@ def train(args):
         model, grid_results = training_gridsearch(pipeline,
                                                   x_train_val,
                                                   y_train_val,
+                                                  random_state=args.random_state,
                                                   grid_params=param_grid,
                                                   scoring=args.scoring,
                                                   n_jobs=args.n_jobs)
 
     else:  # Training with Cross Validation
         print("\n4. Training model with cross validation...\n")
+        print("Random_state for the StratifiedShuffleSplit: {}".format(args.random_state))
         grid_results = None
 
         model, cv_results = training_nogridsearch(pipeline,
                                                   x_train_val,
                                                   y_train_val,
+                                                  random_state=args.random_state,
                                                   scoring=args.scoring,
                                                   n_jobs=args.n_jobs)
 
