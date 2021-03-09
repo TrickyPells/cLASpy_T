@@ -169,7 +169,7 @@ def save_predictions(predictions, file_name, source_file):
     :param source_file: The path to the input file.
     """
     # Set header for the predictions
-    if predictions.shape[1] > 2:
+    if len(predictions.shape) > 1 and predictions.shape[1] > 2:
         # Get number of class in prediction array (number of column - 2)
         numb_class = predictions.shape[1] - 2
         pred_header = ['Prediction', 'BestProba'] + ['ProbaClass_' + str(cla) for cla in range(0, numb_class)]

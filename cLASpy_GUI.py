@@ -29,6 +29,7 @@
 # --------------------
 
 import sys
+import time
 import laspy
 
 from PyQt5.QtCore import *
@@ -48,9 +49,13 @@ class ClaspyGui(QMainWindow):
         self.setGeometry(300, 200, 900, 700)
         self.mainWidget = QWidget()
 
-        # Create the left part of GUI
+        # Left part of GUI
+
+        # GroupBox for point cloud file
+        self.groupPtCld = QGroupBox("Point Cloud")
+
         self.labelLocalServer = QLabel("Compute on:")
-        self.layoutLocalServer = QHBoxLayout(self)
+        self.layoutLocalServer = QHBoxLayout()
         self.radioLocal = QRadioButton("local")
         self.layoutLocalServer.addWidget(self.radioLocal)
         self.radioServer = QRadioButton("server")
@@ -66,32 +71,47 @@ class ClaspyGui(QMainWindow):
         self.stackInput.addWidget(self.stack_Local)
         self.stackInput.addWidget(self.stack_Server)
 
-        self.labelHLine_1 = QLabel()
-        self.labelHLine_1.setFrameStyle(QFrame.HLine | QFrame.Sunken)
-
         # Info about the input point cloud
-        self.labelPtCldInfo = QLabel("Point cloud info:")
-        self.labelPtCldFormat = QLabel("Format: ")
-        self.labelPtCount = QLabel("Number of points: ")
-        self.vLayoutInfo = QVBoxLayout()
-        self.vLayoutInfo.addWidget(self.labelPtCldFormat)
-        self.vLayoutInfo.addWidget(self.labelPtCount)
+        self.labelPtCldFormat = QLabel()
+        self.labelPtCount = QLabel()
 
-        self.labelSampleSize = QLabel("Number of samples:")
+        # Set the sample size
         self.spinSampleSize = QDoubleSpinBox()
         self.spinSampleSize.setMaximumWidth(80)
         self.spinSampleSize.setMinimum(0)
         self.spinSampleSize.setDecimals(6)
         self.spinSampleSize.setWrapping(True)
-        self.labelMillionPoints = QLabel("Million points")
         self.hLayoutSize = QHBoxLayout()
         self.hLayoutSize.addWidget(self.spinSampleSize)
-        self.hLayoutSize.addWidget(self.labelMillionPoints)
+        self.hLayoutSize.addWidget(QLabel("Million points"))
 
-        self.labelHLine_2 = QLabel()
-        self.labelHLine_2.setFrameStyle(QFrame.HLine | QFrame.Sunken)
+        # Set the training/testing ratio
+        self.spinTrainRatio = QDoubleSpinBox()
+        self.spinTrainRatio.setMaximumWidth(60)
+        self.spinTrainRatio.setMinimum(0)
+        self.spinTrainRatio.setMaximum(1)
+        self.spinTrainRatio.setSingleStep(0.1)
+        self.spinTrainRatio.setDecimals(3)
+        self.spinTrainRatio.setWrapping(True)
+        self.spinTrainRatio.setValue(0.5)
+
+        # Label: Target field exist ?
+        self.labelTarget = QLabel()
+
+        # Fill the point cloud groupBox with QFormLayout
+        self.formLayoutPtCld = QFormLayout()
+        self.formLayoutPtCld.addRow(self.labelLocalServer, self.layoutLocalServer)
+        self.formLayoutPtCld.addRow(self.stackInput)
+        self.formLayoutPtCld.addRow("Format:", self.labelPtCldFormat)
+        self.formLayoutPtCld.addRow("Number of points:", self.labelPtCount)
+        self.formLayoutPtCld.addRow("Number of samples:", self.hLayoutSize)
+        self.formLayoutPtCld.addRow("Training ratio:", self.spinTrainRatio)
+        self.formLayoutPtCld.addRow("Target field:", self.labelTarget)
+        self.groupPtCld.setLayout(self.formLayoutPtCld)
 
         # Selection of the algorithm
+        self.groupAlgorithm = QGroupBox("Algorithm")
+
         self.listAlgorithms = QListWidget()
         self.listAlgorithms.setMaximumSize(120, 80)
         self.listAlgorithms.insertItem(0, "Random Forest")
@@ -115,19 +135,21 @@ class ClaspyGui(QMainWindow):
         self.stackAlgo.addWidget(self.stack_NN)
         self.stackAlgo.addWidget(self.stack_KM)
 
-        # Fill the layout of the left part
-        self.formLayoutLeft = QFormLayout()
-        self.formLayoutLeft.addRow(self.labelLocalServer, self.layoutLocalServer)
-        self.formLayoutLeft.addRow(self.stackInput)
-        self.formLayoutLeft.addRow(self.labelHLine_1)
-        self.formLayoutLeft.addRow(self.labelPtCldInfo, self.vLayoutInfo)
-        self.formLayoutLeft.addRow(self.labelSampleSize, self.hLayoutSize)
-        self.formLayoutLeft.addRow(self.labelHLine_2)
-        self.formLayoutLeft.addRow("Select algorithm:", self.listAlgorithms)
-        self.formLayoutLeft.addRow("Algorithm parameters:", self.stackAlgo)
+        # Fill the algorithm groupBox with QFormLayout
+        self.formLayoutAlgo = QFormLayout()
+        self.formLayoutAlgo.addRow("Select algorithm:", self.listAlgorithms)
+        self.formLayoutAlgo.addRow("Algorithm parameters:", self.stackAlgo)
+        self.groupAlgorithm.setLayout(self.formLayoutAlgo)
 
-        # Create the right part of GUI
-        self.labelTarget = QLabel("Target field")
+        # Fill the left layout
+        self.vLayoutLeft = QVBoxLayout()
+        self.vLayoutLeft.addWidget(self.groupPtCld)
+        self.vLayoutLeft.addWidget(self.groupAlgorithm)
+
+        # Right part of GUI
+        self.groupFeatures = QGroupBox("Feature Fields")
+
+        # List of features
         self.labelFeatures = QLabel("Select features:\n\n\n"
                                     "(press Ctrl+Shift\n"
                                     "for multiple selection)")
@@ -136,32 +158,51 @@ class ClaspyGui(QMainWindow):
         self.listFeatures.setSelectionMode(QAbstractItemView.ExtendedSelection)
         self.listFeatures.setSortingEnabled(True)
 
-        self.vLayoutFeatures = QVBoxLayout()
-        self.vLayoutFeatures.addWidget(self.labelTarget)
-        self.vLayoutFeatures.addWidget(self.listFeatures)
+        # Number of selected features
+        self.labelNbrSelFeatures = QLabel()
+        self.number_selected_features()
 
-        self.buttonBox = QDialogButtonBox(QDialogButtonBox.Save | QDialogButtonBox.Close)
-        self.buttonBox.accepted.connect(self.save_config)
+        # Fill the feature groupBox with layout
+        self.formLayoutRight = QFormLayout()
+        self.formLayoutRight.addRow(self.labelFeatures, self.listFeatures)
+        self.formLayoutRight.addRow("Number of selected features:", self.labelNbrSelFeatures)
+        self.groupFeatures.setLayout(self.formLayoutRight)
+
+        # Button box for
+        self.buttonBox = QDialogButtonBox(QDialogButtonBox.Close)
         self.buttonBox.rejected.connect(self.reject)
         self.buttonRun = QPushButton("Run cLASpy_T")
         self.buttonRun.clicked.connect(self.run_claspy_t)
         self.buttonBox.addButton(self.buttonRun, QDialogButtonBox.ActionRole)
 
-        # Fill the layout of the right part
-        self.formLayoutRight = QFormLayout()
-        self.formLayoutRight.addRow(self.labelFeatures, self.vLayoutFeatures)
-        self.formLayoutRight.addWidget(self.buttonBox)
-
         # Fill the main layout
-        self.hMainLayout = QHBoxLayout(self.mainWidget)
-        self.hMainLayout.addLayout(self.formLayoutLeft)
-        self.labelVLine = QLabel()
-        self.labelVLine.setFrameStyle(QFrame.VLine | QFrame.Sunken)
-        self.hMainLayout.addWidget(self.labelVLine)
-        self.hMainLayout.addLayout(self.formLayoutRight)
+        self.hMainLayout = QHBoxLayout()
+        self.hMainLayout.addLayout(self.vLayoutLeft)
+        self.hMainLayout.addWidget(self.groupFeatures)
 
-        # Save, Run and Close buttons
+        self.vMainLayout = QVBoxLayout(self.mainWidget)
+        self.vMainLayout.addLayout(self.hMainLayout)
+        self.vMainLayout.addWidget(self.buttonBox)
+
+        # setCentralWidget
         self.setCentralWidget(self.mainWidget)
+
+        # MenuBar and Menu
+        bar = self.menuBar()
+        menu_file = bar.addMenu("File")
+
+        open_action = QAction("Open", self)
+        open_action.setShortcut("Ctrl+O")
+        menu_file.addAction(open_action)
+
+        save_action = QAction("Save", self)
+        save_action.setShortcut("Ctrl+S")
+        menu_file.addAction(save_action)
+
+        quit_action = QAction("Quit", self)
+        menu_file.addAction(quit_action)
+
+        menu_file.triggered[QAction].connect(self.menu_trigger)
 
         # Status Bar
         self.statusBar = QStatusBar()
@@ -170,6 +211,17 @@ class ClaspyGui(QMainWindow):
         # Function call
         self.listAlgorithms.currentRowChanged.connect(self.display_stack_algo)
         self.radioLocal.toggled.connect(self.display_stack_input)
+        self.listFeatures.itemSelectionChanged.connect(self.number_selected_features)
+
+    def menu_trigger(self, action):
+        if action.text() == "Open":
+            self.open_config()
+
+        elif action.text() == "Save":
+            self.save_config()
+
+        elif action.text() == "Quit":
+            self.reject()
 
     def stackui_local(self):
         form_layout = QFormLayout()
@@ -232,8 +284,7 @@ class ClaspyGui(QMainWindow):
     def get_file(self):
         self.statusBar.showMessage("Select file...", 3000)
         filename = QFileDialog.getOpenFileName(self, 'Select CSV or LAS file',
-                                               'D:/PostDoc_Temp/Article_Classif_Orne',
-                                               "LAS files (*.las);;CSV files (*.csv)")
+                                               '', "LAS files (*.las);;CSV files (*.csv)")
 
         if filename[0] != '':
             if self.radioLocal.isChecked():
@@ -260,13 +311,18 @@ class ClaspyGui(QMainWindow):
             feature_names = self.open_las(file_path)
         else:
             feature_names = ["File error:", "Unknown extension file!"]
-            self.statusBar.showMessage("File error: Unknown extension file!")
+            self.statusBar.showMessage("File error: Unknown extension file!", 3000)
 
         # Check if the target field exist
+        try:
+            self.target
+        except AttributeError:
+            self.target = False
+
         if self.target:
             self.labelTarget.setText("Target field is available")
         else:
-            self.labelTarget.setText("Mandatory target field not found!!")
+            self.labelTarget.setText("Target field not found!!")
 
         # Rewrite listFeature
         self.listFeatures.clear()
@@ -298,8 +354,8 @@ class ClaspyGui(QMainWindow):
 
         # Show LAS version and number of points in status bar
         point_count = '{:,}'.format(point_count).replace(',', ' ')  # Format with thousand separator
-        self.labelPtCldFormat.setText("Format: LAS version {} | Data format: {}".format(version, data_format))
-        self.labelPtCount.setText("Number of points: {}".format(point_count))
+        self.labelPtCldFormat.setText("LAS version {}  |  Data format: {}".format(version, data_format))
+        self.labelPtCount.setText("{}".format(point_count))
         self.statusBar.showMessage("{} points | LAS Version: {}".format(point_count, version),
                                    5000)
 
@@ -341,6 +397,19 @@ class ClaspyGui(QMainWindow):
         if foldername != '':
             if self.radioLocal.isChecked():
                 self.lineLocalFolder.setText(foldername)
+
+    def number_selected_features(self):
+        self.max_count = 0
+        self.selected_count = 0
+        if self.listFeatures is None or self.listFeatures.count() == 0:
+            self.max_count = 0
+            self.selected_count = 0
+        else:
+            self.max_count = self.listFeatures.count()
+            self.selected_count = len(self.listFeatures.selectedItems())
+
+        self.labelNbrSelFeatures.setText("{} / {}".format(self.selected_count,
+                                                          self.max_count))
 
     def stackui_rf(self):
         form_layout = QFormLayout()
@@ -715,6 +784,195 @@ class ClaspyGui(QMainWindow):
         algo_list = ["Random Forest", "Gradient Boosting", "Neural Network", "K-Means clustering"]
         self.statusBar.showMessage(algo_list[i] + " parameters", 2000)
 
+    def open_config(self):
+        """
+        Open configuration JSON file and set all saved parameters.
+        """
+        # Get config filename
+        self.statusBar.showMessage("Select config file...", 3000)
+        filename = QFileDialog.getOpenFileName(self, 'Select config file',
+                                               '', "JSON files (*.json)")
+
+        # Open config file and get data
+        with open(filename[0], 'r') as config_file:
+            config = json.load(config_file)
+
+        # Update point cloud parameters
+        if config['local_compute']:
+            self.radioLocal.setChecked(True)
+            self.lineLocalFile.setText(config['input_file'])
+            self.lineLocalFolder.setText(config['output_folder'])
+        else:
+            self.radioServer.setChecked(True)
+            self.lineFile.setText(config['local_input'])
+            self.lineServerFile.setText(config['input_file'])
+            self.lineServerFolder.setText(config['output_folder'])
+        self.open_file()
+
+        self.spinSampleSize.setValue(config['samples'])
+        self.spinTrainRatio.setValue(config['training_ratio'])
+
+        # Update algorithm parameters
+        algorithm = config['algorithm']
+        if algorithm == 'RandomForestClassifier':
+            self.listAlgorithms.setCurrentItem(self.listAlgorithms.item(0))
+            self.RFcheckImportance.setChecked(config['png_features'])
+
+            # Get algo parameter dict
+            parameters = config['parameters']
+
+            # n_estimators
+            self.RFspinEstimators.setValue(parameters['n_estimators'])
+            # criterion
+            self.RFcomboCriterion.setCurrentText(parameters['criterion'])
+            # max_depth
+            if parameters['max_depth'] is None:
+                self.RFspinMaxDepth.setValue(0)
+            else:
+                self.RFspinMaxDepth.setValue(parameters['max_depth'])
+            # min_samples_split
+            self.RFspinSamplesSplit.setValue(parameters['min_samples_split'])
+            # min_samples_leaf
+            self.RFspinSamplesLeaf.setValue(parameters['min_samples_leaf'])
+            # min_weight_fraction_leaf
+            self.RFspinWeightLeaf.setValue(parameters['min_weight_fraction_leaf'])
+            # max_features
+            self.RFcomboMaxFeatures.setCurrentText(parameters['max_features'])
+            # n_jobs
+            if parameters['n_jobs'] is None:
+                self.RFspinNJob.setValue(0)
+            else:
+                self.RFspinNJob.setValue(parameters['n_jobs'])
+            # random_state
+            if parameters['random_state'] is None:
+                self.RFspinRandomState.setValue(-1)
+            else:
+                self.RFspinRandomState.setValue(parameters['random_state'])
+
+        elif algorithm == 'GradientBoostingClassifier':
+            self.listAlgorithms.setCurrentItem(self.listAlgorithms.item(1))
+            self.RFcheckImportance.setChecked(config['png_features'])
+
+            # Get algo parameter dict
+            parameters = config['parameters']
+
+            # loss
+            self.GBcomboLoss.setCurrentText(parameters['loss'])
+            # learning_rate
+            self.GBspinLearningRate.setValue(parameters['learning_rate'])
+            # n_estimators
+            self.GBspinEstimators.setValue(parameters['n_estimators'])
+            # subsample
+            self.GBspinSubsample.setValue(parameters['subsample'])
+            # criterion
+            self.GBcomboCriterion.setCurrentText(parameters['criterion'])
+            # min_samples_split
+            self.GBspinSamplesSplit.setValue(parameters['min_samples_split'])
+            # min_samples_leaf
+            self.GBspinSamplesLeaf.setValue(parameters['min_samples_leaf'])
+            # min_weight_fraction_leaf
+            self.GBspinWeightLeaf.setValue(parameters['min_weight_fraction_leaf'])
+            # max_depth
+            if parameters['max_depth'] is None:
+                self.GBspinMaxDepth.setValue(0)
+            else:
+                self.GBspinMaxDepth.setValue(parameters['max_depth'])
+            # random_state
+            if parameters['random_state'] is None:
+                self.GBspinRandomState.setValue(-1)
+            else:
+                self.GBspinRandomState.setValue(parameters['random_state'])
+            # max_features
+            if parameters['max_features'] is None:
+                self.GBcomboMaxFeatures.setCurrentText('None')
+            else:
+                self.GBcomboMaxFeatures.setCurrentText(parameters['max_features'])
+
+        elif algorithm == 'MLPClassifier':
+            self.listAlgorithms.setCurrentItem(self.listAlgorithms.item(2))
+
+            # Get algo parameter dict
+            parameters = config['parameters']
+
+            # hidden_layer_sizes
+            hidden_layers = [str(layer) for layer in parameters['hidden_layer_sizes']]
+            self.NNlineHiddenLayers.setText(','.join(hidden_layers))
+            # activation
+            self.NNcomboActivation.setCurrentText(parameters['activation'])
+            # solver
+            self.NNcomboSolver.setCurrentText(parameters['solver'])
+            self.nn_solver_options()
+            # alpha
+            self.NNspinAlpha.setValue(parameters['alpha'])
+            # batch_size
+            if self.NNspinBatchSize.isEnabled():
+                if parameters['batch_size'] == 'auto':
+                    self.NNspinBatchSize.setValue(-1)
+                else:
+                    self.NNspinBatchSize.setValue(parameters['batch_size'])
+            # learning_rate
+            if self.NNcomboLearningRate.isEnabled():
+                self.NNcomboLearningRate.setCurrentText(parameters['learning_rate'])
+            # learning_rate_init
+            if self.NNspinLearningRateInit.isEnabled():
+                self.NNspinLearningRateInit.setValue(parameters['learning_rate_init'])
+            # power_t
+            if self.NNspinPowerT.isEnabled():
+                self.NNspinPowerT.setValue(parameters['power_t'])
+            # max_iter
+            self.NNspinMaxIter.setValue(parameters['max_iter'])
+            # shuffle
+            if self.NNcheckShuffle.isEnabled():
+                self.NNcheckShuffle.setChecked(parameters['shuffle'])
+            # random_state
+            if parameters['random_state'] is None:
+                self.NNspinRandomState.setValue(-1)
+            else:
+                self.NNspinRandomState.setValue(parameters['random_state'])
+            # beta_1, beta_2 and epsilon
+            if self.NNspinBeta_1.isEnabled():
+                self.NNspinBeta_1.setValue(parameters['beta_1'])
+            if self.NNspinBeta_2.isEnabled():
+                self.NNspinBeta_2.setValue(parameters['beta_2'])
+            if self.NNspinEpsilon.isEnabled():
+                self.NNspinEpsilon.setValue(parameters['epsilon'])
+
+        elif algorithm == 'KMeans':
+            self.listAlgorithms.setCurrentItem(self.listAlgorithms.item(3))
+
+            # Get algo parameter dict
+            parameters = config['parameters']
+
+            # n_clusters
+            self.KMspinNClusters.setValue(parameters['n_clusters'])
+            # init
+            self.KMcomboInit.setCurrentText(parameters['init'])
+            # n_init
+            self.KMspinNInit.setValue(parameters['n_init'])
+            # max_iter
+            self.KMspinMaxIter.setValue(parameters['max_iter'])
+            # tol
+            self.KMspinTol.setValue(parameters['tol'])
+            # random_state
+            if parameters['random_state'] is None:
+                self.KMspinRandomState.setValue(-1)
+            else:
+                self.KMspinRandomState.setValue(parameters['random_state'])
+            # algorithm
+            self.KMcomboAlgorithm.setCurrentText(parameters['algorithm'])
+
+        else:
+            self.statusBar.showMessage('Error: Unknown algorithm from config file!',
+                                       3000)
+
+        # Get the selected features
+        feature_names = config['feature_names']
+        for feature in feature_names:
+            item = self.listFeatures.findItems(feature, Qt.MatchExactly)
+            if len(item) > 0:
+                row = self.listFeatures.row(item[0])
+                self.listFeatures.item(row).setSelected(True)
+
     def save_config(self):
         """
         Save configuration as JSON file.
@@ -724,13 +982,17 @@ class ClaspyGui(QMainWindow):
 
         # Save input file, output folder and sample size
         if self.radioLocal.isChecked():
+            json_dict['local_compute'] = True
             json_dict['input_file'] = self.lineLocalFile.text()
             json_dict['output_folder'] = self.lineLocalFolder.text()
         else:
+            json_dict['local_compute'] = False
+            json_dict['local_input'] = self.lineFile.text()
             json_dict['input_file'] = self.lineServerFile.text()
             json_dict['output_folder'] = self.lineServerFolder.text()
 
         json_dict['samples'] = self.spinSampleSize.value()
+        json_dict['training_ratio'] = self.spinTrainRatio.value()
 
         # Get the selected algorithm and the parameters
         param_dict = dict()
@@ -769,7 +1031,7 @@ class ClaspyGui(QMainWindow):
                 param_dict['random_state'] = self.RFspinRandomState.value()
 
         # if Gradient Boosting
-        elif selected_algo == 'Gradient Boosting':
+        elif selected_algo == "Gradient Boosting":
             json_dict['algorithm'] = 'GradientBoostingClassifier'
             json_dict['png_features'] = self.GBcheckImportance.isChecked()
 

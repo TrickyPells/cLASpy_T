@@ -129,7 +129,8 @@ parser_train.add_argument("-f", "--features",
                           help="select the features to used to train the model.\n"
                                "    Give a list of feature names. Whitespaces"
                                "    will be replaced by underscore '_'."
-                               "Example: f=['Anisotropy_5m', 'R', 'G', 'B', ...]",
+                               "    Example:\n"
+                               "    -f=['Anisotropy_5m', 'R', 'G', 'B', ...]",
                           type=str, default=None, metavar='')
 
 parser_train.add_argument("-g", "--grid_search",
@@ -141,7 +142,7 @@ parser_train.add_argument("-k", "--param_grid",
                                "    in dictionary. NO WHITESPACES!\n"
                                "    If empty, GridSearchCV uses presets.\n"
                                "    Wrong parameters will be ignored.\n\n"
-                               "Example:\n"
+                               "    Example:\n"
                                "    -k=\"{'n_estimators':[50,100,500],'loss':['deviance',\n"
                                "    'exponential'],'hidden_layer_sizes':[[100,100],[50,100,50]]}\"\n\n",
                           type=str, metavar='')
@@ -154,7 +155,7 @@ parser_train.add_argument("-n", "--n_jobs",
 parser_train.add_argument("-p", "--parameters",
                           help="set the parameters to pass to the classifier for training,\n"
                                "    as dictionary. NO WHITESPACES!\n\n"
-                               "Example:\n"
+                               "    Example:\n"
                                "    -p=\"{'n_estimators':50,'max_depth':5,'max_iter':500}\"\n\n",
                           type=str, metavar='')
 
@@ -282,9 +283,10 @@ parser_segment.add_argument("-o", "--output",
 
 parser_segment.add_argument("-f", "--features",
                             help="select the features to used to train the model.\n"
-                                 "    Give a list of feature names. Whitespaces"
-                                 "    will be replaced by underscore '_'."
-                                 "Example: f=['Anisotropy_5m', 'R', 'G', 'B', ...]",
+                                 "    Give a list of feature names. Whitespaces\n"
+                                 "    will be replaced by underscore '_'.\n"
+                                 "    Example:\n"
+                                 "    -f=['Anisotropy_5m', 'R', 'G', 'B', ...]\n\n",
                             type=str, default=None, metavar='')
 
 parser_segment.add_argument("-n", "--n_jobs",
@@ -295,7 +297,7 @@ parser_segment.add_argument("-n", "--n_jobs",
 parser_segment.add_argument("-p", "--parameters",
                             help="set the parameters to pass to the classifier for training,\n"
                                  "    as dictionary. NO WHITESPACES!\n\n"
-                                 "Example:\n"
+                                 "    Example:\n"
                                  "    -p={'n_estimators':50,'max_depth':5,'max_iter':500}\n\n",
                             type=str, metavar='')
 
@@ -304,6 +306,11 @@ parser_segment.add_argument("--pca",
                                  "    principal components. If it enabled, default\n"
                                  "    number of principal components is 8 ('--pca=8')\n\n",
                             type=int, metavar='')
+
+parser_segment.add_argument("-s", "--samples",
+                            help="set the number of samples for large dataset.\n"
+                                 "    (float number in million points)\n\n",
+                            type=float, metavar='')
 
 parser_segment.set_defaults(func=segment)  # Use segment function
 

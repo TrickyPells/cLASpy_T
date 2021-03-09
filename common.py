@@ -140,6 +140,7 @@ def update_arguments(args):
     args.input_data = os.path.normpath(config['input_file'])
     args.output = os.path.normpath(config['output_folder'])
     args.samples = config['samples']
+    args.train_r = config['training_ratio']
     args.algo = shortname_algo(config['algorithm'])
     args.png_features = config['png_features']
     args.random_state = config['random_state']
