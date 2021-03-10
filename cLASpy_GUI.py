@@ -419,6 +419,8 @@ class ClaspyGui(QMainWindow):
         self.RFspinRandomState.setMinimum(-1)
         self.RFspinRandomState.setMaximum(999999)
         self.RFspinRandomState.setValue(-1)
+        self.RFspinRandomState.setToolTip("Controls the randomness to split the data into\n"
+                                          "train/test sets and to build the trees.")
         form_layout.addRow("random_state:", self.RFspinRandomState)
 
         self.RFspinEstimators = QSpinBox()
@@ -426,6 +428,7 @@ class ClaspyGui(QMainWindow):
         self.RFspinEstimators.setMinimum(2)
         self.RFspinEstimators.setMaximum(999999)
         self.RFspinEstimators.setValue(100)
+        self.RFspinEstimators.setToolTip("The number of trees in the forest.")
         form_layout.addRow("n_estimators:", self.RFspinEstimators)
 
         self.RFcriterion = ["gini", "entropy"]
@@ -433,6 +436,7 @@ class ClaspyGui(QMainWindow):
         self.RFcomboCriterion.setMaximumWidth(80)
         self.RFcomboCriterion.addItems(self.RFcriterion)
         self.RFcomboCriterion.setCurrentIndex(self.RFcriterion.index("gini"))
+        self.RFcomboCriterion.setToolTip("The function to measure the quality of a split.")
         form_layout.addRow("criterion:", self.RFcomboCriterion)
 
         self.RFspinMaxDepth = QSpinBox()
@@ -440,6 +444,7 @@ class ClaspyGui(QMainWindow):
         self.RFspinMaxDepth.setMinimum(0)
         self.RFspinMaxDepth.setMaximum(9999)
         self.RFspinMaxDepth.setValue(0)
+        self.RFspinMaxDepth.setToolTip("The maximum depth of the tree.")
         form_layout.addRow("max_depth:", self.RFspinMaxDepth)
 
         self.RFspinSamplesSplit = QSpinBox()
@@ -447,12 +452,16 @@ class ClaspyGui(QMainWindow):
         self.RFspinSamplesSplit.setMinimum(2)
         self.RFspinSamplesSplit.setMaximum(999999)
         self.RFspinSamplesSplit.setValue(2)
+        self.RFspinSamplesSplit.setToolTip("The minimum number of samples required\n"
+                                           "to split an internal node.")
         form_layout.addRow("min_samples_split:", self.RFspinSamplesSplit)
 
         self.RFspinSamplesLeaf = QSpinBox()
         self.RFspinSamplesLeaf.setMaximumWidth(80)
         self.RFspinSamplesLeaf.setMaximum(999999)
         self.RFspinSamplesLeaf.setValue(1)
+        self.RFspinSamplesLeaf.setToolTip("The minimum number of samples required\n"
+                                          "to be at a leaf node.")
         form_layout.addRow("min_samples_leaf:", self.RFspinSamplesLeaf)
 
         self.RFspinWeightLeaf = QDoubleSpinBox()
@@ -460,6 +469,9 @@ class ClaspyGui(QMainWindow):
         self.RFspinWeightLeaf.setDecimals(4)
         self.RFspinWeightLeaf.setMaximum(1)
         self.RFspinWeightLeaf.setValue(0)
+        self.RFspinWeightLeaf.setToolTip("The minimum weighted fraction of the sum total\n"
+                                         "of weights required to be at a leaf node. Samples\n"
+                                         "have equal weight when sample_weight=0.")
         form_layout.addRow("min_weight_fraction_leaf:", self.RFspinWeightLeaf)
 
         self.maxFeatures = ["auto", "sqrt", "log2"]
@@ -467,12 +479,17 @@ class ClaspyGui(QMainWindow):
         self.RFcomboMaxFeatures.setMaximumWidth(80)
         self.RFcomboMaxFeatures.addItems(self.maxFeatures)
         self.RFcomboMaxFeatures.setCurrentIndex(self.maxFeatures.index("auto"))
+        self.RFcomboMaxFeatures.setToolTip("The number of features to consider\n"
+                                           "when looking for the best split.")
         form_layout.addRow("max_features:", self.RFcomboMaxFeatures)
 
         self.RFspinNJob = QSpinBox()
         self.RFspinNJob.setMaximumWidth(80)
         self.RFspinNJob.setMinimum(-1)
         self.RFspinNJob.setValue(0)
+        self.RFspinNJob.setToolTip("The number of jobs to run in parallel.\n"
+                                   "'0' means one job at the same time.\n"
+                                   "'-1' means using all processors.")
         form_layout.addRow("n_jobs:", self.RFspinNJob)
 
         label_h_line = QLabel()
@@ -481,6 +498,9 @@ class ClaspyGui(QMainWindow):
 
         self.RFcheckImportance = QCheckBox()
         self.RFcheckImportance.setChecked(False)
+        self.RFcheckImportance.setToolTip("Export the impurity-based feature importances\n"
+                                          "as PNG image. The higher, the more important\n"
+                                          "feature. It is also known as the Gini importance.")
         form_layout.addRow("Export feature importances:", self.RFcheckImportance)
 
         self.stack_RF.setLayout(form_layout)
@@ -493,6 +513,8 @@ class ClaspyGui(QMainWindow):
         self.GBspinRandomState.setMinimum(-1)
         self.GBspinRandomState.setMaximum(999999)
         self.GBspinRandomState.setValue(-1)
+        self.GBspinRandomState.setToolTip("Controls the randomness to split the data into\n"
+                                          "train/test sets and to build the trees.")
         form_layout.addRow("random_state:", self.GBspinRandomState)
 
         self.GBspinEstimators = QSpinBox()
@@ -500,6 +522,10 @@ class ClaspyGui(QMainWindow):
         self.GBspinEstimators.setMinimum(2)
         self.GBspinEstimators.setMaximum(9999999)
         self.GBspinEstimators.setValue(100)
+        self.GBspinEstimators.setToolTip("The number of boosting stages to perform.\n"
+                                         "Gradient boosting is fairly robust to over-\n"
+                                         "fitting so a large number usually results in\n"
+                                         "better performance.")
         form_layout.addRow("n_estimators:", self.GBspinEstimators)
 
         self.GBcriterion = ["friedman_mse", "mse"]
@@ -507,6 +533,7 @@ class ClaspyGui(QMainWindow):
         self.GBcomboCriterion.setMaximumWidth(80)
         self.GBcomboCriterion.addItems(self.GBcriterion)
         self.GBcomboCriterion.setCurrentIndex(self.GBcriterion.index("friedman_mse"))
+        self.GBcomboCriterion.setToolTip("The function to measure the quality of a split.")
         form_layout.addRow("criterion:", self.GBcomboCriterion)
 
         self.GBspinMaxDepth = QSpinBox()
@@ -514,6 +541,8 @@ class ClaspyGui(QMainWindow):
         self.GBspinMaxDepth.setMinimum(0)
         self.GBspinMaxDepth.setMaximum(9999)
         self.GBspinMaxDepth.setValue(3)
+        self.GBspinMaxDepth.setToolTip("The maximum depth of the individual regression estimators.\n"
+                                       "The maximum depth limits the number of nodes in the tree. ")
         form_layout.addRow("max_depth:", self.GBspinMaxDepth)
 
         self.GBspinSamplesSplit = QSpinBox()
@@ -521,12 +550,16 @@ class ClaspyGui(QMainWindow):
         self.GBspinSamplesSplit.setMinimum(2)
         self.GBspinSamplesSplit.setMaximum(999999)
         self.GBspinSamplesSplit.setValue(2)
+        self.GBspinSamplesSplit.setToolTip("The minimum number of samples required\n"
+                                           "to split an internal node.")
         form_layout.addRow("min_samples_split:", self.GBspinSamplesSplit)
 
         self.GBspinSamplesLeaf = QSpinBox()
         self.GBspinSamplesLeaf.setMaximumWidth(80)
         self.GBspinSamplesLeaf.setMaximum(999999)
         self.GBspinSamplesLeaf.setValue(1)
+        self.GBspinSamplesLeaf.setToolTip("The minimum number of samples required\n"
+                                          "to be at a leaf node.")
         form_layout.addRow("min_samples_leaf:", self.GBspinSamplesLeaf)
 
         self.GBspinWeightLeaf = QDoubleSpinBox()
@@ -534,6 +567,9 @@ class ClaspyGui(QMainWindow):
         self.GBspinWeightLeaf.setDecimals(4)
         self.GBspinWeightLeaf.setMaximum(1)
         self.GBspinWeightLeaf.setValue(0)
+        self.GBspinWeightLeaf.setToolTip("The minimum weighted fraction of the sum total\n"
+                                         "of weights required to be at a leaf node. Samples\n"
+                                         "have equal weight when sample_weight=0.")
         form_layout.addRow("min_weight_fraction_leaf:", self.GBspinWeightLeaf)
 
         self.maxFeatures = ["None", "auto", "sqrt", "log2"]
@@ -541,6 +577,8 @@ class ClaspyGui(QMainWindow):
         self.GBcomboMaxFeatures.setMaximumWidth(80)
         self.GBcomboMaxFeatures.addItems(self.maxFeatures)
         self.GBcomboMaxFeatures.setCurrentIndex(self.maxFeatures.index("None"))
+        self.GBcomboMaxFeatures.setToolTip("The number of features to consider\n"
+                                           "when looking for the best split.")
         form_layout.addRow("max_features:", self.GBcomboMaxFeatures)
 
         self.loss = ["deviance", "exponential"]
@@ -548,6 +586,9 @@ class ClaspyGui(QMainWindow):
         self.GBcomboLoss.setMaximumWidth(80)
         self.GBcomboLoss.addItems(self.loss)
         self.GBcomboLoss.setCurrentIndex(self.loss.index("deviance"))
+        self.GBcomboLoss.setToolTip("The loss function to be optimized. ‘deviance’ refers to logistic\n"
+                                    "regression for classification with probabilistic outputs. For loss \n"
+                                    "‘exponential’ gradient boosting recovers the AdaBoost algorithm.")
         form_layout.addRow("loss:", self.GBcomboLoss)
 
         self.GBspinLearningRate = QDoubleSpinBox()
@@ -555,6 +596,9 @@ class ClaspyGui(QMainWindow):
         self.GBspinLearningRate.setDecimals(6)
         self.GBspinLearningRate.setMinimum(0)
         self.GBspinLearningRate.setValue(0.1)
+        self.GBspinLearningRate.setToolTip("Learning rate shrinks the contribution of each tree\n"
+                                           "by learning_rate. There is a trade-off between\n"
+                                           "learning_rate and n_estimators.")
         form_layout.addRow("learning_rate:", self.GBspinLearningRate)
 
         self.GBspinSubsample = QDoubleSpinBox()
@@ -562,6 +606,9 @@ class ClaspyGui(QMainWindow):
         self.GBspinSubsample.setDecimals(4)
         self.GBspinSubsample.setMinimum(0)
         self.GBspinSubsample.setValue(1)
+        self.GBspinSubsample.setToolTip("The fraction of samples to be used for fitting\n"
+                                        "the individual base learners. If smaller than\n"
+                                        "1.0 this results in Stochastic Gradient Boosting.")
         form_layout.addRow("subsample:", self.GBspinSubsample)
 
         label_h_line = QLabel()
@@ -570,6 +617,9 @@ class ClaspyGui(QMainWindow):
 
         self.GBcheckImportance = QCheckBox()
         self.GBcheckImportance.setChecked(False)
+        self.GBcheckImportance.setToolTip("Export the impurity-based feature importances\n"
+                                          "as PNG image. The higher, the more important\n"
+                                          "feature. It is also known as the Gini importance.")
         form_layout.addRow("Export feature importances:", self.GBcheckImportance)
 
         self.stack_GB.setLayout(form_layout)
@@ -582,10 +632,15 @@ class ClaspyGui(QMainWindow):
         self.NNspinRandomState.setMinimum(-1)
         self.NNspinRandomState.setMaximum(999999)
         self.NNspinRandomState.setValue(-1)
+        self.NNspinRandomState.setToolTip("Determines random number generation for weights and\n"
+                                          "bias initialization, train-test split if early stopping is used,\n"
+                                          "and batch sampling when solver=’sgd’or ‘adam’.")
         form_layout.addRow("random_state:", self.NNspinRandomState)
 
         self.NNlineHiddenLayers = QLineEdit()
         self.NNlineHiddenLayers.setPlaceholderText("Example: 50,100,50")
+        self.NNlineHiddenLayers.setToolTip("The ith element represents the number of neurons\n"
+                                           "in the ith hidden layer.")
         form_layout.addRow("hidden_layer_sizes:", self.NNlineHiddenLayers)
 
         self.NNactivation = ["identity", "logistic", "tanh", "relu"]
@@ -593,6 +648,7 @@ class ClaspyGui(QMainWindow):
         self.NNcomboActivation.setMaximumWidth(80)
         self.NNcomboActivation.addItems(self.NNactivation)
         self.NNcomboActivation.setCurrentIndex(self.NNactivation.index("relu"))
+        self.NNcomboActivation.setToolTip("Activation function for the hidden layer.")
         form_layout.addRow("activation:", self.NNcomboActivation)
 
         self.NNsolver = ["lbfgs", "sgd", "adam"]
@@ -600,6 +656,11 @@ class ClaspyGui(QMainWindow):
         self.NNcomboSolver.setMaximumWidth(80)
         self.NNcomboSolver.addItems(self.NNsolver)
         self.NNcomboSolver.setCurrentIndex(self.NNsolver.index("adam"))
+        self.NNcomboSolver.setToolTip("The solver for weight optimization.\n"
+                                      "-'lbfgs' optimizer from quasi-Newton method family.\n"
+                                      "-'sgd' refers to stochastic gradient descent.\n"
+                                      "-'adam' refers to a stochastic gradient-based optimizer,\n"
+                                      "  proposed by Kingma, Diederik, and Jimmy Ba.")
         form_layout.addRow("solver:", self.NNcomboSolver)
 
         self.NNspinAlpha = QDoubleSpinBox()
@@ -608,6 +669,7 @@ class ClaspyGui(QMainWindow):
         self.NNspinAlpha.setMinimum(0)
         self.NNspinAlpha.setMaximum(999999)
         self.NNspinAlpha.setValue(0.0001)
+        self.NNspinAlpha.setToolTip("L2 penalty (regularization term) parameter.")
         form_layout.addRow("alpha:", self.NNspinAlpha)
 
         self.NNspinBatchSize = QSpinBox()
@@ -615,6 +677,8 @@ class ClaspyGui(QMainWindow):
         self.NNspinBatchSize.setMinimum(-1)
         self.NNspinBatchSize.setMaximum(999999)
         self.NNspinBatchSize.setValue(-1)
+        self.NNspinBatchSize.setToolTip("Size of minibatches for stochastic optimizers.\n"
+                                        "If the solver is ‘lbfgs’, the classifier will not use minibatch.")
         form_layout.addRow("batch_size:", self.NNspinBatchSize)
 
         self.NNlearningRate = ["constant", "invscaling", "adaptive"]
@@ -623,6 +687,7 @@ class ClaspyGui(QMainWindow):
         self.NNcomboLearningRate.addItems(self.NNlearningRate)
         self.NNcomboLearningRate.setCurrentIndex(self.NNlearningRate.index("constant"))
         self.NNcomboLearningRate.setEnabled(False)
+        self.NNcomboLearningRate.setToolTip("Learning rate schedule for weight updates.")
         form_layout.addRow("learning_rate:", self.NNcomboLearningRate)
 
         self.NNspinLearningRateInit = QDoubleSpinBox()
@@ -631,6 +696,9 @@ class ClaspyGui(QMainWindow):
         self.NNspinLearningRateInit.setMinimum(0)
         self.NNspinLearningRateInit.setMaximum(9999)
         self.NNspinLearningRateInit.setValue(0.001)
+        self.NNspinLearningRateInit.setToolTip("The initial learning rate used. It controls\n"
+                                               "the step-size in updating the weights.\n"
+                                               "Only used when solver=’sgd’ or ‘adam’.")
         form_layout.addRow("learning_rate_init:", self.NNspinLearningRateInit)
 
         self.NNspinPowerT = QDoubleSpinBox()
@@ -640,6 +708,10 @@ class ClaspyGui(QMainWindow):
         self.NNspinPowerT.setMaximum(9999)
         self.NNspinPowerT.setValue(0.5)
         self.NNspinPowerT.setEnabled(False)
+        self.NNspinPowerT.setToolTip("The exponent for inverse scaling learning rate.\n"
+                                     "It is used in updating effective learning rate\n"
+                                     "when the learning_rate is set to ‘invscaling’.\n"
+                                     "Only used when solver=’sgd’.")
         form_layout.addRow("power_t:", self.NNspinPowerT)
 
         self.NNspinMaxIter = QSpinBox()
@@ -647,10 +719,16 @@ class ClaspyGui(QMainWindow):
         self.NNspinMaxIter.setMinimum(1)
         self.NNspinMaxIter.setMaximum(99999)
         self.NNspinMaxIter.setValue(200)
+        self.NNspinMaxIter.setToolTip("The solver iterates until convergence or this number of iterations.\n"
+                                      "For stochastic solvers ('sgd' or 'adam'), note that this determines\n"
+                                      "the number of epochs (how many times each data point will be\n"
+                                      "used), not the number of gradient steps.")
         form_layout.addRow("max_iter:", self.NNspinMaxIter)
 
         self.NNcheckShuffle = QCheckBox()
         self.NNcheckShuffle.setChecked(True)
+        self.NNcheckShuffle.setToolTip("Whether to shuffle samples in each iteration.\n"
+                                       "Only used when solver=’sgd’ or ‘adam’.")
         form_layout.addRow("shuffle:", self.NNcheckShuffle)
 
         self.NNspinBeta_1 = QDoubleSpinBox()
@@ -659,6 +737,9 @@ class ClaspyGui(QMainWindow):
         self.NNspinBeta_1.setMinimum(0)
         self.NNspinBeta_1.setMaximum(1)
         self.NNspinBeta_1.setValue(0.9)
+        self.NNspinBeta_1.setToolTip("Exponential decay rate for estimates of first\n"
+                                     "moment vector in adam, should be in [0, 1).\n"
+                                     "Only used when solver=’adam’")
         form_layout.addRow("beta_1:", self.NNspinBeta_1)
 
         self.NNspinBeta_2 = QDoubleSpinBox()
@@ -667,6 +748,9 @@ class ClaspyGui(QMainWindow):
         self.NNspinBeta_2.setMinimum(0)
         self.NNspinBeta_2.setMaximum(1)
         self.NNspinBeta_2.setValue(0.999)
+        self.NNspinBeta_2.setToolTip("Exponential decay rate for estimates of second\n"
+                                     "moment vector in adam, should be in [0, 1).\n"
+                                     "Only used when solver=’adam’")
         form_layout.addRow("beta_2:", self.NNspinBeta_2)
 
         self.NNspinEpsilon = QDoubleSpinBox()
@@ -674,6 +758,8 @@ class ClaspyGui(QMainWindow):
         self.NNspinEpsilon.setDecimals(8)
         self.NNspinEpsilon.setMinimum(0)
         self.NNspinEpsilon.setValue(0.00000001)
+        self.NNspinEpsilon.setToolTip("Value for numerical stability in adam.\n"
+                                      "Only used when solver=’adam’")
         form_layout.addRow("epsilon:", self.NNspinEpsilon)
 
         self.stack_NN.setLayout(form_layout)
@@ -732,6 +818,8 @@ class ClaspyGui(QMainWindow):
         self.KMspinRandomState.setMinimum(-1)
         self.KMspinRandomState.setMaximum(999999)
         self.KMspinRandomState.setValue(-1)
+        self.KMspinRandomState.setToolTip("Controls the randomness to split the data into train/test\n"
+                                          "sets and to determine the generation for centroid.")
         form_layout.addRow("random_state:", self.KMspinRandomState)
 
         self.KMspinNClusters = QSpinBox()
@@ -739,6 +827,8 @@ class ClaspyGui(QMainWindow):
         self.KMspinNClusters.setMinimum(2)
         self.KMspinNClusters.setMaximum(9999)
         self.KMspinNClusters.setValue(8)
+        self.KMspinNClusters.setToolTip("The number of clusters to form as well\n"
+                                        "as the number of centroids to generate.")
         form_layout.addRow("n_clusters:", self.KMspinNClusters)
 
         self.KMinit = ["k-means++", "random"]
@@ -746,6 +836,7 @@ class ClaspyGui(QMainWindow):
         self.KMcomboInit.setMaximumWidth(80)
         self.KMcomboInit.addItems(self.KMinit)
         self.KMcomboInit.setCurrentIndex(self.KMinit.index("k-means++"))
+        self.KMcomboInit.setToolTip("Method for initialization.")
         form_layout.addRow("init:", self.KMcomboInit)
 
         self.KMspinNInit = QSpinBox()
@@ -753,6 +844,10 @@ class ClaspyGui(QMainWindow):
         self.KMspinNInit.setMinimum(1)
         self.KMspinNInit.setMaximum(9999)
         self.KMspinNInit.setValue(10)
+        self.KMspinNInit.setToolTip("Number of time the k-means algorithm will be\n"
+                                    "run with different centroid seeds. The final\n"
+                                    "results will be the best output of n_init\n"
+                                    "consecutive runs in terms of inertia.")
         form_layout.addRow("n_init:", self.KMspinNInit)
 
         self.KMspinMaxIter = QSpinBox()
@@ -760,6 +855,8 @@ class ClaspyGui(QMainWindow):
         self.KMspinMaxIter.setMinimum(1)
         self.KMspinMaxIter.setMaximum(99999)
         self.KMspinMaxIter.setValue(300)
+        self.KMspinMaxIter.setToolTip("Maximum number of iterations of the k-means\n"
+                                      "algorithm for a single run.")
         form_layout.addRow("max_iter:", self.KMspinMaxIter)
 
         self.KMspinTol = QDoubleSpinBox()
@@ -768,6 +865,9 @@ class ClaspyGui(QMainWindow):
         self.KMspinTol.setMinimum(0)
         self.KMspinTol.setMaximum(9999)
         self.KMspinTol.setValue(0.0001)
+        self.KMspinTol.setToolTip("Relative tolerance with regards to Frobenius norm\n"
+                                  "of the difference in the cluster centers of two\n"
+                                  "consecutive iterations to declare convergence.")
         form_layout.addRow("tol:", self.KMspinTol)
 
         self.KMalgorithm = ["auto", "full", "elkan"]
@@ -775,6 +875,7 @@ class ClaspyGui(QMainWindow):
         self.KMcomboAlgorithm.setMaximumWidth(80)
         self.KMcomboAlgorithm.addItems(self.KMalgorithm)
         self.KMcomboAlgorithm.setCurrentIndex(self.KMalgorithm.index("auto"))
+        self.KMcomboAlgorithm.setToolTip("K-means algorithm to use.")
         form_layout.addRow("algorithm:", self.KMcomboAlgorithm)
 
         self.stack_KM.setLayout(form_layout)
