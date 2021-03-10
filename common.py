@@ -215,7 +215,7 @@ def file_to_pandasframe(data_path):
         las = laspy.file.File(data_path, mode='r')
         print("LAS Version: {}".format(las.header.version))
         print("LAS point format: {}".format(las.header.data_format_id))
-        print("Number of points: {}".format(las.header.records_count))
+        print("Number of points: {:,}".format(las.header.records_count))
 
         # Get only the extra dimensions
         standard_dimensions = point_format[las.header.data_format_id]

@@ -801,13 +801,14 @@ class ClaspyGui(QMainWindow):
         if config['local_compute']:
             self.radioLocal.setChecked(True)
             self.lineLocalFile.setText(config['input_file'])
+            self.open_file()
             self.lineLocalFolder.setText(config['output_folder'])
         else:
             self.radioServer.setChecked(True)
             self.lineFile.setText(config['local_input'])
+            self.open_file()
             self.lineServerFile.setText(config['input_file'])
             self.lineServerFolder.setText(config['output_folder'])
-        self.open_file()
 
         self.spinSampleSize.setValue(config['samples'])
         self.spinTrainRatio.setValue(config['training_ratio'])

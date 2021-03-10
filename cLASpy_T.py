@@ -196,14 +196,6 @@ parser_train.add_argument("--scoring",
                                "    Default: '--scoring=accuracy'\n\n",
                           type=str, default='accuracy', metavar="")
 
-parser_train.add_argument("--test_r",
-                          help="set the test ratio as float [0.0 - 1.0] to split into\n"
-                               "    train and test data.\n"
-                               "    If train_ratio + test_ratio > 1:\n"
-                               "        test_ratio = 1 - train_ratio\n"
-                               "    Default: '--test_r=0.5'\n\n",
-                          type=float, default=0.5, metavar="")
-
 parser_train.add_argument("--train_r",
                           help="set the train ratio as float [0.0 - 1.0] to split into\n"
                                "    train and test data.\n"

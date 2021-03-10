@@ -91,20 +91,20 @@ def get_classifier(args, mode='training', algorithm=None):
 
 
 def split_dataset(data_values, target_values, random_state,
-                  train_ratio=0.5, test_ratio=0.5, samples=0.5):
+                  train_ratio=0.5, samples=0.5):
     """
     Split the input data and target in data_train, data_test, target_train and target_test.
     :param data_values: the np.ndarray with the data features.
     :param target_values: the np.ndarray with the target.
     :param random_state: set the random_state for the split dataset.
     :param train_ratio: (optional) Ratio of the size of training dataset.
-    :param test_ratio: (optional) Ratio of the size of testing dataset.
     :param samples: (optional) Number of samples beyond which the dataset
     is split with two integers, for train_size and test_size.
     The samples is paired with train_ratio and test_ratio.
     :return: data_train, data_test, target_train and target_test as np.ndarray.
     """
     # Set the train_size and test_size according sample size
+    test_ratio = 1. - train_ratio
     train_size = int(samples * train_ratio)
     test_size = int(samples * test_ratio)
 
@@ -427,7 +427,6 @@ def train(args):
     print("Random_state to split data: {}".format(args.random_state))
     x_train_val, x_test, y_train_val, y_test = split_dataset(data.values, target.values,
                                                              train_ratio=args.train_r,
-                                                             test_ratio=args.test_r,
                                                              samples=nbr_pts,
                                                              random_state=args.random_state)
 
