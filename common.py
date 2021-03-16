@@ -206,12 +206,6 @@ def file_to_pandasframe(data_path):
                 frame = frame.rename(columns={"//X": "X"})
 
     elif root_ext[1] == '.las':
-        # las = pylas.read(data_path)
-        # print("LAS Version: {}".format(las.header.version))
-        # print("LAS point format: {}".format(las.point_format.id))
-        # print("Number of points: {}".format(las.header.point_count))
-        # extra_dims = list(las.point_format.extra_dimension_names)  # Only get the extra dimensions
-
         las = laspy.file.File(data_path, mode='r')
         print("LAS Version: {}".format(las.header.version))
         print("LAS point format: {}".format(las.header.data_format_id))

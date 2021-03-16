@@ -241,11 +241,6 @@ parser_predict.add_argument("-s", "--samples",
                                  "    samples = train set + test set\n\n",
                             type=float, metavar='')
 
-parser_predict.add_argument("-n", "--n_jobs",
-                            help="set the number of CPU used, '-1' means all CPU available.\n"
-                                 "    Default: '-n=-1'\n\n",
-                            type=int, metavar='', default=-1)
-
 parser_predict.set_defaults(func=predict)  # Use predict function
 
 # Create sub-command for segmentation
@@ -280,11 +275,6 @@ parser_segment.add_argument("-f", "--features",
                                  "    Example:\n"
                                  "    -f=['Anisotropy_5m', 'R', 'G', 'B', ...]\n\n",
                             type=str, default=None, metavar='')
-
-parser_segment.add_argument("-n", "--n_jobs",
-                            help="set the number of CPU used, '-1' means all CPU available.\n"
-                                 "    Default: '-n=-1'\n\n",
-                            type=int, metavar='', default=-1)
 
 parser_segment.add_argument("-p", "--parameters",
                             help="set the parameters to pass to the classifier for training,\n"

@@ -213,7 +213,7 @@ def predict(args):
         update_arguments(args)  # Get the arguments from the config file
 
     # Get model, scaler and pca
-    print("\nLoading model...", end='')
+    print("\nStep 1/6: Loading model...", end='')
     model_to_load = args.model  # Set variable for the report
     algorithm, model, scaler, pca, feature_names = load_model(model_to_load)
     print("Done\n")
@@ -223,7 +223,7 @@ def predict(args):
     timestamp = start_time.strftime("%m%d_%H%M")  # Timestamp for file creation MonthDay_HourMinute
 
     # FORMAT DATA as XY & Z & target DataFrames and remove raw_classification from file.
-    print("\n1. Formatting data as pandas.Dataframe...")
+    print("\nStep 2/6: Formatting data as pandas.Dataframe...")
     data, target = format_dataset(data_path, mode=mode, features=feature_names)
 
     # Get the number of points
@@ -239,7 +239,7 @@ def predict(args):
     feature_names = data.columns.values.tolist()
 
     # Apply scaler to data
-    print("\n2. Scaling data...")
+    print("\nStep 3/6: Scaling data...")
     data_scaled = scaler.transform(data)
     data_scaled = pd.DataFrame.from_records(data_scaled, columns=feature_names)
 
@@ -251,7 +251,7 @@ def predict(args):
         pca_compo = None
 
     # Predic target of input data
-    print("\n3. Making predictions for entire dataset...")
+    print("\nStep 4/6: Making predictions for entire dataset...")
     # y_pred = model.predict(data_scaled.values)
     y_pred = predict_with_proba(model, data_scaled.values)
 
@@ -267,13 +267,13 @@ def predict(args):
         test_report = None
 
     # Save classifaction result as point cloud file with all data
-    print("\n4. Saving classified point cloud:")
+    print("\nStep 5/6: Saving classified point cloud:")
     predic_filename = report_filename
     print(predic_filename)
     save_predictions(y_pred, predic_filename, data_path)
 
     # Create and save prediction report
-    print("\n5. Creating classification report:")
+    print("\nStep 6/6: Creating classification report:")
     print(report_filename + '.txt')
 
     # Get the model parameters to print in the report
@@ -322,8 +322,8 @@ def segment(args):
     timestamp = start_time.strftime("%m%d_%H%M")  # Timestamp for file creation MonthDay_HourMinute
 
     # FORMAT DATA as XY & Z & target DataFrames and remove raw_classification from file.
-    print("\n1. Formatting data as pandas.Dataframe...")
-    data, target = format_dataset(data_path, mode=mode)
+    print("\nStep 1/4: Formatting data as pandas.Dataframe...")
+    data, target = format_dataset(data_path, mode=mode, features=args.features)
 
     # Get the number of points
     nbr_pts = number_of_points(data.shape[0], sample_size=args.samples)
@@ -336,18 +336,18 @@ def segment(args):
     feature_names = data.columns.values.tolist()
 
     # Clustering the input data
-    print("\n2. Clustering the dataset...")
+    print("\nStep 2/4: Clustering the dataset...")
     y_pred = classifier.fit_predict(data)
 
     # Save clustering result as point cloud file with all data
-    print("\n3. Saving segmented point cloud as CSV file:")
+    print("\nStep 3/4: Saving segmented point cloud as CSV file:")
     predic_filename = str(report_filename + '.csv')
     print(predic_filename)
     save_predictions(y_pred, predic_filename, data_path)
     scaler = None
 
     # Create and save prediction report
-    print("\n4. Creating segmentation report:")
+    print("\nStep 4/4: Creating segmentation report:")
     print(report_filename + '.txt')
 
     # Get the model parameters to print in the report

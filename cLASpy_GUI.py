@@ -29,6 +29,7 @@
 # --------------------
 
 import sys
+import re
 import time
 import laspy
 
@@ -36,6 +37,34 @@ from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 from common import *
+
+
+# -------------------------
+# ------ FUNCTIONS --------
+# -------------------------
+progress_regex = re.compile("Step (\d)/(\d):")
+finish_regex = re.compile(" done in ")
+
+
+def percent_parser(output):
+    """
+    Search regular expression to know the progress of a process.
+    :param output: The output string from process.
+    :return: integer converted in percent.
+    """
+    match_progress = progress_regex.search(output)
+    if match_progress:
+        num_progress = int(match_progress.group(1))
+        denom_progress = int(match_progress.group(2))
+
+        progress = int(((num_progress-1)/denom_progress)*100)
+        return progress
+
+    match_finish = finish_regex.search(output)
+    if match_finish:
+        progress = 100
+        return progress
+
 
 # -------------------------
 # -------- CLASS ----------
@@ -46,11 +75,23 @@ class ClaspyGui(QMainWindow):
     def __init__(self, parent=None):
         super(ClaspyGui, self).__init__(parent)
         self.setWindowTitle("cLASpy_GUI")
-        self.setGeometry(300, 200, 900, 700)
+        self.setGeometry(200, 200, 1300, 700)
         self.mainWidget = QWidget()
 
-        # Left part of GUI
+        # Initialization
+        self.options_dict = dict()
+        self.config_dict = dict()
+        self.process = None
 
+        # Update options according claspy_t option file
+        try:
+            with open("claspy_options.json", 'r') as options_file:
+                self.options_dict = json.load(options_file)
+                self.pythonPath = self.options_dict['python_path']
+        except FileNotFoundError:
+            self.pythonPath = ''
+
+        # Left part of GUI
         # GroupBox for point cloud file
         self.groupPtCld = QGroupBox("Point Cloud")
 
@@ -146,7 +187,7 @@ class ClaspyGui(QMainWindow):
         self.vLayoutLeft.addWidget(self.groupPtCld)
         self.vLayoutLeft.addWidget(self.groupAlgorithm)
 
-        # Right part of GUI
+        # Central part of GUI
         self.groupFeatures = QGroupBox("Feature Fields")
 
         # List of features
@@ -163,10 +204,34 @@ class ClaspyGui(QMainWindow):
         self.number_selected_features()
 
         # Fill the feature groupBox with layout
-        self.formLayoutRight = QFormLayout()
-        self.formLayoutRight.addRow(self.labelFeatures, self.listFeatures)
-        self.formLayoutRight.addRow("Number of selected features:", self.labelNbrSelFeatures)
-        self.groupFeatures.setLayout(self.formLayoutRight)
+        self.formLayoutCentral = QFormLayout()
+        self.formLayoutCentral.addRow(self.labelFeatures, self.listFeatures)
+        self.formLayoutCentral.addRow("Number of selected features:", self.labelNbrSelFeatures)
+        self.groupFeatures.setLayout(self.formLayoutCentral)
+
+        # Right part of GUI
+        self.plainTextCommand = QPlainTextEdit()
+        self.plainTextCommand.setReadOnly(True)
+        self.plainTextCommand.setStyleSheet(
+            """QPlainTextEdit {background-color: #333;
+                               color: #EEEEEE;}""")
+
+        # Clear button
+        self.buttonClear = QPushButton("Clear")
+        self.buttonClear.clicked.connect(self.plainTextCommand.clear)
+
+        # Progress bar
+        self.progressBar = QProgressBar()
+        self.progressBar.setMaximum(100)
+
+        # Fill layout of right part
+        self.vLayoutRight = QVBoxLayout()
+        self.vLayoutRight.addWidget(self.plainTextCommand)
+        self.vLayoutRight.addWidget(self.buttonClear)
+        self.vLayoutRight.addWidget(self.progressBar)
+
+        self.groupCommand = QGroupBox("Command Output")
+        self.groupCommand.setLayout(self.vLayoutRight)
 
         # Button box for
         self.buttonBox = QDialogButtonBox(QDialogButtonBox.Close)
@@ -179,6 +244,7 @@ class ClaspyGui(QMainWindow):
         self.hMainLayout = QHBoxLayout()
         self.hMainLayout.addLayout(self.vLayoutLeft)
         self.hMainLayout.addWidget(self.groupFeatures)
+        self.hMainLayout.addWidget(self.groupCommand)
 
         self.vMainLayout = QVBoxLayout(self.mainWidget)
         self.vMainLayout.addLayout(self.hMainLayout)
@@ -189,6 +255,8 @@ class ClaspyGui(QMainWindow):
 
         # MenuBar and Menu
         bar = self.menuBar()
+
+        # File Menu
         menu_file = bar.addMenu("File")
 
         open_action = QAction("Open", self)
@@ -202,7 +270,15 @@ class ClaspyGui(QMainWindow):
         quit_action = QAction("Quit", self)
         menu_file.addAction(quit_action)
 
-        menu_file.triggered[QAction].connect(self.menu_trigger)
+        menu_file.triggered[QAction].connect(self.menu_file_trigger)
+
+        # Edit Menu
+        menu_edit = bar.addMenu("Edit")
+
+        options_action = QAction("Options", self)
+        menu_edit.addAction(options_action)
+
+        menu_edit.triggered[QAction].connect(self.menu_edit_trigger)
 
         # Status Bar
         self.statusBar = QStatusBar()
@@ -213,19 +289,75 @@ class ClaspyGui(QMainWindow):
         self.radioLocal.toggled.connect(self.display_stack_input)
         self.listFeatures.itemSelectionChanged.connect(self.number_selected_features)
 
-    def menu_trigger(self, action):
+    def menu_file_trigger(self, action):
         if action.text() == "Open":
             self.open_config()
 
         elif action.text() == "Save":
+            self.update_config()
             self.save_config()
 
         elif action.text() == "Quit":
             self.reject()
 
+    def menu_edit_trigger(self, action):
+        if action.text() == "Options":
+            self.options()
+
+    def options(self):
+        self.dialogOptions = QDialog()
+
+        # Add lineEdit to set the python interpreter
+        self.labelPython = QLabel("Python path:")
+        self.linePython = QLineEdit()
+        self.linePython.setMinimumWidth(200)
+        self.linePython.setPlaceholderText("Give 'python.exe' path")
+        if self.pythonPath != '':
+            self.linePython.setText(self.pythonPath)
+
+        self.toolButtonPython = QToolButton()
+        self.toolButtonPython.setText("Browse")
+        self.toolButtonPython.clicked.connect(self.find_python)
+
+        self.hLayoutPython = QHBoxLayout()
+        self.hLayoutPython.addWidget(self.linePython)
+        self.hLayoutPython.addWidget(self.toolButtonPython)
+
+        # Button box for Options
+        self.buttonOptionsBox = QDialogButtonBox(QDialogButtonBox.Apply | QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        self.buttonOptionsBox.button(QDialogButtonBox.Apply).clicked.connect(self.save_options)
+        self.buttonOptionsBox.accepted.connect(self.dialogOptions.close)
+        self.buttonOptionsBox.rejected.connect(self.dialogOptions.reject)
+
+        self.formLayoutOptions = QFormLayout(self.dialogOptions)
+        self.formLayoutOptions.addRow(self.labelPython, self.hLayoutPython)
+        self.formLayoutOptions.addRow(self.buttonOptionsBox)
+
+        self.dialogOptions.setWindowTitle("Options")
+        self.setWindowModality(Qt.ApplicationModal)
+        self.dialogOptions.exec_()
+
+    def find_python(self):
+        python_exe = QFileDialog.getOpenFileName(self, 'Select \'python.exe\'',
+                                                 '', "Executables (*.exe);;")
+
+        if python_exe[0] != '':
+            self.linePython.setText(os.path.normpath(python_exe[0]))
+
+    def save_options(self):
+        if self.linePython.text() != '':
+            self.pythonPath = self.linePython.text()
+            self.options_dict['python_path'] = self.pythonPath
+            with open("claspy_options.json", 'w') as options_file:
+                json.dump(self.options_dict, options_file)
+                self.statusBar.showMessage("Python path: {}".format(self.pythonPath), 3000)
+        else:
+            self.statusBar.showMessage("Python path not set !")
+
     def stackui_local(self):
         form_layout = QFormLayout()
 
+        # Line for local file input
         self.lineLocalFile = QLineEdit()
         self.lineLocalFile.setPlaceholderText("Select LAS or CSV file as input")
         self.toolButtonFile = QToolButton()
@@ -235,6 +367,7 @@ class ClaspyGui(QMainWindow):
         self.hLayoutFile.addWidget(self.toolButtonFile)
         form_layout.addRow("Input file:", self.hLayoutFile)
 
+        # Line for local folder output
         self.lineLocalFolder = QLineEdit()
         self.lineLocalFolder.setPlaceholderText("Folder where save result files")
         self.toolButtonFolder = QToolButton()
@@ -244,8 +377,10 @@ class ClaspyGui(QMainWindow):
         self.hLayoutFolder.addWidget(self.toolButtonFolder)
         form_layout.addRow("Output folder:", self.hLayoutFolder)
 
+        # Set the layout
         self.stack_Local.setLayout(form_layout)
 
+        # Set link
         self.toolButtonFile.clicked.connect(self.get_file)
         self.lineLocalFile.editingFinished.connect(self.open_file)
         self.toolButtonFolder.clicked.connect(self.get_folder)
@@ -278,8 +413,10 @@ class ClaspyGui(QMainWindow):
     def display_stack_input(self):
         if self.radioLocal.isChecked():
             self.stackInput.setCurrentIndex(0)
+            self.buttonRun.setEnabled(True)
         else:
             self.stackInput.setCurrentIndex(1)
+            self.buttonRun.setEnabled(False)
 
     def get_file(self):
         self.statusBar.showMessage("Select file...", 3000)
@@ -914,9 +1051,12 @@ class ClaspyGui(QMainWindow):
         self.spinSampleSize.setValue(config['samples'])
         self.spinTrainRatio.setValue(config['training_ratio'])
 
-        # Update algorithm parameters
+        # Update algorithm
         algorithm = config['algorithm']
+
+        # Update algorithm parameters
         if algorithm == 'RandomForestClassifier':
+            self.algo = 'rf'
             self.listAlgorithms.setCurrentItem(self.listAlgorithms.item(0))
             self.RFcheckImportance.setChecked(config['png_features'])
 
@@ -952,6 +1092,7 @@ class ClaspyGui(QMainWindow):
                 self.RFspinRandomState.setValue(parameters['random_state'])
 
         elif algorithm == 'GradientBoostingClassifier':
+            self.algo = 'gb'
             self.listAlgorithms.setCurrentItem(self.listAlgorithms.item(1))
             self.RFcheckImportance.setChecked(config['png_features'])
 
@@ -991,6 +1132,7 @@ class ClaspyGui(QMainWindow):
                 self.GBcomboMaxFeatures.setCurrentText(parameters['max_features'])
 
         elif algorithm == 'MLPClassifier':
+            self.algo = 'ann'
             self.listAlgorithms.setCurrentItem(self.listAlgorithms.item(2))
 
             # Get algo parameter dict
@@ -1040,6 +1182,7 @@ class ClaspyGui(QMainWindow):
                 self.NNspinEpsilon.setValue(parameters['epsilon'])
 
         elif algorithm == 'KMeans':
+            self.algo = 'kmeans'
             self.listAlgorithms.setCurrentItem(self.listAlgorithms.item(3))
 
             # Get algo parameter dict
@@ -1075,34 +1218,36 @@ class ClaspyGui(QMainWindow):
                 row = self.listFeatures.row(item[0])
                 self.listFeatures.item(row).setSelected(True)
 
-    def save_config(self):
+        # Update the config_dict
+        self.update_config()
+
+    def update_config(self):
         """
-        Save configuration as JSON file.
+        Update the dictionary of configuration self.config_dict.
         """
-        # Create the json directory
-        json_dict = dict()
 
         # Save input file, output folder and sample size
         if self.radioLocal.isChecked():
-            json_dict['local_compute'] = True
-            json_dict['input_file'] = self.lineLocalFile.text()
-            json_dict['output_folder'] = self.lineLocalFolder.text()
+            self.config_dict['local_compute'] = True
+            self.config_dict['input_file'] = self.lineLocalFile.text()
+            self.config_dict['output_folder'] = self.lineLocalFolder.text()
         else:
-            json_dict['local_compute'] = False
-            json_dict['local_input'] = self.lineFile.text()
-            json_dict['input_file'] = self.lineServerFile.text()
-            json_dict['output_folder'] = self.lineServerFolder.text()
+            self.config_dict['local_compute'] = False
+            self.config_dict['local_input'] = self.lineFile.text()
+            self.config_dict['input_file'] = self.lineServerFile.text()
+            self.config_dict['output_folder'] = self.lineServerFolder.text()
 
-        json_dict['samples'] = self.spinSampleSize.value()
-        json_dict['training_ratio'] = self.spinTrainRatio.value()
+        self.config_dict['samples'] = self.spinSampleSize.value()
+        self.config_dict['training_ratio'] = self.spinTrainRatio.value()
 
         # Get the selected algorithm and the parameters
         param_dict = dict()
         selected_algo = self.listAlgorithms.selectedItems()[0].text()
         # if Random Forest
         if selected_algo == "Random Forest":
-            json_dict['algorithm'] = 'RandomForestClassifier'
-            json_dict['png_features'] = self.RFcheckImportance.isChecked()
+            self.algo = 'rf'
+            self.config_dict['algorithm'] = 'RandomForestClassifier'
+            self.config_dict['png_features'] = self.RFcheckImportance.isChecked()
 
             # n_estimators
             param_dict['n_estimators'] = self.RFspinEstimators.value()
@@ -1134,8 +1279,9 @@ class ClaspyGui(QMainWindow):
 
         # if Gradient Boosting
         elif selected_algo == "Gradient Boosting":
-            json_dict['algorithm'] = 'GradientBoostingClassifier'
-            json_dict['png_features'] = self.GBcheckImportance.isChecked()
+            self.algo = 'gb'
+            self.config_dict['algorithm'] = 'GradientBoostingClassifier'
+            self.config_dict['png_features'] = self.GBcheckImportance.isChecked()
 
             # loss
             param_dict['loss'] = self.GBcomboLoss.currentText()
@@ -1171,7 +1317,8 @@ class ClaspyGui(QMainWindow):
 
         # if Neural Network
         elif selected_algo == "Neural Network":
-            json_dict['algorithm'] = 'MLPClassifier'
+            self.algo = 'ann'
+            self.config_dict['algorithm'] = 'MLPClassifier'
 
             # hidden_layer_sizes
             hidden_layers = self.NNlineHiddenLayers.text().replace(' ', '')
@@ -1220,7 +1367,8 @@ class ClaspyGui(QMainWindow):
 
         # if K-Means Clustering
         elif selected_algo == "K-Means Clustering":
-            json_dict['algorithm'] = 'KMeans'
+            self.algo = 'kmeans'
+            self.config_dict['algorithm'] = 'KMeans'
 
             # n_clusters
             param_dict['n_clusters'] = self.KMspinNClusters.value()
@@ -1245,29 +1393,131 @@ class ClaspyGui(QMainWindow):
             self.statusBar.showMessage('Error: Unknown selected algorithm!',
                                        3000)
 
-        json_dict['parameters'] = param_dict
+        self.config_dict['parameters'] = param_dict
 
         # Save the random_state for data split, GridSearchCV or cross_val
-        json_dict['random_state'] = param_dict['random_state']
+        self.config_dict['random_state'] = param_dict['random_state']
 
         # Get the current selected features
         self.selectedFeatures = [item.text() for item in self.listFeatures.selectedItems()]
         self.selectedFeatures.sort()
-        json_dict['feature_names'] = self.selectedFeatures
+        self.config_dict['feature_names'] = self.selectedFeatures
 
-        # Save the JSON file
-        self.statusBar.showMessage("Saving JSON config file...", 3000)
-        json_file = QFileDialog.getSaveFileName(None, 'Save JSON config file',
-                                                '', "JSON files (*.json)")
+    def save_config(self):
+        """
+        Save the self.config_dict into a JSON file
+        :return:
+        """
+        self.update_config()
 
-        if json_file[0] != '':
-            with open(json_file[0], 'w') as config_file:
-                json.dump(json_dict, config_file)
-                self.statusBar.showMessage("Config file saved: {}".format(json_file[0]),
-                                           5000)
+        if len(self.config_dict['feature_names']) > 0:
+            # Save the JSON file
+            self.statusBar.showMessage("Saving JSON config file...", 3000)
+            json_file = QFileDialog.getSaveFileName(None, 'Save JSON config file',
+                                                    '', "JSON files (*.json)")
+
+            if json_file[0] != '':
+                with open(json_file[0], 'w') as config_file:
+                    json.dump(self.config_dict, config_file)
+                    self.statusBar.showMessage("Config file saved: {}".format(json_file[0]),
+                                               5000)
+        else:
+            self.nofeatures_warning()
 
     def run_claspy_t(self):
-        print("Run cLASpy_T")
+        self.update_config()
+
+        if len(self.config_dict['feature_names']) > 0:
+            features = str(self.config_dict['feature_names']).replace(' ', '')
+
+            # Setting up parameters
+            parameters_dict = self.config_dict['parameters']
+            keys_to_remove = list()  # Create list of keys to remove, because dictionary must keep the same length
+            for key in parameters_dict:
+                if parameters_dict[key] is None:
+                    keys_to_remove.append(key)
+            for key in keys_to_remove:
+                parameters_dict.pop(key)
+            parameters = str(parameters_dict).replace(' ', '')
+
+            # Create command list to run cLASpy_T
+            if self.algo != 'kmeans':
+                command = ["/C", self.pythonPath, "cLASpy_T.py", "train",
+                           "-i", self.lineLocalFile.text(),
+                           "-o", self.lineLocalFolder.text(),
+                           "-a", self.algo, "-p", parameters, "-f", features,
+                           "-s", str(self.config_dict['samples']),
+                           "--train_r", str(self.config_dict['training_ratio'])]
+
+                if self.config_dict['random_state'] is not None:
+                    command.append("--random_state")
+                    command.append(str(self.config_dict['random_state']))
+
+                if self.config_dict['png_features']:
+                    command.append('--png_features')
+            else:
+                command = ["/C", self.pythonPath, "cLASpy_T.py", "segment",
+                           "-i", self.lineLocalFile.text(),
+                           "-o", self.lineLocalFolder.text(),
+                           "-p", parameters, "-f", features,
+                           "-s", str(self.config_dict['samples'])]
+
+                if self.config_dict['random_state'] is not None:
+                    command.append("--random_state")
+                    command.append(str(self.config_dict['random_state']))
+
+            if self.pythonPath != '':
+                if self.process is None:
+                    self.process = QProcess()
+                    self.process.readyReadStandardOutput.connect(self.handle_stdout)
+                    self.process.readyReadStandardError.connect(self.handle_stderr)
+                    self.process.stateChanged.connect(self.handle_state)
+                    self.process.finished.connect(self.process_finished)
+                    self.process.setProgram("cmd.exe")
+                    self.process.setArguments(command)
+                    self.process.start()
+            else:
+                self.plainTextCommand.appendPlainText("Set python path through Edit > Options")
+        else:
+            self.nofeatures_warning()
+
+    def handle_stdout(self):
+        data = self.process.readAllStandardOutput()
+        stdout = bytes(data).decode('utf8')
+        progress = percent_parser(stdout)
+        if progress:
+            self.progressBar.setValue(progress)
+        self.plainTextCommand.appendPlainText(stdout)
+
+    def handle_stderr(self):
+        data = self.process.readAllStandardError()
+        stderr = bytes(data).decode('utf8')
+        self.plainTextCommand.appendPlainText(stderr)
+
+    def handle_state(self, state):
+        states = {QProcess.NotRunning: "Not Running",
+                  QProcess.Starting: "Starting",
+                  QProcess.Running: "Running"}
+
+        state_name = states[state]
+        self.statusBar.showMessage("cLASpy_T is {}".format(state_name), 3000)
+
+    def process_finished(self):
+        self.statusBar.showMessage("cLASpy_T finished !", 5000)
+        self.process = None
+        self.progressBar.reset()
+
+    def nofeatures_warning(self):
+        nofeatures = QMessageBox()
+        nofeatures.setIcon(QMessageBox.Warning)
+        nofeatures.setText("No feature field selected !"
+                           "\nPlease select the features you need !")
+        nofeatures.setWindowTitle("No feature selected")
+        nofeatures.setStandardButtons(QMessageBox.Ok)
+
+        nofeatures.buttonClicked.connect(nofeatures.close)
+
+        nofeatures.exec_()
 
     def reject(self):
         """
@@ -1279,5 +1529,5 @@ class ClaspyGui(QMainWindow):
 if __name__ == '__main__':
     app = QApplication(sys.argv)
     ex = ClaspyGui()
-    ex.show()
+    ex.showMaximized()
     sys.exit(app.exec_())

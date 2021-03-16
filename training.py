@@ -66,6 +66,7 @@ def get_classifier(args, mode='training', algorithm=None):
     if args.parameters:
         if isinstance(args.parameters, str):
             parameters = yaml.safe_load(args.parameters)
+            print(parameters)
         else:
             parameters = args.parameters
     else:
@@ -409,7 +410,7 @@ def train(args):
     timestamp = start_time.strftime("%m%d_%H%M")  # Timestamp for file creation MonthDay_HourMinute
 
     # FORMAT DATA as XY & Z & target DataFrames and remove raw_classification from file.
-    print("\n1. Formatting data as pandas.Dataframe...")
+    print("\nStep 1/7: Formatting data as pandas.Dataframe...")
     data, target = format_dataset(data_path, mode=mode, features=args.features)
 
     # Get the number of points
@@ -423,7 +424,7 @@ def train(args):
     feature_names = data.columns.values.tolist()
 
     # Split data into training and testing sets
-    print("\n2. Splitting data in train and test sets...")
+    print("\nStep 2/7: Splitting data in train and test sets...")
     print("Random_state to split data: {}".format(args.random_state))
     x_train_val, x_test, y_train_val, y_test = split_dataset(data.values, target.values,
                                                              train_ratio=args.train_r,
@@ -435,7 +436,7 @@ def train(args):
     test_size = len(y_test)
 
     # Scale the dataset as 'Standard', 'Robust' or 'MinMaxScaler'
-    print("\n3. Scaling data...")
+    print("\nStep 3/7: Scaling data...")
     scaler = set_scaler(method=args.scaler)
 
     # Create PCA if it's called
@@ -450,7 +451,7 @@ def train(args):
 
     # TYPE OF TRAINING
     if args.grid_search:  # Training with GridSearchCV
-        print('\n4. Training model with GridSearchCV...\n')
+        print('\nStep 4/7: Training model with GridSearchCV...\n')
         print("Random_state for the StratifiedShuffleSplit: {}".format(args.random_state))
         cv_results = None
 
@@ -472,7 +473,7 @@ def train(args):
                                                   n_jobs=args.n_jobs)
 
     else:  # Training with Cross Validation
-        print("\n4. Training model with cross validation...\n")
+        print("\nStep 4/7: Training model with cross validation...\n")
         print("Random_state for the StratifiedShuffleSplit: {}".format(args.random_state))
         grid_results = None
 
@@ -491,7 +492,7 @@ def train(args):
         save_feature_importance(model, feature_names, feat_imp_filename)
 
     # Create confusion matrix
-    print("\n5. Creating confusion matrix...")
+    print("\nStep 5/7: Creating confusion matrix...")
     y_test_pred = model.predict(x_test)
     conf_mat = confusion_matrix(y_test, y_test_pred)
     conf_mat = precision_recall(conf_mat)  # return Dataframe
@@ -499,7 +500,7 @@ def train(args):
     print("\n{}".format(test_report))
 
     # Save algorithm, model, scaler, pca and feature_names
-    print("\n6. Saving model and scaler in file:")
+    print("\nStep 6/7: Saving model and scaler in file:")
     model_filename = str(report_filename + '.model')
     model_dict = dict()
     model_dict['algorithm'] = algorithm
@@ -508,7 +509,7 @@ def train(args):
     save_model(model_dict, model_filename)
 
     # Create and save prediction report
-    print("\n7. Creating classification report:")
+    print("\nStep 7/7: Creating classification report:")
     print(report_filename + '.txt')
 
     # Get the model parameters to print in the report
@@ -536,4 +537,4 @@ def train(args):
                  conf_mat=conf_mat,
                  score_report=test_report)
 
-    print("\nModel trained in {}".format(spent_time))
+    print("\nTraining done in {}".format(spent_time))
