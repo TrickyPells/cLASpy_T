@@ -38,7 +38,6 @@ from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 from common import *
 
-
 # -------------------------
 # ------ FUNCTIONS --------
 # -------------------------
@@ -57,13 +56,24 @@ def percent_parser(output):
         num_progress = int(match_progress.group(1))
         denom_progress = int(match_progress.group(2))
 
-        progress = int(((num_progress-1)/denom_progress)*100)
+        progress = int(((num_progress - 1) / denom_progress) * 100)
         return progress
 
     match_finish = finish_regex.search(output)
     if match_finish:
         progress = 100
         return progress
+
+
+def nofeatures_warning():
+    nofeatures = QMessageBox()
+    nofeatures.setIcon(QMessageBox.Warning)
+    nofeatures.setText("No feature field selected !"
+                       "\nPlease select the features you need !")
+    nofeatures.setWindowTitle("No feature selected")
+    nofeatures.setStandardButtons(QMessageBox.Ok)
+    nofeatures.buttonClicked.connect(nofeatures.close)
+    nofeatures.exec_()
 
 
 # -------------------------
@@ -98,8 +108,10 @@ class ClaspyGui(QMainWindow):
         self.labelLocalServer = QLabel("Compute on:")
         self.layoutLocalServer = QHBoxLayout()
         self.radioLocal = QRadioButton("local")
+        self.radioLocal.setToolTip("To run cLASpy_T on this computer")
         self.layoutLocalServer.addWidget(self.radioLocal)
         self.radioServer = QRadioButton("server")
+        self.radioServer.setToolTip("To run cLASpy_T on a remote server")
         self.layoutLocalServer.addWidget(self.radioServer)
         self.radioLocal.setChecked(True)
 
@@ -216,9 +228,17 @@ class ClaspyGui(QMainWindow):
             """QPlainTextEdit {background-color: #333;
                                color: #EEEEEE;}""")
 
+        # Save button
+        self.buttonSaveCommand = QPushButton("Save Command Output")
+        self.buttonSaveCommand.clicked.connect(self.save_output_command)
+
         # Clear button
         self.buttonClear = QPushButton("Clear")
         self.buttonClear.clicked.connect(self.plainTextCommand.clear)
+
+        self.hLayoutSaveClear = QHBoxLayout()
+        self.hLayoutSaveClear.addWidget(self.buttonSaveCommand)
+        self.hLayoutSaveClear.addWidget(self.buttonClear)
 
         # Progress bar
         self.progressBar = QProgressBar()
@@ -227,7 +247,7 @@ class ClaspyGui(QMainWindow):
         # Fill layout of right part
         self.vLayoutRight = QVBoxLayout()
         self.vLayoutRight.addWidget(self.plainTextCommand)
-        self.vLayoutRight.addWidget(self.buttonClear)
+        self.vLayoutRight.addLayout(self.hLayoutSaveClear)
         self.vLayoutRight.addWidget(self.progressBar)
 
         self.groupCommand = QGroupBox("Command Output")
@@ -377,6 +397,11 @@ class ClaspyGui(QMainWindow):
         self.hLayoutFolder.addWidget(self.toolButtonFolder)
         form_layout.addRow("Output folder:", self.hLayoutFolder)
 
+        # Button to open result folder
+        self.buttonResultFolder = QPushButton('Open Result Directory')
+        self.buttonResultFolder.setEnabled(False)
+        form_layout.addWidget(self.buttonResultFolder)
+
         # Set the layout
         self.stack_Local.setLayout(form_layout)
 
@@ -384,6 +409,8 @@ class ClaspyGui(QMainWindow):
         self.toolButtonFile.clicked.connect(self.get_file)
         self.lineLocalFile.editingFinished.connect(self.open_file)
         self.toolButtonFolder.clicked.connect(self.get_folder)
+        self.lineLocalFolder.textChanged.connect(self.enable_open_results)
+        self.buttonResultFolder.clicked.connect(self.open_results)
 
     def stackui_server(self):
         form_layout = QFormLayout()
@@ -487,7 +514,7 @@ class ClaspyGui(QMainWindow):
         if number_mpts > 2:
             self.spinSampleSize.setValue(1)
         else:
-            self.spinSampleSize.setValue(number_mpts/2.)
+            self.spinSampleSize.setValue(number_mpts / 2.)
 
         # Show LAS version and number of points in status bar
         point_count = '{:,}'.format(point_count).replace(',', ' ')  # Format with thousand separator
@@ -534,6 +561,22 @@ class ClaspyGui(QMainWindow):
         if foldername != '':
             if self.radioLocal.isChecked():
                 self.lineLocalFolder.setText(foldername)
+
+    def enable_open_results(self):
+        folder_path = os.path.normpath(self.lineLocalFolder.text())
+        if QDir(folder_path).exists():
+            self.buttonResultFolder.setEnabled(True)
+        else:
+            self.buttonResultFolder.setEnabled(False)
+
+    def open_results(self):
+        self.enable_open_results()
+        if self.buttonResultFolder.isEnabled():
+            folder_path = os.path.normpath(self.lineLocalFolder.text())
+            self.dialog_results = QProcess()
+            self.dialog_results.setProgram("explorer")
+            self.dialog_results.setArguments([folder_path])
+            self.dialog_results.startDetached()
 
     def number_selected_features(self):
         self.max_count = 0
@@ -1406,7 +1449,6 @@ class ClaspyGui(QMainWindow):
     def save_config(self):
         """
         Save the self.config_dict into a JSON file
-        :return:
         """
         self.update_config()
 
@@ -1422,15 +1464,27 @@ class ClaspyGui(QMainWindow):
                     self.statusBar.showMessage("Config file saved: {}".format(json_file[0]),
                                                5000)
         else:
-            self.nofeatures_warning()
+            nofeatures_warning()
+
+    def save_output_command(self):
+        """
+        Save the Output Command in a text file.
+        """
+        cmd_output = self.plainTextCommand.toPlainText()
+
+        cmd_output_file = QFileDialog.getSaveFileName(None, 'Save Command Output as TXT file',
+                                                      '', "TXT files (*.txt);;")
+        with open(cmd_output_file[0], 'w') as text_file:
+            text_file.write(cmd_output)
 
     def run_claspy_t(self):
         self.update_config()
 
+        # Check if some feature selected
         if len(self.config_dict['feature_names']) > 0:
             features = str(self.config_dict['feature_names']).replace(' ', '')
 
-            # Setting up parameters
+            # Setting up parameters, remove parameters set as None
             parameters_dict = self.config_dict['parameters']
             keys_to_remove = list()  # Create list of keys to remove, because dictionary must keep the same length
             for key in parameters_dict:
@@ -1445,7 +1499,9 @@ class ClaspyGui(QMainWindow):
                 command = ["/C", self.pythonPath, "cLASpy_T.py", "train",
                            "-i", self.lineLocalFile.text(),
                            "-o", self.lineLocalFolder.text(),
-                           "-a", self.algo, "-p", parameters, "-f", features,
+                           "-a", self.algo,
+                           "-p", parameters,
+                           "-f", features,
                            "-s", str(self.config_dict['samples']),
                            "--train_r", str(self.config_dict['training_ratio'])]
 
@@ -1459,7 +1515,8 @@ class ClaspyGui(QMainWindow):
                 command = ["/C", self.pythonPath, "cLASpy_T.py", "segment",
                            "-i", self.lineLocalFile.text(),
                            "-o", self.lineLocalFolder.text(),
-                           "-p", parameters, "-f", features,
+                           "-p", parameters,
+                           "-f", features,
                            "-s", str(self.config_dict['samples'])]
 
                 if self.config_dict['random_state'] is not None:
@@ -1479,7 +1536,7 @@ class ClaspyGui(QMainWindow):
             else:
                 self.plainTextCommand.appendPlainText("Set python path through Edit > Options")
         else:
-            self.nofeatures_warning()
+            nofeatures_warning()
 
     def handle_stdout(self):
         data = self.process.readAllStandardOutput()
@@ -1506,18 +1563,7 @@ class ClaspyGui(QMainWindow):
         self.statusBar.showMessage("cLASpy_T finished !", 5000)
         self.process = None
         self.progressBar.reset()
-
-    def nofeatures_warning(self):
-        nofeatures = QMessageBox()
-        nofeatures.setIcon(QMessageBox.Warning)
-        nofeatures.setText("No feature field selected !"
-                           "\nPlease select the features you need !")
-        nofeatures.setWindowTitle("No feature selected")
-        nofeatures.setStandardButtons(QMessageBox.Ok)
-
-        nofeatures.buttonClicked.connect(nofeatures.close)
-
-        nofeatures.exec_()
+        self.enable_open_results()
 
     def reject(self):
         """

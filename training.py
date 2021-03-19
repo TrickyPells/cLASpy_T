@@ -66,7 +66,6 @@ def get_classifier(args, mode='training', algorithm=None):
     if args.parameters:
         if isinstance(args.parameters, str):
             parameters = yaml.safe_load(args.parameters)
-            print(parameters)
         else:
             parameters = args.parameters
     else:

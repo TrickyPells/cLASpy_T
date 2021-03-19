@@ -6,6 +6,10 @@
 \origin unavailable
 \textclass extreport
 \use_default_options true
+\begin_modules
+logicalmkup
+algorithm2e
+\end_modules
 \maintain_unincluded_children false
 \language english
 \language_package default
@@ -15,8 +19,8 @@
 \font_sans "default" "default"
 \font_typewriter "default" "default"
 \font_math "auto" "auto"
-\font_default_family sfdefault
-\use_non_tex_fonts false
+\font_default_family default
+\use_non_tex_fonts true
 \font_sc false
 \font_osf false
 \font_sf_scale 100 100
@@ -24,7 +28,7 @@
 \use_microtype false
 \use_dash_ligatures true
 \graphics default
-\default_output_format pdf2
+\default_output_format default
 \output_sync 0
 \bibtex_command default
 \index_command default
@@ -62,6 +66,7 @@
 \justification true
 \use_refstyle 1
 \use_minted 0
+\boxbgcolor #8d8d8d
 \index Index
 \shortcut idx
 \color #008000
@@ -137,9 +142,10 @@ cLASpy_T
 \emph default
  means 
 \emph on
-Tools for classification of LAS files with Python and machine learning libraries
+Tools for classification of LAS files with python and machine learning algorithm
+s
 \emph default
- ➝
+ →
 \begin_inset space ~
 \end_inset
 
@@ -154,16 +160,46 @@ Classification LAS Python Tools.
 cLASpy_T
 \shape default
 \emph default
- uses scikit-learn machine learning algorithms to classify 3D point clouds,
- such as LiDAR or photogrammetric point clouds.
+ uses scikit-learn
+\begin_inset Foot
+status open
+
+\begin_layout Plain Layout
+https://scikit-learn.org/stable/
+\end_layout
+
+\end_inset
+
+ machine learning algorithms to classify 3D point clouds, such as LiDAR
+ or photogrammetric point clouds.
  Data must be provided in a LAS ou CSV file.
  Other formats should be supported later, such as GEOTIFF or PLY, and other
- machine learning libraries too, such as TensorFlow.
+ machine learning libraries too, such as TensorFlow
+\begin_inset Foot
+status open
+
+\begin_layout Plain Layout
+https://www.tensorflow.org/
+\end_layout
+
+\end_inset
+
+.
 \end_layout
 
 \begin_layout Standard
-The project started in 2020 by Xavier PELLERIN LE BAS and the Remote Sensing
- Group of the M2C laboratory
+The project started in 2020 with Xavier PELLERIN LE BAS and the Remote Sensing
+ Group
+\begin_inset Foot
+status open
+
+\begin_layout Plain Layout
+https://rsg.m2c.cnrs.fr/
+\end_layout
+
+\end_inset
+
+ of the M2C laboratory
 \begin_inset Foot
 status collapsed
 
@@ -208,7 +244,7 @@ cLASpy_T
 \begin_layout Standard
 Roughly, the program formats the input point clouds provided by LAS or CSV
  files, to pandas DataFrames and numpy arrays in order to be compatible
- with Python machine learning algorythms, such as scikit-learn or TensorFlow.
+ with python machine learning algorythms, such as scikit-learn or TensorFlow.
  
 \emph on
 cLASpy_T
@@ -231,7 +267,7 @@ This chapter describes how to get
 \emph on
 cLASpy_T
 \emph default
- source code and install all the dependancies.
+ source code and install all dependancies.
  
 \end_layout
 
@@ -330,20 +366,46 @@ Code>git clone https://github.com/TrickyPells/cLASpy_T.git
 \end_layout
 
 \begin_layout Standard
+Once you clone source code, move to the 'cLASpy_T' directory:
+\end_layout
+
+\begin_layout LyX-Code
+C:
+\backslash
+Users
+\backslash
+Me
+\backslash
+Code>cd cLASpy_T
+\end_layout
+
+\begin_layout Standard
 If you do not know what 'git' is, you also can download 
 \emph on
 cLASpy_T
 \emph default
  source code on the github page.
- Choose the branch you want to download, click on 'Code', then 'Download
- ZIP'.
+ Choose the branch you want to download, such as 'master' for example, click
+ on 'Code', then 'Download ZIP'.
  Once downloaded, decompress the ZIP archive in the directory you want,
  for example, in 'Code' directory.
+ The decompressed archive will give you a new folder, named 'cLASpy_T-master'
+ in this case.
 \end_layout
 
 \begin_layout Standard
-Once you clone or download/decompress source code, move to the 'cLASpy_T'
- directory:
+Once you download and decompress the source code, rename 'cLASpy_T-master'
+ directory as 'cLASpy_T', and move into:
+\end_layout
+
+\begin_layout LyX-Code
+C:
+\backslash
+Users
+\backslash
+Me
+\backslash
+Code>ren cLASpy_T-master cLASpy_T
 \end_layout
 
 \begin_layout LyX-Code
@@ -358,6 +420,13 @@ Code>cd cLASpy_T
 
 \begin_layout Subsection
 Create a Virtual Environment
+\begin_inset CommandInset label
+LatexCommand label
+name "subsec:Create-a-Virtual"
+
+\end_inset
+
+
 \end_layout
 
 \begin_layout Standard
@@ -532,9 +601,9 @@ cLASpy_T
 \emph default
  program on your Linux system.
  This guide use Debian/Ubuntu distribution as example.
- You will use the shell to browse through directories and files, 'git' to
- get the source code, 'venv' to create a virtual environment of python and
- 'pip' to install all dependencies for 
+ You will use the terminal to browse through directories and files, 'git'
+ to get the source code, 'venv' to create a virtual environment of python
+ and 'pip' to install all dependencies for 
 \emph on
 cLASpy_T
 \emph default
@@ -546,7 +615,7 @@ Get cLASpy_T source code
 \end_layout
 
 \begin_layout Standard
-First, open the shell and check for updates:
+First, open a terminal and check for updates:
 \end_layout
 
 \begin_layout LyX-Code
@@ -555,7 +624,7 @@ me@MyComputer:~$ sudo apt update
 status open
 
 \begin_layout Plain Layout
-You will need some permissions to use upgrade your system.
+You will need some permissions to upgrade your system.
  If you do not have these, ask your system administrator.
 \end_layout
 
@@ -573,12 +642,12 @@ me@MyComputer:~$ sudo apt upgrade -y
 \end_layout
 
 \begin_layout Standard
-Move to the directory where you want to put the 
+Move to the directory where to put the 
 \emph on
 cLASpy_T
 \emph default
  source code.
- For example, 'Me' user moves to his 'Code' directory, then gets the 
+ For example, 'me' user moves to his 'Code' directory, then gets the 
 \emph on
 cLASpy_T
 \emph default
@@ -598,20 +667,34 @@ me@MyComputer:~/Code$ git clone https://github.com/TrickyPells/cLASpy_T.git
 \end_layout
 
 \begin_layout Standard
+Once you clone source code, move to the 'cLASpy_T' directory:
+\end_layout
+
+\begin_layout LyX-Code
+me@MyComputer:~/Code$ cd cLASpy_T
+\end_layout
+
+\begin_layout Standard
 If you do not know what 'git' is, you also can download 
 \emph on
 cLASpy_T
 \emph default
  source code on the github page.
- Choose the branch you want to download, click on 'Code', then 'Download
- ZIP'.
+ Choose the branch you want to download, such as 'master' for example, click
+ on 'Code', then 'Download ZIP'.
  Once downloaded, decompress the ZIP archive in the directory you want,
  for example, in 'Code' directory.
+ The decompressed archive will give you a new folder, named 'cLASpy_T-master'
+ in this case.
 \end_layout
 
 \begin_layout Standard
-Once you clone or download/decompress source code, move to the 'cLASpy_T'
- directory:
+Once you download and decompress the source code, rename 'cLASpy_T-master'
+ directory as 'cLASpy_T', and move into:
+\end_layout
+
+\begin_layout LyX-Code
+me@MyComputer:~/Code$ mv cLASpy_T-master cLASpy_T
 \end_layout
 
 \begin_layout LyX-Code
@@ -635,17 +718,28 @@ cLASpy_T
 \end_layout
 
 \begin_layout Standard
-First, install 'pip' to manager and install all needed packages and 'venv'
+First, install 'pip' to manage and install all needed packages and 'venv'
  to create virtual environments:
 \end_layout
 
 \begin_layout LyX-Code
 me@MyComputer:~/Code/cLASpy_T$ sudo apt install python3-pip python3-venv
+\begin_inset Foot
+status open
+
+\begin_layout Plain Layout
+You will need some permissions to install pip and venv.
+ If you do not have these, ask your system administrator.
+\end_layout
+
+\end_inset
+
+
 \end_layout
 
 \begin_layout Standard
-Then, create a new directory call '.venv' and use venv command from python
- to create a new virtual environment call 'claspy_venv':
+Create a new directory '.venv', then use venv command from python to create
+ a new virtual environment call 'claspy_venv':
 \end_layout
 
 \begin_layout LyX-Code
@@ -665,7 +759,7 @@ me@MyComputer:~/Code/cLASpy_T$ source .venv/claspy_venv/bin/activate
 \end_layout
 
 \begin_layout Standard
-Your Command Prompt must return something like this:
+Your terminal must return something like this:
 \end_layout
 
 \begin_layout LyX-Code
@@ -690,8 +784,8 @@ All required packages are listed in the 'requirements.txt' file.
 \end_layout
 
 \begin_layout Standard
-Open a Command Prompt, go to the cLASpy_T directory and activate the already
- created virtual environment:
+Open a terminal, go to the cLASpy_T directory and activate the already created
+ virtual environment:
 \end_layout
 
 \begin_layout LyX-Code
@@ -703,11 +797,8 @@ First, check if 'pip' needs to be upgraded:
 \end_layout
 
 \begin_layout LyX-Code
-(claspy_venv) me@MyComputer:~/Code/cLASpy_T$ python3 -m pip install
-\end_layout
-
-\begin_layout LyX-Code
---upgrade pip
+(claspy_venv) me@MyComputer:~/Code/cLASpy_T$ python3 -m pip install --upgrade
+ pip
 \end_layout
 
 \begin_layout Standard
@@ -715,11 +806,8 @@ Once done, install all dependencies:
 \end_layout
 
 \begin_layout LyX-Code
-(claspy_venv) me@MyComputer:~/Code/cLASpy_T$ python3 -m pip install
-\end_layout
-
-\begin_layout LyX-Code
--r requirements.txt
+(claspy_venv) me@MyComputer:~/Code/cLASpy_T$ python3 -m pip install -r requireme
+nts.txt
 \end_layout
 
 \begin_layout Section
@@ -820,8 +908,72 @@ threadpoolctl (2.1.0)
 Usage
 \end_layout
 
+\begin_layout Standard
+This chapter describes how to use 
+\emph on
+cLASpy_T
+\emph default
+ as command line and GUI.
+\end_layout
+
 \begin_layout Section
 on Windows
+\end_layout
+
+\begin_layout Standard
+This section explains how to use 
+\emph on
+cLASpy_T
+\emph default
+ as command line on Windows, and the Graphical User Interface of 
+\emph on
+cLASpy_T
+\emph default
+.
+ This part assumes that you moved to the 'cLASpy_T' directory and the virtual
+ environment is activated (
+\begin_inset CommandInset ref
+LatexCommand formatted
+reference "subsec:Create-a-Virtual"
+plural "false"
+caps "false"
+noprefix "false"
+
+\end_inset
+
+).
+\end_layout
+
+\begin_layout Subsection
+cLASpy_T command line usages
+\end_layout
+
+\begin_layout Subsubsection
+Use 
+\emph on
+train
+\emph default
+ command
+\end_layout
+
+\begin_layout Subsubsection
+Use 
+\emph on
+predict
+\emph default
+ command
+\end_layout
+
+\begin_layout Subsubsection
+Use 
+\emph on
+segment
+\emph default
+ command
+\end_layout
+
+\begin_layout Subsection
+GUI of cLASpy_T
 \end_layout
 
 \begin_layout Section
