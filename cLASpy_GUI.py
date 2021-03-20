@@ -41,6 +41,23 @@ from common import *
 # -------------------------
 # ------ FUNCTIONS --------
 # -------------------------
+
+
+def get_platform():
+    """
+    :return: the operating system.
+    """
+    platform_dict = {'linux1': 'Linux',
+                     'linux2': 'Linux',
+                     'darwin': 'OS X',
+                     'win32': 'Windows'}
+
+    if sys.platform not in platform_dict:
+        return sys.platform
+
+    return platform_dict[sys.platform]
+
+
 progress_regex = re.compile("Step (\d)/(\d):")
 finish_regex = re.compile(" done in ")
 
@@ -89,6 +106,8 @@ class ClaspyGui(QMainWindow):
         self.mainWidget = QWidget()
 
         # Initialization
+        self.platform = get_platform()
+        print(self.platform)
         self.options_dict = dict()
         self.config_dict = dict()
         self.process = None
@@ -331,7 +350,10 @@ class ClaspyGui(QMainWindow):
         self.labelPython = QLabel("Python path:")
         self.linePython = QLineEdit()
         self.linePython.setMinimumWidth(200)
-        self.linePython.setPlaceholderText("Give 'python.exe' path")
+        if self.platform == 'Windows':
+            self.linePython.setPlaceholderText("Give 'python.exe' path")
+        else:
+            self.linePython.setPlaceholderText("Give python path")
         if self.pythonPath != '':
             self.linePython.setText(self.pythonPath)
 
@@ -358,8 +380,11 @@ class ClaspyGui(QMainWindow):
         self.dialogOptions.exec_()
 
     def find_python(self):
-        python_exe = QFileDialog.getOpenFileName(self, 'Select \'python.exe\'',
-                                                 '', "Executables (*.exe);;")
+        if self.platform == 'Windows':
+            python_exe = QFileDialog.getOpenFileName(self, 'Select \'python.exe\'',
+                                                     '', "Executables (*.exe);;")
+        else:
+            python_exe = QFileDialog.getOpenFileName(self, 'Select python interpreter')
 
         if python_exe[0] != '':
             self.linePython.setText(os.path.normpath(python_exe[0]))
@@ -573,10 +598,19 @@ class ClaspyGui(QMainWindow):
         self.enable_open_results()
         if self.buttonResultFolder.isEnabled():
             folder_path = os.path.normpath(self.lineLocalFolder.text())
-            self.dialog_results = QProcess()
-            self.dialog_results.setProgram("explorer")
-            self.dialog_results.setArguments([folder_path])
-            self.dialog_results.startDetached()
+            if self.platform == 'Windows':
+                self.dialog_results = QProcess()
+                self.dialog_results.setProgram("explorer")
+                self.dialog_results.setArguments([folder_path])
+                self.dialog_results.startDetached()
+            elif self.platform == 'Linux':
+                self.dialog_results = QProcess()
+                self.dialog_results.setProgram("xdg-open")
+                self.dialog_results.setArguments([folder_path])
+                self.dialog_results.startDetached()
+            else:
+                print("ErrorOS: Operating System not supported !")
+
 
     def number_selected_features(self):
         self.max_count = 0
@@ -1474,8 +1508,9 @@ class ClaspyGui(QMainWindow):
 
         cmd_output_file = QFileDialog.getSaveFileName(None, 'Save Command Output as TXT file',
                                                       '', "TXT files (*.txt);;")
-        with open(cmd_output_file[0], 'w') as text_file:
-            text_file.write(cmd_output)
+        if cmd_output_file[0] != '':
+            with open(cmd_output_file[0], 'w') as text_file:
+                text_file.write(cmd_output)
 
     def run_claspy_t(self):
         self.update_config()
