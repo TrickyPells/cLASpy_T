@@ -47,7 +47,7 @@ def get_platform():
     """
     :return: the operating system.
     """
-    platform_dict = {'linux1': 'Linux',
+    platform_dict = {'linux': 'Linux',
                      'linux2': 'Linux',
                      'darwin': 'OS X',
                      'win32': 'Windows'}
