@@ -48,6 +48,7 @@ def get_platform():
     :return: the operating system.
     """
     platform_dict = {'linux': 'Linux',
+                     'linux1': 'Linux',
                      'linux2': 'Linux',
                      'darwin': 'OS X',
                      'win32': 'Windows'}
@@ -58,8 +59,146 @@ def get_platform():
     return platform_dict[sys.platform]
 
 
-progress_regex = re.compile("Step (\d)/(\d):")
-finish_regex = re.compile(" done in ")
+def list2str(given_list, join_c=','):
+    """
+    Format the given list as string.
+    :param given_list: The list to convert to string.
+    :param join_c: The joining characters.
+    :return: The string.
+    """
+    # Check given_list is a list
+    if isinstance(given_list, list) is False:
+        raise TypeError("list2str() expected list instance, {} found".format(type(given_list)))
+
+    # Create new list with only str
+    list_of_string = list()
+    if len(given_list) > 0:
+        for item in given_list:
+            list_of_string.append(str(item))
+
+    # Join this new list according the joining characters
+    return join_c.join(list_of_string)
+
+
+def format_numberlist(number_str, as_type='str'):
+    """
+    Format a string of integers separated by comma or whitespace (\\s).
+    :param number_str: the string of one or several numbers.
+    :param as_type: the type of the return (list or str).
+    :return: formatted list or string of the integer.
+    """
+    number_list_regex = re.compile("[0-9*,\\s]*")
+
+    if isinstance(number_str, str) is False:
+        raise TypeError("format_numberlist() only accept string as input")
+
+    # Remove '[' and ']'
+    number_str = number_str.replace(']', '')
+    number_str = number_str.replace('[', '')
+
+    match = number_list_regex.search(number_str)
+    if match is not None:
+        numberlist = re.sub('[\\s]', ',', match.group(0))  # Replace all whitespace characters [ \t\n\r\f\v] by comma
+        numberlist = re.sub('[,]+', ',', numberlist)  # Replace 1 or more repetitions of comma by one comma
+
+        # Remove the last comma
+        if len(numberlist) > 0 and numberlist[-1] == ',':
+            numberlist = numberlist[0:-1]
+
+        # Format as selected type
+        if as_type == 'str':
+            return numberlist
+        elif as_type == 'list':
+            if len(numberlist) == 0:
+                return list()
+            else:
+                numberlist = numberlist.split(',')
+                return [int(number) for number in numberlist]
+        else:
+            raise TypeError("Parameter 'as_type' has invalid type (give 'list' or 'str')")
+    else:
+        print("No match found for integer number!")
+        return None
+
+
+def format_floatlist(float_str, as_type='str'):
+    """
+    Format a string of floats separated by comma or whitespace (\\s).
+    :param float_str: the string of one or several floats.
+    :param as_type: the type of the return (list or str).
+    :return: formatted list or string of the floats.
+    """
+    float_list_regex = re.compile("[0-9*.?0-9*,\\s]*")
+
+    if isinstance(float_str, str) is False:
+        raise TypeError("format_floatlist() only accept string as input")
+
+    # Remove '[' and ']'
+    float_str = float_str.replace(']', '')
+    float_str = float_str.replace('[', '')
+
+    match = float_list_regex.search(float_str)
+    if match is not None:
+        floatlist = re.sub('[\\s]', ',', match.group(0))
+        floatlist = re.sub('[,]+', ',', floatlist)
+        floatlist = re.sub('[.]+', '.', floatlist)
+
+        if len(floatlist) > 0 and floatlist[-1] == ',':
+            floatlist = floatlist[0:-1]
+
+        if as_type == 'str':
+            return floatlist
+        elif as_type == 'list':
+            if len(floatlist) == 0:
+                return list()
+            else:
+                floatlist = floatlist.split(',')
+                return [float(number) for number in floatlist]
+        else:
+            raise TypeError("Parameter 'as_type' has invalid type (give 'list' or 'str')")
+    else:
+        print('No match found for floating number!')
+        return None
+
+
+def format_layerlist(layer_str, as_type='str'):
+    """
+    Format a string of list of hidden layers separated by '[]' and comma or whitespace (\\s).
+    :param layer_str: the string of one or several lists of hidden layers.
+    :param as_type: the type of the return (list or str).
+    :return: formatted list or string of the hidden layers.
+    """
+    layer_list_regex = re.compile("[\]]|[\[]")
+
+    if isinstance(layer_str, str) is False:
+        raise TypeError("format_layerlist() only accept string as input")
+
+    # Split at each '],[' or ']['
+    layer_list = layer_list_regex.split(layer_str)
+
+    # Remove empty item ('' or ',')
+    for item in layer_list:
+        if item == '' or item == ',':
+            layer_list.remove(item)
+
+    # Convert to lists of integer
+    for index, item in enumerate(layer_list):
+        item_list = item.split(',')
+        item_list = [int(value) for value in item_list]
+        layer_list[index] = item_list
+
+    if len(layer_list) > 0 and layer_list[-1] == ',':
+        layer_list = layer_list[0:-1]
+
+    if as_type == 'str':
+        return str(layer_list)[1:-1]  # String of list without '[' and ']'
+    elif as_type == 'list':
+        if len(layer_list) == 0:
+            return list()
+        else:
+            return layer_list
+    else:
+        raise TypeError("Parameter 'as_type' has invalid type (give 'list' or 'str')")
 
 
 def percent_parser(output):
@@ -68,6 +207,9 @@ def percent_parser(output):
     :param output: The output string from process.
     :return: integer converted in percent.
     """
+    progress_regex = re.compile("Step (\d)/(\d):")
+    finish_regex = re.compile(" done in ")
+
     match_progress = progress_regex.search(output)
     if match_progress:
         num_progress = int(match_progress.group(1))
@@ -93,6 +235,16 @@ def nofeatures_warning():
     nofeatures.exec_()
 
 
+def parameter_error_box(message):
+    """Show message about algorithm parameter error in a message box"""
+    parameter_box = QMessageBox()
+    parameter_box.setIcon(QMessageBox.Critical)
+    parameter_box.setText(message)
+    parameter_box.setWindowTitle("Algorithm parameter error")
+    parameter_box.setStandardButtons(QMessageBox.Ok)
+    parameter_box.buttonClicked.connect(parameter_box.close)
+    parameter_box.exec_()
+
 # -------------------------
 # -------- CLASS ----------
 # -------------------------
@@ -101,18 +253,18 @@ def nofeatures_warning():
 class ClaspyGui(QMainWindow):
     def __init__(self, parent=None):
         super(ClaspyGui, self).__init__(parent)
-        self.setWindowTitle("cLASpy_GUI")
-        self.setGeometry(200, 200, 1300, 700)
+        self.setWindowTitle("cLASpy_T")
         self.mainWidget = QWidget()
 
         # Initialization
         self.platform = get_platform()
-        print(self.platform)
+        self.intlist_validator = QRegExpValidator(QRegExp("[0-9*,\\s]*"), self)
+        self.floatlist_validator = QRegExpValidator(QRegExp("[0-9*.?0-9*,\\s]*"), self)
         self.options_dict = dict()
-        self.config_dict = dict()
+        self.train_config = dict()
         self.process = None
 
-        # Update options according claspy_t option file
+        # Initialize options according claspy_t option file
         try:
             with open("claspy_options.json", 'r') as options_file:
                 self.options_dict = json.load(options_file)
@@ -121,18 +273,26 @@ class ClaspyGui(QMainWindow):
             self.pythonPath = ''
 
         # Left part of GUI
+        self.labelLocalServer = QLabel("Run cLASpy_T:")
+        self.labelLocalServer.setAlignment(Qt.AlignCenter)
+        self.pushLocal = QPushButton("on Local")
+        self.pushLocal.setToolTip("To run cLASpy_T on this computer")
+        self.pushLocal.setCheckable(True)
+        self.pushLocal.setChecked(True)
+        self.pushLocal.clicked.connect(self.display_stack_local)
+
+        self.pushServer = QPushButton("on Server")
+        self.pushServer.setToolTip("To run cLASpy_T on a remote server")
+        self.pushServer.setCheckable(True)
+        self.pushServer.setChecked(False)
+        self.pushServer.clicked.connect(self.display_stack_server)
+
+        self.layoutLocalServer = QHBoxLayout()
+        self.layoutLocalServer.addWidget(self.pushLocal)
+        self.layoutLocalServer.addWidget(self.pushServer)
+
         # GroupBox for point cloud file
         self.groupPtCld = QGroupBox("Point Cloud")
-
-        self.labelLocalServer = QLabel("Compute on:")
-        self.layoutLocalServer = QHBoxLayout()
-        self.radioLocal = QRadioButton("local")
-        self.radioLocal.setToolTip("To run cLASpy_T on this computer")
-        self.layoutLocalServer.addWidget(self.radioLocal)
-        self.radioServer = QRadioButton("server")
-        self.radioServer.setToolTip("To run cLASpy_T on a remote server")
-        self.layoutLocalServer.addWidget(self.radioServer)
-        self.radioLocal.setChecked(True)
 
         # Stacks for input point cloud
         self.stack_Local = QWidget()
@@ -147,76 +307,35 @@ class ClaspyGui(QMainWindow):
         self.labelPtCldFormat = QLabel()
         self.labelPtCount = QLabel()
 
-        # Set the sample size
-        self.spinSampleSize = QDoubleSpinBox()
-        self.spinSampleSize.setMaximumWidth(80)
-        self.spinSampleSize.setMinimum(0)
-        self.spinSampleSize.setDecimals(6)
-        self.spinSampleSize.setWrapping(True)
-        self.hLayoutSize = QHBoxLayout()
-        self.hLayoutSize.addWidget(self.spinSampleSize)
-        self.hLayoutSize.addWidget(QLabel("Million points"))
-
-        # Set the training/testing ratio
-        self.spinTrainRatio = QDoubleSpinBox()
-        self.spinTrainRatio.setMaximumWidth(60)
-        self.spinTrainRatio.setMinimum(0)
-        self.spinTrainRatio.setMaximum(1)
-        self.spinTrainRatio.setSingleStep(0.1)
-        self.spinTrainRatio.setDecimals(3)
-        self.spinTrainRatio.setWrapping(True)
-        self.spinTrainRatio.setValue(0.5)
-
-        # Label: Target field exist ?
-        self.labelTarget = QLabel()
-
         # Fill the point cloud groupBox with QFormLayout
         self.formLayoutPtCld = QFormLayout()
-        self.formLayoutPtCld.addRow(self.labelLocalServer, self.layoutLocalServer)
         self.formLayoutPtCld.addRow(self.stackInput)
         self.formLayoutPtCld.addRow("Format:", self.labelPtCldFormat)
         self.formLayoutPtCld.addRow("Number of points:", self.labelPtCount)
-        self.formLayoutPtCld.addRow("Number of samples:", self.hLayoutSize)
-        self.formLayoutPtCld.addRow("Training ratio:", self.spinTrainRatio)
-        self.formLayoutPtCld.addRow("Target field:", self.labelTarget)
         self.groupPtCld.setLayout(self.formLayoutPtCld)
 
-        # Selection of the algorithm
-        self.groupAlgorithm = QGroupBox("Algorithm")
+        # Create tabs
+        self.tabTrain = QWidget()
+        self.tabPredict = QWidget()
+        self.tabSegment = QWidget()
 
-        self.listAlgorithms = QListWidget()
-        self.listAlgorithms.setMaximumSize(120, 80)
-        self.listAlgorithms.insertItem(0, "Random Forest")
-        self.listAlgorithms.insertItem(1, "Gradient Boosting")
-        self.listAlgorithms.insertItem(2, "Neural Network")
-        self.listAlgorithms.insertItem(3, "K-Means Clustering")
-        self.listAlgorithms.setCurrentItem(self.listAlgorithms.item(0))
+        self.tabModes = QTabWidget()
+        self.tabModes.addTab(self.tabTrain, "Training")
+        self.tabModes.addTab(self.tabPredict, "Prediction")
+        self.tabModes.addTab(self.tabSegment, "Segmentation")
 
-        # Stacks for the parameters of the algo
-        self.stack_RF = QWidget()
-        self.stack_GB = QWidget()
-        self.stack_NN = QWidget()
-        self.stack_KM = QWidget()
-        self.stackui_rf()
-        self.stackui_gb()
-        self.stackui_nn()
-        self.stackui_km()
-        self.stackAlgo = QStackedWidget(self)
-        self.stackAlgo.addWidget(self.stack_RF)
-        self.stackAlgo.addWidget(self.stack_GB)
-        self.stackAlgo.addWidget(self.stack_NN)
-        self.stackAlgo.addWidget(self.stack_KM)
+        self.tabui_train()
+        self.tabui_predict()
+        self.tabui_segment()
 
-        # Fill the algorithm groupBox with QFormLayout
-        self.formLayoutAlgo = QFormLayout()
-        self.formLayoutAlgo.addRow("Select algorithm:", self.listAlgorithms)
-        self.formLayoutAlgo.addRow("Algorithm parameters:", self.stackAlgo)
-        self.groupAlgorithm.setLayout(self.formLayoutAlgo)
+        self.tabModes.currentChanged.connect(self.tab_modes_action)
 
-        # Fill the left layout
+        # Fill layout of left part
         self.vLayoutLeft = QVBoxLayout()
+        self.vLayoutLeft.addWidget(self.labelLocalServer)
+        self.vLayoutLeft.addLayout(self.layoutLocalServer)
         self.vLayoutLeft.addWidget(self.groupPtCld)
-        self.vLayoutLeft.addWidget(self.groupAlgorithm)
+        self.vLayoutLeft.addWidget(self.tabModes)
 
         # Central part of GUI
         self.groupFeatures = QGroupBox("Feature Fields")
@@ -229,6 +348,7 @@ class ClaspyGui(QMainWindow):
         self.listFeatures = QListWidget()
         self.listFeatures.setSelectionMode(QAbstractItemView.ExtendedSelection)
         self.listFeatures.setSortingEnabled(True)
+        self.listFeatures.itemSelectionChanged.connect(self.number_selected_features)
 
         # Number of selected features
         self.labelNbrSelFeatures = QLabel()
@@ -272,12 +392,21 @@ class ClaspyGui(QMainWindow):
         self.groupCommand = QGroupBox("Command Output")
         self.groupCommand.setLayout(self.vLayoutRight)
 
-        # Button box for
+        # Button box
         self.buttonBox = QDialogButtonBox(QDialogButtonBox.Close)
         self.buttonBox.rejected.connect(self.reject)
-        self.buttonRun = QPushButton("Run cLASpy_T")
-        self.buttonRun.clicked.connect(self.run_claspy_t)
-        self.buttonBox.addButton(self.buttonRun, QDialogButtonBox.ActionRole)
+
+        self.buttonRunTrain = QPushButton("Train")
+        self.buttonRunTrain.clicked.connect(self.run_train)
+        self.buttonBox.addButton(self.buttonRunTrain, QDialogButtonBox.ActionRole)
+        self.buttonRunPredict = QPushButton("Predict")
+        self.buttonRunPredict.clicked.connect(self.run_predict)
+        self.buttonBox.addButton(self.buttonRunPredict, QDialogButtonBox.ActionRole)
+        self.buttonRunSegment = QPushButton("Segment")
+        self.buttonRunSegment.clicked.connect(self.run_segment)
+        self.buttonBox.addButton(self.buttonRunSegment, QDialogButtonBox.ActionRole)
+        self.buttonRunPredict.setVisible(False)
+        self.buttonRunSegment.setVisible(False)
 
         # Fill the main layout
         self.hMainLayout = QHBoxLayout()
@@ -322,11 +451,6 @@ class ClaspyGui(QMainWindow):
         # Status Bar
         self.statusBar = QStatusBar()
         self.setStatusBar(self.statusBar)
-
-        # Function call
-        self.listAlgorithms.currentRowChanged.connect(self.display_stack_algo)
-        self.radioLocal.toggled.connect(self.display_stack_input)
-        self.listFeatures.itemSelectionChanged.connect(self.number_selected_features)
 
     def menu_file_trigger(self, action):
         if action.text() == "Open":
@@ -399,14 +523,205 @@ class ClaspyGui(QMainWindow):
         else:
             self.statusBar.showMessage("Python path not set !")
 
+    def tabui_train(self):
+        # Group Training
+        self.groupTrain = QGroupBox("Training Parameters")
+
+        # Set the sample size
+        self.spinSampleSize = QDoubleSpinBox()
+        self.spinSampleSize.setMaximumWidth(80)
+        self.spinSampleSize.setMinimum(0)
+        self.spinSampleSize.setDecimals(6)
+        self.spinSampleSize.setWrapping(True)
+        self.hLayoutSize = QHBoxLayout()
+        self.hLayoutSize.addWidget(self.spinSampleSize)
+        self.hLayoutSize.addWidget(QLabel("Million points"))
+
+        # Set the training/testing ratio
+        self.spinTrainRatio = QDoubleSpinBox()
+        self.spinTrainRatio.setMaximumWidth(60)
+        self.spinTrainRatio.setMinimum(0)
+        self.spinTrainRatio.setMaximum(1)
+        self.spinTrainRatio.setSingleStep(0.1)
+        self.spinTrainRatio.setDecimals(3)
+        self.spinTrainRatio.setWrapping(True)
+        self.spinTrainRatio.setValue(0.5)
+
+        # Set the random state to split data, GridSearchCV, CrossVal...
+        self.spinRandomState = QSpinBox()
+        self.spinRandomState.setMaximumWidth(80)
+        self.spinRandomState.setMinimum(0)
+        self.spinRandomState.setMaximum(999999)
+        self.spinRandomState.setValue(0)
+        self.spinRandomState.setToolTip("Controls the randomness to split the data into train/test and\n"
+                                        "the shuffle split for GridSearchCV or simple CrossValidation.")
+
+        # Label: Target field exist ?
+        self.labelTarget = QLabel()
+
+        # Fill the point cloud groupBox with QFormLayout
+        self.formLayoutTrain = QFormLayout()
+        self.formLayoutTrain.addRow("Number of samples:", self.hLayoutSize)
+        self.formLayoutTrain.addRow("Training ratio:", self.spinTrainRatio)
+        self.formLayoutTrain.addRow("Random State:", self.spinRandomState)
+        self.formLayoutTrain.addRow("Target field:", self.labelTarget)
+        self.groupTrain.setLayout(self.formLayoutTrain)
+
+        # Selection of the algorithm
+        self.groupAlgorithm = QGroupBox("Algorithm")
+
+        self.listAlgorithms = QListWidget()
+        self.listAlgorithms.setFixedSize(200, 120)
+        self.listAlgorithms.insertItem(0, "Random Forest")
+        self.listAlgorithms.insertItem(1, "Gradient Boosting")
+        self.listAlgorithms.insertItem(2, "Neural Network")
+        self.listAlgorithms.insertItem(3, "Random Forest (GridSearchCV)")
+        self.listAlgorithms.insertItem(4, "Gradient Boosting (GridSearchCV)")
+        self.listAlgorithms.insertItem(5, "Neural Network (GridSearchCV)")
+        self.listAlgorithms.setCurrentItem(self.listAlgorithms.item(0))
+        self.listAlgorithms.currentRowChanged.connect(self.display_stack_algo)
+
+        # Stacks for the parameters of the algo
+        self.stack_RF = QWidget()
+        self.stack_GB = QWidget()
+        self.stack_NN = QWidget()
+        self.stack_GB_grid = QWidget()
+        self.stack_RF_grid = QWidget()
+        self.stack_NN_grid = QWidget()
+        self.stackui_rf()
+        self.stackui_gb()
+        self.stackui_nn()
+        self.stackui_rf_grid()
+        self.stackui_gb_grid()
+        self.stackui_nn_grid()
+        self.stackAlgo = QStackedWidget(self)
+        self.stackAlgo.addWidget(self.stack_RF)
+        self.stackAlgo.addWidget(self.stack_GB)
+        self.stackAlgo.addWidget(self.stack_NN)
+        self.stackAlgo.addWidget(self.stack_RF_grid)
+        self.stackAlgo.addWidget(self.stack_GB_grid)
+        self.stackAlgo.addWidget(self.stack_NN_grid)
+
+        # Fill the algorithm groupBox with QFormLayout
+        self.formLayoutAlgo = QFormLayout()
+        self.formLayoutAlgo.addRow("Select algorithm:", self.listAlgorithms)
+        self.formLayoutAlgo.addRow("Algorithm parameters:", self.stackAlgo)
+        self.groupAlgorithm.setLayout(self.formLayoutAlgo)
+
+        # Fill the left layout
+        self.vLayoutTabTrain = QVBoxLayout()
+        self.vLayoutTabTrain.addWidget(self.groupTrain)
+        self.vLayoutTabTrain.addWidget(self.groupAlgorithm)
+
+        self.tabTrain.setLayout(self.vLayoutTabTrain)
+
+    def tabui_predict(self):
+
+        # Fill the left layout
+        self.vLayoutTabPredict = QVBoxLayout()
+
+        self.tabPredict.setLayout(self.vLayoutTabPredict)
+
+    def tabui_segment(self):
+        # Fill the left layout
+        self.vLayoutTabSegment = QVBoxLayout()
+
+        # Cluster algorithms
+        self.groupCluster = QGroupBox("Cluster Algorithms")
+        form_layout = QFormLayout()
+
+        self.KMspinRandomState = QSpinBox()
+        self.KMspinRandomState.setMaximumWidth(80)
+        self.KMspinRandomState.setMinimum(-1)
+        self.KMspinRandomState.setMaximum(999999)
+        self.KMspinRandomState.setValue(-1)
+        self.KMspinRandomState.setToolTip("Controls the random generation of centroids.")
+        form_layout.addRow("random_state:", self.KMspinRandomState)
+
+        self.KMspinNClusters = QSpinBox()
+        self.KMspinNClusters.setMaximumWidth(80)
+        self.KMspinNClusters.setMinimum(2)
+        self.KMspinNClusters.setMaximum(9999)
+        self.KMspinNClusters.setValue(8)
+        self.KMspinNClusters.setToolTip("The number of clusters to form as well\n"
+                                        "as the number of centroids to generate.")
+        form_layout.addRow("n_clusters:", self.KMspinNClusters)
+
+        self.KMinit = ["k-means++", "random"]
+        self.KMcomboInit = QComboBox()
+        self.KMcomboInit.setMaximumWidth(80)
+        self.KMcomboInit.addItems(self.KMinit)
+        self.KMcomboInit.setCurrentIndex(self.KMinit.index("k-means++"))
+        self.KMcomboInit.setToolTip("Method for initialization.")
+        form_layout.addRow("init:", self.KMcomboInit)
+
+        self.KMspinNInit = QSpinBox()
+        self.KMspinNInit.setMaximumWidth(80)
+        self.KMspinNInit.setMinimum(1)
+        self.KMspinNInit.setMaximum(9999)
+        self.KMspinNInit.setValue(10)
+        self.KMspinNInit.setToolTip("Number of time the k-means algorithm will be\n"
+                                    "run with different centroid seeds. The final\n"
+                                    "results will be the best output of n_init\n"
+                                    "consecutive runs in terms of inertia.")
+        form_layout.addRow("n_init:", self.KMspinNInit)
+
+        self.KMspinMaxIter = QSpinBox()
+        self.KMspinMaxIter.setMaximumWidth(80)
+        self.KMspinMaxIter.setMinimum(1)
+        self.KMspinMaxIter.setMaximum(99999)
+        self.KMspinMaxIter.setValue(300)
+        self.KMspinMaxIter.setToolTip("Maximum number of iterations of the k-means\n"
+                                      "algorithm for a single run.")
+        form_layout.addRow("max_iter:", self.KMspinMaxIter)
+
+        self.KMspinTol = QDoubleSpinBox()
+        self.KMspinTol.setMaximumWidth(80)
+        self.KMspinTol.setDecimals(8)
+        self.KMspinTol.setMinimum(0)
+        self.KMspinTol.setMaximum(9999)
+        self.KMspinTol.setValue(0.0001)
+        self.KMspinTol.setToolTip("Relative tolerance with regards to Frobenius norm\n"
+                                  "of the difference in the cluster centers of two\n"
+                                  "consecutive iterations to declare convergence.")
+        form_layout.addRow("tol:", self.KMspinTol)
+
+        self.KMalgorithm = ["auto", "full", "elkan"]
+        self.KMcomboAlgorithm = QComboBox()
+        self.KMcomboAlgorithm.setMaximumWidth(80)
+        self.KMcomboAlgorithm.addItems(self.KMalgorithm)
+        self.KMcomboAlgorithm.setCurrentIndex(self.KMalgorithm.index("auto"))
+        self.KMcomboAlgorithm.setToolTip("K-means algorithm to use.")
+        form_layout.addRow("algorithm:", self.KMcomboAlgorithm)
+
+        self.tabSegment.setLayout(form_layout)
+
+    def tab_modes_action(self, tab):
+        if tab == 0:  # For Training tab
+            self.buttonRunTrain.setVisible(True)
+            self.buttonRunPredict.setVisible(False)
+            self.buttonRunSegment.setVisible(False)
+        elif tab == 1:  # For Prediction tab
+            self.buttonRunTrain.setVisible(False)
+            self.buttonRunPredict.setVisible(True)
+            self.buttonRunSegment.setVisible(False)
+        elif tab == 2:  # For Segmentation tab
+            self.buttonRunTrain.setVisible(False)
+            self.buttonRunPredict.setVisible(False)
+            self.buttonRunSegment.setVisible(True)
+        else:
+            raise IndexError("Returning selected tab does not exist!")
+
     def stackui_local(self):
         form_layout = QFormLayout()
 
         # Line for local file input
         self.lineLocalFile = QLineEdit()
         self.lineLocalFile.setPlaceholderText("Select LAS or CSV file as input")
+        self.lineLocalFile.editingFinished.connect(self.open_file)
         self.toolButtonFile = QToolButton()
         self.toolButtonFile.setText("Browse")
+        self.toolButtonFile.clicked.connect(self.get_file)
         self.hLayoutFile = QHBoxLayout()
         self.hLayoutFile.addWidget(self.lineLocalFile)
         self.hLayoutFile.addWidget(self.toolButtonFile)
@@ -415,8 +730,10 @@ class ClaspyGui(QMainWindow):
         # Line for local folder output
         self.lineLocalFolder = QLineEdit()
         self.lineLocalFolder.setPlaceholderText("Folder where save result files")
+        self.lineLocalFolder.textChanged.connect(self.enable_open_results)
         self.toolButtonFolder = QToolButton()
         self.toolButtonFolder.setText("Browse")
+        self.toolButtonFolder.clicked.connect(self.get_folder)
         self.hLayoutFolder = QHBoxLayout()
         self.hLayoutFolder.addWidget(self.lineLocalFolder)
         self.hLayoutFolder.addWidget(self.toolButtonFolder)
@@ -425,25 +742,21 @@ class ClaspyGui(QMainWindow):
         # Button to open result folder
         self.buttonResultFolder = QPushButton('Open Result Directory')
         self.buttonResultFolder.setEnabled(False)
+        self.buttonResultFolder.clicked.connect(self.open_results)
         form_layout.addWidget(self.buttonResultFolder)
 
         # Set the layout
         self.stack_Local.setLayout(form_layout)
-
-        # Set link
-        self.toolButtonFile.clicked.connect(self.get_file)
-        self.lineLocalFile.editingFinished.connect(self.open_file)
-        self.toolButtonFolder.clicked.connect(self.get_folder)
-        self.lineLocalFolder.textChanged.connect(self.enable_open_results)
-        self.buttonResultFolder.clicked.connect(self.open_results)
 
     def stackui_server(self):
         form_layout = QFormLayout()
 
         self.lineFile = QLineEdit()
         self.lineFile.setPlaceholderText("Local file to get features")
+        self.lineFile.editingFinished.connect(self.open_file)
         self.toolButtonFile = QToolButton()
         self.toolButtonFile.setText("Browse")
+        self.toolButtonFile.clicked.connect(self.get_file)
         self.hLayoutFile = QHBoxLayout()
         self.hLayoutFile.addWidget(self.lineFile)
         self.hLayoutFile.addWidget(self.toolButtonFile)
@@ -459,16 +772,21 @@ class ClaspyGui(QMainWindow):
 
         self.stack_Server.setLayout(form_layout)
 
-        self.toolButtonFile.clicked.connect(self.get_file)
-        self.lineFile.editingFinished.connect(self.open_file)
-
-    def display_stack_input(self):
-        if self.radioLocal.isChecked():
+    def display_stack_local(self):
+        if self.pushLocal.isChecked():
             self.stackInput.setCurrentIndex(0)
-            self.buttonRun.setEnabled(True)
-        else:
+            self.pushServer.setChecked(False)
+            self.buttonRunTrain.setEnabled(True)
+            self.buttonRunPredict.setEnabled(True)
+            self.buttonRunSegment.setEnabled(True)
+
+    def display_stack_server(self):
+        if self.pushServer.isChecked():
             self.stackInput.setCurrentIndex(1)
-            self.buttonRun.setEnabled(False)
+            self.pushLocal.setChecked(False)
+            self.buttonRunTrain.setEnabled(False)
+            self.buttonRunPredict.setEnabled(False)
+            self.buttonRunSegment.setEnabled(False)
 
     def get_file(self):
         self.statusBar.showMessage("Select file...", 3000)
@@ -476,7 +794,7 @@ class ClaspyGui(QMainWindow):
                                                '', "LAS files (*.las);;CSV files (*.csv)")
 
         if filename[0] != '':
-            if self.radioLocal.isChecked():
+            if self.pushLocal.isChecked():
                 self.lineLocalFile.setText(os.path.normpath(filename[0]))
             else:
                 self.lineFile.setText(os.path.normpath(filename[0]))
@@ -484,13 +802,13 @@ class ClaspyGui(QMainWindow):
             self.open_file()
 
     def open_file(self):
-        if self.radioLocal.isChecked():
+        if self.pushLocal.isChecked():
             file_path = os.path.normpath(self.lineLocalFile.text())
         else:
             file_path = os.path.normpath(self.lineFile.text())
 
         root_ext = os.path.splitext(file_path)
-        if self.radioLocal.isChecked():
+        if self.pushLocal.isChecked():
             self.lineLocalFolder.setText(os.path.splitext(root_ext[0])[0])
 
         if root_ext[1] == '.csv':
@@ -584,7 +902,7 @@ class ClaspyGui(QMainWindow):
                                                           file_path + '/..')
 
         if foldername != '':
-            if self.radioLocal.isChecked():
+            if self.pushLocal.isChecked():
                 self.lineLocalFolder.setText(foldername)
 
     def enable_open_results(self):
@@ -611,7 +929,6 @@ class ClaspyGui(QMainWindow):
             else:
                 print("ErrorOS: Operating System not supported !")
 
-
     def number_selected_features(self):
         self.max_count = 0
         self.selected_count = 0
@@ -627,14 +944,14 @@ class ClaspyGui(QMainWindow):
 
     def stackui_rf(self):
         form_layout = QFormLayout()
+        form_layout.setLabelAlignment(Qt.AlignRight)
 
         self.RFspinRandomState = QSpinBox()
         self.RFspinRandomState.setMaximumWidth(80)
         self.RFspinRandomState.setMinimum(-1)
         self.RFspinRandomState.setMaximum(999999)
         self.RFspinRandomState.setValue(-1)
-        self.RFspinRandomState.setToolTip("Controls the randomness to split the data into\n"
-                                          "train/test sets and to build the trees.")
+        self.RFspinRandomState.setToolTip("Controls the randomness to build the trees.")
         form_layout.addRow("random_state:", self.RFspinRandomState)
 
         self.RFspinEstimators = QSpinBox()
@@ -688,11 +1005,11 @@ class ClaspyGui(QMainWindow):
                                          "have equal weight when sample_weight=0.")
         form_layout.addRow("min_weight_fraction_leaf:", self.RFspinWeightLeaf)
 
-        self.maxFeatures = ["auto", "sqrt", "log2"]
+        self.RFmaxFeatures = ["auto", "sqrt", "log2"]
         self.RFcomboMaxFeatures = QComboBox()
         self.RFcomboMaxFeatures.setMaximumWidth(80)
-        self.RFcomboMaxFeatures.addItems(self.maxFeatures)
-        self.RFcomboMaxFeatures.setCurrentIndex(self.maxFeatures.index("auto"))
+        self.RFcomboMaxFeatures.addItems(self.RFmaxFeatures)
+        self.RFcomboMaxFeatures.setCurrentIndex(self.RFmaxFeatures.index("auto"))
         self.RFcomboMaxFeatures.setToolTip("The number of features to consider\n"
                                            "when looking for the best split.")
         form_layout.addRow("max_features:", self.RFcomboMaxFeatures)
@@ -700,7 +1017,7 @@ class ClaspyGui(QMainWindow):
         self.RFspinNJob = QSpinBox()
         self.RFspinNJob.setMaximumWidth(80)
         self.RFspinNJob.setMinimum(-1)
-        self.RFspinNJob.setValue(0)
+        self.RFspinNJob.setValue(-1)
         self.RFspinNJob.setToolTip("The number of jobs to run in parallel.\n"
                                    "'0' means one job at the same time.\n"
                                    "'-1' means using all processors.")
@@ -719,16 +1036,109 @@ class ClaspyGui(QMainWindow):
 
         self.stack_RF.setLayout(form_layout)
 
+    def stackui_rf_grid(self):
+        form_layout = QFormLayout()
+        form_layout.setLabelAlignment(Qt.AlignRight)
+
+        # List of Random State
+        self.RFgridlineRandomState = QLineEdit()
+        self.RFgridlineRandomState.setMaximumWidth(160)
+        self.RFgridlineRandomState.setValidator(self.intlist_validator)
+        self.RFgridlineRandomState.setPlaceholderText("0,42,562,25685...")
+        self.RFgridlineRandomState.setToolTip("Controls the randomness to build the trees.")
+        form_layout.addRow("random_state:", self.RFgridlineRandomState)
+
+        # List of Number of estimators (trees)
+        self.RFgridlineEstimators = QLineEdit()
+        self.RFgridlineEstimators.setMaximumWidth(160)
+        self.RFgridlineEstimators.setValidator(self.intlist_validator)
+        self.RFgridlineEstimators.setPlaceholderText("100,500,1000...")
+        self.RFgridlineEstimators.setToolTip("List of the number of trees in the forest.")
+        form_layout.addRow("n_estimators:", self.RFgridlineEstimators)
+
+        # List of Criterion to mesure the quality of a split (use self.RFcriterion)
+        self.RFgridlistCriterion = QListWidget()
+        self.RFgridlistCriterion.setMaximumWidth(80)
+        self.RFgridlistCriterion.setMaximumHeight(40)
+        for idx, criterion in zip(range(0, len(self.RFcriterion)), self.RFcriterion):
+            self.RFgridlistCriterion.insertItem(idx, criterion)
+        self.RFgridlistCriterion.setCurrentItem(self.RFgridlistCriterion.item(0))
+        # self.RFgridlistCriterion.setFlow(QListView.LeftToRight)
+        self.RFgridlistCriterion.setSelectionMode(QAbstractItemView.ExtendedSelection)
+        self.RFgridlistCriterion.setToolTip("The function to measure the quality of a split.")
+        form_layout.addRow("criterion:", self.RFgridlistCriterion)
+
+        # List of Max depth for each tree
+        self.RFgridlineMaxDepth = QLineEdit()
+        self.RFgridlineMaxDepth.setMaximumWidth(160)
+        self.RFgridlineMaxDepth.setValidator(self.intlist_validator)
+        self.RFgridlineMaxDepth.setPlaceholderText("5,8,12...")
+        self.RFgridlineMaxDepth.setToolTip("List of maximum depth of trees.")
+        form_layout.addRow("max_depth:", self.RFgridlineMaxDepth)
+
+        # List of Samples at Split
+        self.RFgridlineSamplesSplit = QLineEdit()
+        self.RFgridlineSamplesSplit.setMaximumWidth(160)
+        self.RFgridlineSamplesSplit.setValidator(self.intlist_validator)
+        self.RFgridlineSamplesSplit.setPlaceholderText("2,50,100,500...")
+        self.RFgridlineSamplesSplit.setToolTip("The minimum number of samples required\n"
+                                               "to split an internal node.")
+        form_layout.addRow("min_samples_split:", self.RFgridlineSamplesSplit)
+
+        # List of Samples at Leaf
+        self.RFgridlineSamplesLeaf = QLineEdit()
+        self.RFgridlineSamplesLeaf.setMaximumWidth(160)
+        self.RFgridlineSamplesLeaf.setValidator(self.intlist_validator)
+        self.RFgridlineSamplesLeaf.setPlaceholderText("1,50,100,500...")
+        self.RFgridlineSamplesLeaf.setToolTip("The minimum number of samples required\n"
+                                              "to be at a leaf node.")
+        form_layout.addRow("min_samples_leaf:", self.RFgridlineSamplesLeaf)
+
+        # List of Weight Leaf
+        self.RFgridlineWeightLeaf = QLineEdit()
+        self.RFgridlineWeightLeaf.setMaximumWidth(160)
+        self.RFgridlineWeightLeaf.setValidator(self.floatlist_validator)
+        self.RFgridlineWeightLeaf.setPlaceholderText("0.00,0.01,0.05,0.2...")
+        self.RFgridlineWeightLeaf.setToolTip("The minimum weighted fraction of the sum total\n"
+                                             "of weights required to be at a leaf node. Samples\n"
+                                             "have equal weight when sample_weight=0.00")
+        form_layout.addRow("min_weight_fraction_leaf:", self.RFgridlineWeightLeaf)
+
+        # List of Maximum Features (use self.RFmaxFeatures)
+        self.RFgridlistMaxFeatures = QListWidget()
+        self.RFgridlistMaxFeatures.setMaximumWidth(80)
+        self.RFgridlistMaxFeatures.setMaximumHeight(60)
+        for idx, method in zip(range(0, len(self.RFmaxFeatures)), self.RFmaxFeatures):
+            self.RFgridlistMaxFeatures.insertItem(idx, method)
+        self.RFgridlistMaxFeatures.setCurrentItem(self.RFgridlistMaxFeatures.item(0))
+        # self.RFgridlistMaxFeatures.setFlow(QListView.LeftToRight)
+        self.RFgridlistMaxFeatures.setSelectionMode(QAbstractItemView.ExtendedSelection)
+        self.RFgridlistMaxFeatures.setToolTip("The number of features to consider\n"
+                                              "when looking for the best split.")
+        form_layout.addRow("max_features:", self.RFgridlistMaxFeatures)
+
+        # Number of Jobs
+        self.RFgridspinNJob = QSpinBox()
+        self.RFgridspinNJob.setMaximumWidth(80)
+        self.RFgridspinNJob.setMinimum(-1)
+        self.RFgridspinNJob.setValue(-1)
+        self.RFgridspinNJob.setToolTip("The number of jobs to run in parallel.\n"
+                                       "'0' means one job at the same time.\n"
+                                       "'-1' means using all processors.")
+        form_layout.addRow("n_jobs:", self.RFgridspinNJob)
+
+        self.stack_RF_grid.setLayout(form_layout)
+
     def stackui_gb(self):
         form_layout = QFormLayout()
+        form_layout.setLabelAlignment(Qt.AlignRight)
 
         self.GBspinRandomState = QSpinBox()
         self.GBspinRandomState.setMaximumWidth(80)
         self.GBspinRandomState.setMinimum(-1)
         self.GBspinRandomState.setMaximum(999999)
         self.GBspinRandomState.setValue(-1)
-        self.GBspinRandomState.setToolTip("Controls the randomness to split the data into\n"
-                                          "train/test sets and to build the trees.")
+        self.GBspinRandomState.setToolTip("Controls the randomness to build the trees.")
         form_layout.addRow("random_state:", self.GBspinRandomState)
 
         self.GBspinEstimators = QSpinBox()
@@ -744,7 +1154,7 @@ class ClaspyGui(QMainWindow):
 
         self.GBcriterion = ["friedman_mse", "mse"]
         self.GBcomboCriterion = QComboBox()
-        self.GBcomboCriterion.setMaximumWidth(80)
+        self.GBcomboCriterion.setMaximumWidth(120)
         self.GBcomboCriterion.addItems(self.GBcriterion)
         self.GBcomboCriterion.setCurrentIndex(self.GBcriterion.index("friedman_mse"))
         self.GBcomboCriterion.setToolTip("The function to measure the quality of a split.")
@@ -786,11 +1196,11 @@ class ClaspyGui(QMainWindow):
                                          "have equal weight when sample_weight=0.")
         form_layout.addRow("min_weight_fraction_leaf:", self.GBspinWeightLeaf)
 
-        self.maxFeatures = ["None", "auto", "sqrt", "log2"]
+        self.GBmaxFeatures = ["None", "auto", "sqrt", "log2"]
         self.GBcomboMaxFeatures = QComboBox()
         self.GBcomboMaxFeatures.setMaximumWidth(80)
-        self.GBcomboMaxFeatures.addItems(self.maxFeatures)
-        self.GBcomboMaxFeatures.setCurrentIndex(self.maxFeatures.index("None"))
+        self.GBcomboMaxFeatures.addItems(self.GBmaxFeatures)
+        self.GBcomboMaxFeatures.setCurrentIndex(self.GBmaxFeatures.index("None"))
         self.GBcomboMaxFeatures.setToolTip("The number of features to consider\n"
                                            "when looking for the best split.")
         form_layout.addRow("max_features:", self.GBcomboMaxFeatures)
@@ -808,6 +1218,7 @@ class ClaspyGui(QMainWindow):
         self.GBspinLearningRate = QDoubleSpinBox()
         self.GBspinLearningRate.setMaximumWidth(80)
         self.GBspinLearningRate.setDecimals(6)
+        self.GBspinLearningRate.setMaximum(999999)
         self.GBspinLearningRate.setMinimum(0)
         self.GBspinLearningRate.setValue(0.1)
         self.GBspinLearningRate.setToolTip("Learning rate shrinks the contribution of each tree\n"
@@ -818,6 +1229,7 @@ class ClaspyGui(QMainWindow):
         self.GBspinSubsample = QDoubleSpinBox()
         self.GBspinSubsample.setMaximumWidth(80)
         self.GBspinSubsample.setDecimals(4)
+        self.GBspinSubsample.setMaximum(999999)
         self.GBspinSubsample.setMinimum(0)
         self.GBspinSubsample.setValue(1)
         self.GBspinSubsample.setToolTip("The fraction of samples to be used for fitting\n"
@@ -838,8 +1250,129 @@ class ClaspyGui(QMainWindow):
 
         self.stack_GB.setLayout(form_layout)
 
+    def stackui_gb_grid(self):
+        form_layout = QFormLayout()
+        form_layout.setLabelAlignment(Qt.AlignRight)
+
+        # List of Random State
+        self.GBgridlineRandomState = QLineEdit()
+        self.GBgridlineRandomState.setMaximumWidth(160)
+        self.GBgridlineRandomState.setValidator(self.intlist_validator)
+        self.GBgridlineRandomState.setPlaceholderText("0,42,562,25685...")
+        self.GBgridlineRandomState.setToolTip("Controls the randomness to build the trees.")
+        form_layout.addRow("random_state:", self.GBgridlineRandomState)
+
+        # List of Number of Estimators
+        self.GBgridlineEstimators = QLineEdit()
+        self.GBgridlineEstimators.setMaximumWidth(160)
+        self.GBgridlineEstimators.setValidator(self.intlist_validator)
+        self.GBgridlineEstimators.setPlaceholderText("100,500,1000...")
+        self.GBgridlineEstimators.setToolTip("The number of boosting stages to perform.\n"
+                                             "Gradient boosting is fairly robust to over-\n"
+                                             "fitting so a large number usually results in\n"
+                                             "better performance.")
+        form_layout.addRow("n_estimators:", self.GBgridlineEstimators)
+
+        # List of Criterion
+        self.GBcriterion = ["friedman_mse", "mse"]
+        self.GBgridlistCriterion = QListWidget()
+        self.GBgridlistCriterion.setMinimumHeight(40)
+        self.GBgridlistCriterion.setMaximumWidth(160)
+        for idx, criterion in zip(range(0, len(self.GBcriterion)), self.GBcriterion):
+            self.GBgridlistCriterion.insertItem(idx, criterion)
+        self.GBgridlistCriterion.setCurrentItem(self.GBgridlistCriterion.item(0))
+        self.GBgridlistCriterion.setSelectionMode(QAbstractItemView.ExtendedSelection)
+        self.GBgridlistCriterion.setToolTip("The function to measure the quality of a split.")
+        form_layout.addRow("criterion:", self.GBgridlistCriterion)
+
+        # List of Max Depth
+        self.GBgridlineMaxDepth = QLineEdit()
+        self.GBgridlineMaxDepth.setMaximumWidth(160)
+        self.GBgridlineMaxDepth.setValidator(self.intlist_validator)
+        self.GBgridlineMaxDepth.setPlaceholderText("5,8,12...")
+        self.GBgridlineMaxDepth.setToolTip("The maximum depth of the individual regression estimators.\n"
+                                           "The maximum depth limits the number of nodes in the tree. ")
+        form_layout.addRow("max_depth:", self.GBgridlineMaxDepth)
+
+        # List of Samples at Split
+        self.GBgridlineSamplesSplit = QLineEdit()
+        self.GBgridlineSamplesSplit.setMaximumWidth(160)
+        self.GBgridlineSamplesSplit.setValidator(self.intlist_validator)
+        self.GBgridlineSamplesSplit.setPlaceholderText("2,50,100,500...")
+        self.GBgridlineSamplesSplit.setToolTip("The minimum number of samples required\n"
+                                               "to split an internal node.")
+        form_layout.addRow("min_samples_split:", self.GBgridlineSamplesSplit)
+
+        # List of Samples at Leaf
+        self.GBgridlineSamplesLeaf = QLineEdit()
+        self.GBgridlineSamplesLeaf.setMaximumWidth(160)
+        self.GBgridlineSamplesLeaf.setValidator(self.intlist_validator)
+        self.GBgridlineSamplesLeaf.setPlaceholderText("1,50,100,500...")
+        self.GBgridlineSamplesLeaf.setToolTip("The minimum number of samples required\n"
+                                              "to be at a leaf node.")
+        form_layout.addRow("min_samples_leaf:", self.GBgridlineSamplesLeaf)
+
+        # List of Weight Leaf
+        self.GBgridlineWeightLeaf = QLineEdit()
+        self.GBgridlineWeightLeaf.setMaximumWidth(160)
+        self.GBgridlineWeightLeaf.setValidator(self.floatlist_validator)
+        self.GBgridlineWeightLeaf.setPlaceholderText("0.00,0.01,0.05,0.2...")
+        self.GBgridlineWeightLeaf.setToolTip("The minimum weighted fraction of the sum total\n"
+                                             "of weights required to be at a leaf node. Samples\n"
+                                             "have equal weight when sample_weight=0.")
+        form_layout.addRow("min_weight_fraction_leaf:", self.GBgridlineWeightLeaf)
+
+        # List of Maximum Features (use self.RFmaxFeatures)
+        self.GBgridlistMaxFeatures = QListWidget()
+        self.GBgridlistMaxFeatures.setMinimumHeight(60)
+        self.GBgridlistMaxFeatures.setMaximumWidth(80)
+        for idx, method in zip(range(0, len(self.RFmaxFeatures)), self.RFmaxFeatures):
+            self.GBgridlistMaxFeatures.insertItem(idx, method)
+        self.GBgridlistMaxFeatures.setCurrentItem(self.GBgridlistMaxFeatures.item(0))
+        self.GBgridlistMaxFeatures.setSelectionMode(QAbstractItemView.ExtendedSelection)
+        self.GBgridlistMaxFeatures.setToolTip("The number of features to consider\n"
+                                              "when looking for the best split.")
+        form_layout.addRow("max_features:", self.GBgridlistMaxFeatures)
+
+        # List of Loss methods (use self.loss)
+        self.GBgridlistLoss = QListWidget()
+        self.GBgridlistLoss.setMinimumHeight(40)
+        self.GBgridlistLoss.setMaximumWidth(80)
+        for idx, method in zip(range(0, len(self.loss)), self.loss):
+            self.GBgridlistLoss.insertItem(idx, method)
+        self.GBgridlistLoss.setCurrentItem(self.GBgridlistLoss.item(0))
+        self.GBgridlistLoss.setSelectionMode(QAbstractItemView.ExtendedSelection)
+        #self.GBgridlistLoss.setFlow(QListView.LeftToRight)
+        self.GBgridlistLoss.setToolTip("The loss function to be optimized. ‘deviance’ refers to logistic\n"
+                                       "regression for classification with probabilistic outputs. For loss \n"
+                                       "‘exponential’ gradient boosting recovers the AdaBoost algorithm.")
+        form_layout.addRow("loss:", self.GBgridlistLoss)
+
+        # List of Learning Rate float
+        self.GBgridlineLearningRate = QLineEdit()
+        self.GBgridlineLearningRate.setMaximumWidth(160)
+        self.GBgridlineLearningRate.setValidator(self.floatlist_validator)
+        self.GBgridlineLearningRate.setPlaceholderText("0.00001,0.001,0.1...")
+        self.GBgridlineLearningRate.setToolTip("Learning rate shrinks the contribution of each tree\n"
+                                               "by learning_rate. There is a trade-off between\n"
+                                               "learning_rate and n_estimators.")
+        form_layout.addRow("learning_rate:", self.GBgridlineLearningRate)
+
+        # List of Subsample
+        self.GBgridlineSubsample = QLineEdit()
+        self.GBgridlineSubsample.setMaximumWidth(160)
+        self.GBgridlineSubsample.setValidator(self.floatlist_validator)
+        self.GBgridlineSubsample.setPlaceholderText("0.01,0.1,1.0...")
+        self.GBgridlineSubsample.setToolTip("The fraction of samples to be used for fitting\n"
+                                            "the individual base learners. If smaller than\n"
+                                            "1.0 this results in Stochastic Gradient Boosting.")
+        form_layout.addRow("subsample:", self.GBgridlineSubsample)
+
+        self.stack_GB_grid.setLayout(form_layout)
+
     def stackui_nn(self):
         form_layout = QFormLayout()
+        form_layout.setLabelAlignment(Qt.AlignRight)
 
         self.NNspinRandomState = QSpinBox()
         self.NNspinRandomState.setMaximumWidth(80)
@@ -852,6 +1385,7 @@ class ClaspyGui(QMainWindow):
         form_layout.addRow("random_state:", self.NNspinRandomState)
 
         self.NNlineHiddenLayers = QLineEdit()
+        self.NNlineHiddenLayers.setMaximumWidth(160)
         self.NNlineHiddenLayers.setPlaceholderText("Example: 50,100,50")
         self.NNlineHiddenLayers.setToolTip("The ith element represents the number of neurons\n"
                                            "in the ith hidden layer.")
@@ -981,6 +1515,165 @@ class ClaspyGui(QMainWindow):
         self.NNcomboSolver.currentTextChanged.connect(self.nn_solver_options)
         self.NNcomboLearningRate.currentTextChanged.connect(self.nn_solver_options)
 
+    def stackui_nn_grid(self):
+        form_layout = QFormLayout()
+        form_layout.setLabelAlignment(Qt.AlignRight)
+
+        # List of Random State
+        self.NNgridlineRandomState = QLineEdit()
+        self.NNgridlineRandomState.setMaximumWidth(180)
+        self.NNgridlineRandomState.setValidator(self.intlist_validator)
+        self.NNgridlineRandomState.setPlaceholderText("0,42,562,25685...")
+        self.NNgridlineRandomState.setToolTip("Determines random number generation for weights and\n"
+                                              "bias initialization, train-test split if early stopping is used,\n"
+                                              "and batch sampling when solver=’sgd’or ‘adam’.")
+        form_layout.addRow("random_state:", self.NNgridlineRandomState)
+
+        # List of Hidden Layers
+        self.NNgridlineHiddenLayers = QLineEdit()
+        self.NNgridlineHiddenLayers.setPlaceholderText("[50][25,50,25][25,50,100,100]")
+        self.NNgridlineHiddenLayers.setToolTip("List of lists of hidden layers.\n"
+                                               "Use brackets !!")
+        form_layout.addRow("hidden_layer_sizes:", self.NNgridlineHiddenLayers)
+
+        # List of Activation Function (use self.NNactivation)
+        self.NNgridlistActivation = QListWidget()
+        self.NNgridlistActivation.setMinimumHeight(24)
+        self.NNgridlistActivation.setMaximumWidth(180)
+        for idx, function in zip(range(0, len(self.NNactivation)), self.NNactivation):
+            self.NNgridlistActivation.insertItem(idx, function)
+        self.NNgridlistActivation.setCurrentItem(self.NNgridlistActivation.item(3))
+        self.NNgridlistActivation.setSelectionMode(QAbstractItemView.ExtendedSelection)
+        self.NNgridlistActivation.setFlow(QListView.LeftToRight)
+        self.NNgridlistActivation.setToolTip("Activation function for the hidden layer.")
+        form_layout.addRow("activation:", self.NNgridlistActivation)
+
+        # List of Solvers (use self.NNsolver)
+        self.NNgridlistSolver = QListWidget()
+        self.NNgridlistSolver.setMinimumHeight(24)
+        self.NNgridlistSolver.setMaximumWidth(120)
+        for idx, solver in zip(range(0, len(self.NNsolver)), self.NNsolver):
+            self.NNgridlistSolver.insertItem(idx, solver)
+        self.NNgridlistSolver.setCurrentItem(self.NNgridlistSolver.item(2))
+        self.NNgridlistSolver.setSelectionMode(QAbstractItemView.ExtendedSelection)
+        self.NNgridlistSolver.setFlow(QListView.LeftToRight)
+        self.NNgridlistSolver.setToolTip("The solver for weight optimization.\n"
+                                         "-'lbfgs' optimizer from quasi-Newton method family.\n"
+                                         "-'sgd' refers to stochastic gradient descent.\n"
+                                         "-'adam' refers to a stochastic gradient-based optimizer,\n"
+                                         "  proposed by Kingma, Diederik, and Jimmy Ba.")
+        form_layout.addRow("solver:", self.NNgridlistSolver)
+
+        # List of Alpha
+        self.NNgridlineAlpha = QLineEdit()
+        self.NNgridlineAlpha.setMaximumWidth(180)
+        self.NNgridlineAlpha.setValidator(self.floatlist_validator)
+        self.NNgridlineAlpha.setPlaceholderText("0.00001,0.0001,0.01...")
+        self.NNgridlineAlpha.setToolTip("L2 penalty (regularization term) parameter.")
+        form_layout.addRow("alpha:", self.NNgridlineAlpha)
+
+        # List of Batch Size
+        self.NNgridlineBatchSize = QLineEdit()
+        self.NNgridlineBatchSize.setMaximumWidth(180)
+        self.NNgridlineBatchSize.setValidator(self.intlist_validator)
+        self.NNgridlineBatchSize.setPlaceholderText("50,200,500...")
+        self.NNgridlineBatchSize.setToolTip("Size of minibatches for stochastic optimizers.\n"
+                                            "If the solver is ‘lbfgs’, the classifier will not use minibatch.")
+        form_layout.addRow("batch_size:", self.NNgridlineBatchSize)
+
+        # List of Learning Rate methods (use self.NNlearningRate)
+        self.NNgridlistLearningRate = QListWidget()
+        self.NNgridlistLearningRate.setMinimumHeight(24)
+        self.NNgridlistLearningRate.setMaximumWidth(180)
+        for idx, method in zip(range(0, len(self.NNlearningRate)), self.NNlearningRate):
+            self.NNgridlistLearningRate.insertItem(idx, method)
+        self.NNgridlistLearningRate.setCurrentItem(self.NNgridlistLearningRate.item(0))
+        self.NNgridlistLearningRate.setSelectionMode(QAbstractItemView.ExtendedSelection)
+        self.NNgridlistLearningRate.setFlow(QListView.LeftToRight)
+        self.NNgridlistLearningRate.setEnabled(False)
+        self.NNgridlistLearningRate.setToolTip("Learning rate schedule for weight updates.")
+        form_layout.addRow("learning_rate:", self.NNgridlistLearningRate)
+
+        # List of Learning Rate Initialisation
+        self.NNgridlineLearningRateInit = QLineEdit()
+        self.NNgridlineLearningRateInit.setMaximumWidth(180)
+        self.NNgridlineLearningRateInit.setValidator(self.floatlist_validator)
+        self.NNgridlineLearningRateInit.setPlaceholderText("0.0001,0.001,0.01...")
+        self.NNgridlineLearningRateInit.setToolTip("The initial learning rate used. It controls\n"
+                                                   "the step-size in updating the weights.\n"
+                                                   "Only used when solver=’sgd’ or ‘adam’.")
+        form_layout.addRow("learning_rate_init:", self.NNgridlineLearningRateInit)
+
+        # List of PowerT
+        self.NNgridlinePowerT = QLineEdit()
+        self.NNgridlinePowerT.setMaximumWidth(180)
+        self.NNgridlinePowerT.setValidator(self.floatlist_validator)
+        self.NNgridlinePowerT.setEnabled(False)
+        self.NNgridlinePowerT.setPlaceholderText("0.1,0.25,0.5...")
+        self.NNgridlinePowerT.setToolTip("The exponent for inverse scaling learning rate.\n"
+                                         "It is used in updating effective learning rate\n"
+                                         "when the learning_rate is set to ‘invscaling’.\n"
+                                         "Only used when solver=’sgd’.")
+        form_layout.addRow("power_t:", self.NNgridlinePowerT)
+
+        # List of Maximum Iteration
+        self.NNgridlineMaxIter = QLineEdit()
+        self.NNgridlineMaxIter.setMaximumWidth(180)
+        self.NNgridlineMaxIter.setValidator(self.intlist_validator)
+        self.NNgridlineMaxIter.setPlaceholderText("200,1000,5000...")
+        self.NNgridlineMaxIter.setToolTip("The solver iterates until convergence or this number of iterations.\n"
+                                          "For stochastic solvers ('sgd' or 'adam'), note that this determines\n"
+                                          "the number of epochs (how many times each data point will be\n"
+                                          "used), not the number of gradient steps.")
+        form_layout.addRow("max_iter:", self.NNgridlineMaxIter)
+
+        # List Shuffle and not Shuffle
+        self.NNgridlistShuffle = QListWidget()
+        self.NNgridlistShuffle.setMinimumHeight(24)
+        self.NNgridlistShuffle.setMaximumWidth(120)
+        self.NNgridlistShuffle.insertItem(0, "shuffle")
+        self.NNgridlistShuffle.insertItem(1, "no shuffle")
+        self.NNgridlistShuffle.setCurrentItem(self.NNgridlistShuffle.item(0))
+        self.NNgridlistShuffle.setSelectionMode(QAbstractItemView.ExtendedSelection)
+        self.NNgridlistShuffle.setFlow(QListView.LeftToRight)
+        self.NNgridlistShuffle.setToolTip("Whether to shuffle samples in each iteration.\n"
+                                          "Only used when solver=’sgd’ or ‘adam’.")
+        form_layout.addRow("shuffle:", self.NNgridlistShuffle)
+
+        # List of Beta_1
+        self.NNgridlineBeta_1 = QLineEdit()
+        self.NNgridlineBeta_1.setMaximumWidth(180)
+        self.NNgridlineBeta_1.setValidator(self.floatlist_validator)
+        self.NNgridlineBeta_1.setPlaceholderText("0.5,0.75,0.9")
+        self.NNgridlineBeta_1.setToolTip("Exponential decay rate for estimates of first\n"
+                                         "moment vector in adam, should be in [0, 1).\n"
+                                         "Only used when solver=’adam’")
+        form_layout.addRow("beta_1:", self.NNgridlineBeta_1)
+
+        # List of Beta_2
+        self.NNgridlineBeta_2 = QLineEdit()
+        self.NNgridlineBeta_2.setMaximumWidth(180)
+        self.NNgridlineBeta_2.setValidator(self.floatlist_validator)
+        self.NNgridlineBeta_2.setPlaceholderText("0.9,0.99,0.999...")
+        self.NNgridlineBeta_2.setToolTip("Exponential decay rate for estimates of second\n"
+                                         "moment vector in adam, should be in [0, 1).\n"
+                                         "Only used when solver=’adam’")
+        form_layout.addRow("beta_2:", self.NNgridlineBeta_2)
+
+        # List of Epsilon
+        self.NNgridlineEpsilon = QLineEdit()
+        self.NNgridlineEpsilon.setMaximumWidth(180)
+        self.NNgridlineEpsilon.setValidator(self.floatlist_validator)
+        self.NNgridlineEpsilon.setPlaceholderText("0.00000001,0.000001,0.0001...")
+        self.NNgridlineEpsilon.setToolTip("Value for numerical stability in adam.\n"
+                                          "Only used when solver=’adam’")
+        form_layout.addRow("epsilon:", self.NNgridlineEpsilon)
+
+        self.stack_NN_grid.setLayout(form_layout)
+
+        self.NNgridlistSolver.itemSelectionChanged.connect(self.nn_grid_solver_options)
+        self.NNgridlistLearningRate.itemSelectionChanged.connect(self.nn_grid_solver_options)
+
     def nn_solver_options(self):
         solver = self.NNcomboSolver.currentText()
         learning_rate = self.NNcomboLearningRate.currentText()
@@ -1024,79 +1717,42 @@ class ClaspyGui(QMainWindow):
         else:
             self.NNspinPowerT.setEnabled(False)
 
-    def stackui_km(self):
-        form_layout = QFormLayout()
+    def nn_grid_solver_options(self):
+        solver_list = [item.text() for item in self.NNgridlistSolver.selectedItems()]
+        learning_rate_list = [item.text() for item in self.NNgridlistLearningRate.selectedItems()]
 
-        self.KMspinRandomState = QSpinBox()
-        self.KMspinRandomState.setMaximumWidth(80)
-        self.KMspinRandomState.setMinimum(-1)
-        self.KMspinRandomState.setMaximum(999999)
-        self.KMspinRandomState.setValue(-1)
-        self.KMspinRandomState.setToolTip("Controls the randomness to split the data into train/test\n"
-                                          "sets and to determine the generation for centroid.")
-        form_layout.addRow("random_state:", self.KMspinRandomState)
+        self.NNgridlineBatchSize.setEnabled(False)
+        self.NNgridlistLearningRate.setEnabled(False)
+        self.NNgridlineLearningRateInit.setEnabled(False)
+        self.NNgridlinePowerT.setEnabled(False)
+        self.NNgridlistShuffle.setEnabled(False)
+        self.NNgridlineBeta_1.setEnabled(False)
+        self.NNgridlineBeta_2.setEnabled(False)
+        self.NNgridlineEpsilon.setEnabled(False)
 
-        self.KMspinNClusters = QSpinBox()
-        self.KMspinNClusters.setMaximumWidth(80)
-        self.KMspinNClusters.setMinimum(2)
-        self.KMspinNClusters.setMaximum(9999)
-        self.KMspinNClusters.setValue(8)
-        self.KMspinNClusters.setToolTip("The number of clusters to form as well\n"
-                                        "as the number of centroids to generate.")
-        form_layout.addRow("n_clusters:", self.KMspinNClusters)
+        if 'sgd' in solver_list:
+            self.NNgridlineBatchSize.setEnabled(True)
+            self.NNgridlistLearningRate.setEnabled(True)
+            self.NNgridlineLearningRateInit.setEnabled(True)
+            self.NNgridlistShuffle.setEnabled(True)
 
-        self.KMinit = ["k-means++", "random"]
-        self.KMcomboInit = QComboBox()
-        self.KMcomboInit.setMaximumWidth(80)
-        self.KMcomboInit.addItems(self.KMinit)
-        self.KMcomboInit.setCurrentIndex(self.KMinit.index("k-means++"))
-        self.KMcomboInit.setToolTip("Method for initialization.")
-        form_layout.addRow("init:", self.KMcomboInit)
+        if 'adam' in solver_list:
+            self.NNgridlineBatchSize.setEnabled(True)
+            self.NNgridlineLearningRateInit.setEnabled(True)
+            self.NNgridlistShuffle.setEnabled(True)
+            self.NNgridlineBeta_1.setEnabled(True)
+            self.NNgridlineBeta_2.setEnabled(True)
+            self.NNgridlineEpsilon.setEnabled(True)
 
-        self.KMspinNInit = QSpinBox()
-        self.KMspinNInit.setMaximumWidth(80)
-        self.KMspinNInit.setMinimum(1)
-        self.KMspinNInit.setMaximum(9999)
-        self.KMspinNInit.setValue(10)
-        self.KMspinNInit.setToolTip("Number of time the k-means algorithm will be\n"
-                                    "run with different centroid seeds. The final\n"
-                                    "results will be the best output of n_init\n"
-                                    "consecutive runs in terms of inertia.")
-        form_layout.addRow("n_init:", self.KMspinNInit)
-
-        self.KMspinMaxIter = QSpinBox()
-        self.KMspinMaxIter.setMaximumWidth(80)
-        self.KMspinMaxIter.setMinimum(1)
-        self.KMspinMaxIter.setMaximum(99999)
-        self.KMspinMaxIter.setValue(300)
-        self.KMspinMaxIter.setToolTip("Maximum number of iterations of the k-means\n"
-                                      "algorithm for a single run.")
-        form_layout.addRow("max_iter:", self.KMspinMaxIter)
-
-        self.KMspinTol = QDoubleSpinBox()
-        self.KMspinTol.setMaximumWidth(80)
-        self.KMspinTol.setDecimals(8)
-        self.KMspinTol.setMinimum(0)
-        self.KMspinTol.setMaximum(9999)
-        self.KMspinTol.setValue(0.0001)
-        self.KMspinTol.setToolTip("Relative tolerance with regards to Frobenius norm\n"
-                                  "of the difference in the cluster centers of two\n"
-                                  "consecutive iterations to declare convergence.")
-        form_layout.addRow("tol:", self.KMspinTol)
-
-        self.KMalgorithm = ["auto", "full", "elkan"]
-        self.KMcomboAlgorithm = QComboBox()
-        self.KMcomboAlgorithm.setMaximumWidth(80)
-        self.KMcomboAlgorithm.addItems(self.KMalgorithm)
-        self.KMcomboAlgorithm.setCurrentIndex(self.KMalgorithm.index("auto"))
-        self.KMcomboAlgorithm.setToolTip("K-means algorithm to use.")
-        form_layout.addRow("algorithm:", self.KMcomboAlgorithm)
-
-        self.stack_KM.setLayout(form_layout)
+        if 'sgd' in solver_list and 'invscaling' in learning_rate_list:
+            self.NNgridlinePowerT.setEnabled(True)
 
     def display_stack_algo(self, i):
         self.stackAlgo.setCurrentIndex(i)
-        algo_list = ["Random Forest", "Gradient Boosting", "Neural Network", "K-Means clustering"]
+        algo_list = ["Random Forest", "Gradient Boosting", "Neural Network",
+                     "Random Forest (GridSearchCV)",
+                     "Gradient Boosting (GridSearchCV)",
+                     "Neural Network (GridSearchCV)"]
         self.statusBar.showMessage(algo_list[i] + " parameters", 2000)
 
     def open_config(self):
@@ -1108,223 +1764,436 @@ class ClaspyGui(QMainWindow):
         filename = QFileDialog.getOpenFileName(self, 'Select config file',
                                                '', "JSON files (*.json)")
 
-        # Open config file and get data
-        with open(filename[0], 'r') as config_file:
-            config = json.load(config_file)
+        if filename[0] != '':
+            # Open config file and get data
+            with open(filename[0], 'r') as config_file:
+                config_dict = json.load(config_file)
 
-        # Update point cloud parameters
-        if config['local_compute']:
-            self.radioLocal.setChecked(True)
-            self.lineLocalFile.setText(config['input_file'])
-            self.open_file()
-            self.lineLocalFolder.setText(config['output_folder'])
-        else:
-            self.radioServer.setChecked(True)
-            self.lineFile.setText(config['local_input'])
-            self.open_file()
-            self.lineServerFile.setText(config['input_file'])
-            self.lineServerFolder.setText(config['output_folder'])
-
-        self.spinSampleSize.setValue(config['samples'])
-        self.spinTrainRatio.setValue(config['training_ratio'])
-
-        # Update algorithm
-        algorithm = config['algorithm']
-
-        # Update algorithm parameters
-        if algorithm == 'RandomForestClassifier':
-            self.algo = 'rf'
-            self.listAlgorithms.setCurrentItem(self.listAlgorithms.item(0))
-            self.RFcheckImportance.setChecked(config['png_features'])
-
-            # Get algo parameter dict
-            parameters = config['parameters']
-
-            # n_estimators
-            self.RFspinEstimators.setValue(parameters['n_estimators'])
-            # criterion
-            self.RFcomboCriterion.setCurrentText(parameters['criterion'])
-            # max_depth
-            if parameters['max_depth'] is None:
-                self.RFspinMaxDepth.setValue(0)
+            # Update point cloud parameters
+            if config_dict['local_compute']:
+                self.pushLocal.setChecked(True)
+                self.pushServer.setChecked(False)
+                self.display_stack_local()
+                self.lineLocalFile.setText(config_dict['input_file'])
+                self.open_file()
+                self.lineLocalFolder.setText(config_dict['output_folder'])
             else:
-                self.RFspinMaxDepth.setValue(parameters['max_depth'])
-            # min_samples_split
-            self.RFspinSamplesSplit.setValue(parameters['min_samples_split'])
-            # min_samples_leaf
-            self.RFspinSamplesLeaf.setValue(parameters['min_samples_leaf'])
-            # min_weight_fraction_leaf
-            self.RFspinWeightLeaf.setValue(parameters['min_weight_fraction_leaf'])
-            # max_features
-            self.RFcomboMaxFeatures.setCurrentText(parameters['max_features'])
-            # n_jobs
-            if parameters['n_jobs'] is None:
-                self.RFspinNJob.setValue(0)
-            else:
-                self.RFspinNJob.setValue(parameters['n_jobs'])
-            # random_state
-            if parameters['random_state'] is None:
-                self.RFspinRandomState.setValue(-1)
-            else:
-                self.RFspinRandomState.setValue(parameters['random_state'])
+                self.pushLocal.setChecked(False)
+                self.pushServer.setChecked(True)
+                self.display_stack_server()
+                self.lineFile.setText(config_dict['local_input'])
+                self.open_file()
+                self.lineServerFile.setText(config_dict['input_file'])
+                self.lineServerFolder.setText(config_dict['output_folder'])
 
-        elif algorithm == 'GradientBoostingClassifier':
-            self.algo = 'gb'
-            self.listAlgorithms.setCurrentItem(self.listAlgorithms.item(1))
-            self.RFcheckImportance.setChecked(config['png_features'])
+            self.spinSampleSize.setValue(config_dict['samples'])
+            self.spinTrainRatio.setValue(config_dict['training_ratio'])
+            self.spinRandomState.setValue(config_dict['random_state'])
 
-            # Get algo parameter dict
-            parameters = config['parameters']
+            # Update algorithm
+            algorithm = config_dict['algorithm']
 
-            # loss
-            self.GBcomboLoss.setCurrentText(parameters['loss'])
-            # learning_rate
-            self.GBspinLearningRate.setValue(parameters['learning_rate'])
-            # n_estimators
-            self.GBspinEstimators.setValue(parameters['n_estimators'])
-            # subsample
-            self.GBspinSubsample.setValue(parameters['subsample'])
-            # criterion
-            self.GBcomboCriterion.setCurrentText(parameters['criterion'])
-            # min_samples_split
-            self.GBspinSamplesSplit.setValue(parameters['min_samples_split'])
-            # min_samples_leaf
-            self.GBspinSamplesLeaf.setValue(parameters['min_samples_leaf'])
-            # min_weight_fraction_leaf
-            self.GBspinWeightLeaf.setValue(parameters['min_weight_fraction_leaf'])
-            # max_depth
-            if parameters['max_depth'] is None:
-                self.GBspinMaxDepth.setValue(0)
-            else:
-                self.GBspinMaxDepth.setValue(parameters['max_depth'])
-            # random_state
-            if parameters['random_state'] is None:
-                self.GBspinRandomState.setValue(-1)
-            else:
-                self.GBspinRandomState.setValue(parameters['random_state'])
-            # max_features
-            if parameters['max_features'] is None:
-                self.GBcomboMaxFeatures.setCurrentText('None')
-            else:
-                self.GBcomboMaxFeatures.setCurrentText(parameters['max_features'])
+            # Check GridSearchCV
+            if config_dict['grid_search']:
+                # Update algorithm parameters
+                if algorithm == 'RandomForestClassifier':
+                    self.algo = 'rf'
+                    self.listAlgorithms.setCurrentItem(self.listAlgorithms.item(3))
 
-        elif algorithm == 'MLPClassifier':
-            self.algo = 'ann'
-            self.listAlgorithms.setCurrentItem(self.listAlgorithms.item(2))
+                    # Get algo parameter dict
+                    param_dict = config_dict['param_grid']
 
-            # Get algo parameter dict
-            parameters = config['parameters']
+                    # n_estimators
+                    self.RFgridlineEstimators.setText(list2str(param_dict['n_estimators']))
 
-            # hidden_layer_sizes
-            hidden_layers = [str(layer) for layer in parameters['hidden_layer_sizes']]
-            self.NNlineHiddenLayers.setText(','.join(hidden_layers))
-            # activation
-            self.NNcomboActivation.setCurrentText(parameters['activation'])
-            # solver
-            self.NNcomboSolver.setCurrentText(parameters['solver'])
-            self.nn_solver_options()
-            # alpha
-            self.NNspinAlpha.setValue(parameters['alpha'])
-            # batch_size
-            if self.NNspinBatchSize.isEnabled():
-                if parameters['batch_size'] == 'auto':
-                    self.NNspinBatchSize.setValue(-1)
+                    # criterion
+                    criterions = param_dict['criterion']
+                    for criterion in criterions:
+                        item = self.RFgridlistCriterion.findItems(criterion, Qt.MatchExactly)
+                        if len(item) > 0:  # If criterion is present
+                            row = self.RFgridlistCriterion.row(item[0])
+                            self.RFgridlistCriterion.item(row).setSelected(True)
+
+                    # max_depth
+                    self.RFgridlineMaxDepth.setText(list2str(param_dict['max_depth']))
+
+                    # min_samples_split
+                    self.RFgridlineSamplesSplit.setText(list2str(param_dict['min_samples_split']))
+
+                    # min_samples_leaf
+                    self.RFgridlineSamplesLeaf.setText(list2str(param_dict['min_samples_leaf']))
+
+                    # min_weight_fraction_leaf
+                    self.RFgridlineWeightLeaf.setText(list2str(param_dict['min_weight_fraction_leaf']))
+
+                    # max_features
+                    max_features = param_dict['max_features']
+                    for method in max_features:
+                        item = self.RFgridlistMaxFeatures.findItems(method, Qt.MatchExactly)
+                        if len(item) > 0:  # If method is present
+                            row = self.RFgridlistMaxFeatures.row(item[0])
+                            self.RFgridlistMaxFeatures.item(row).setSelected(True)
+
+                    # n_jobs
+                    self.RFgridspinNJob.setValue(param_dict['n_jobs'])
+
+                    # random_state
+                    self.RFgridlineRandomState.setText(list2str(param_dict['random_state']))
+
+                elif algorithm == 'GradientBoostingClassifier':
+                    self.algo = 'gb'
+                    self.listAlgorithms.setCurrentItem(self.listAlgorithms.item(4))
+
+                    # Get algo parameter dict
+                    param_dict = config_dict['param_grid']
+
+                    # loss
+                    loss = param_dict['loss']
+                    for method in loss:
+                        item = self.GBgridlistLoss.findItems(method, Qt.MatchExactly)
+                        if len(item) > 0:  # If method is present
+                            row = self.GBgridlistLoss.row(item[0])
+                            self.GBgridlistLoss.item(row).setSelected(True)
+
+                    # learning_rate
+                    self.GBgridlineLearningRate.setText(list2str(param_dict['learning_rate']))
+
+                    # n_estimators
+                    self.GBgridlineEstimators.setText(list2str(param_dict['n_estimators']))
+
+                    # subsample
+                    self.GBgridlineSubsample.setText(list2str(param_dict['subsample']))
+
+                    # criterion
+                    criterions = param_dict['criterion']
+                    for criterion in criterions:
+                        item = self.GBgridlistCriterion.findItems(criterion, Qt.MatchExactly)
+                        if len(item) > 0:  # If criterion is present
+                            row = self.GBgridlistCriterion.row(item[0])
+                            self.GBgridlistCriterion.item(row).setSelected(True)
+
+                    # min_samples_split
+                    self.GBgridlineSamplesSplit.setText(list2str(param_dict['min_samples_split']))
+
+                    # min_samples_leaf
+                    self.GBgridlineSamplesLeaf.setText(list2str(param_dict['min_samples_leaf']))
+
+                    # min_weight_fraction_leaf
+                    self.GBgridlineWeightLeaf.setText(list2str(param_dict['min_weight_fraction_leaf']))
+
+                    # max_depth
+                    self.GBgridlineMaxDepth.setText(list2str(param_dict['max_depth']))
+
+                    # random_state
+                    self.GBgridlineRandomState.setText(list2str(param_dict['random_state']))
+
+                    # max_features
+                    max_features = param_dict['max_features']
+                    for method in max_features:
+                        item = self.GBgridlistMaxFeatures.findItems(method, Qt.MatchExactly)
+                        if len(item) > 0:  # If method is present
+                            row = self.GBgridlistMaxFeatures.row(item[0])
+                            self.GBgridlistMaxFeatures.item(row).setSelected(True)
+
+                elif algorithm == 'MLPClassifier':
+                    self.algo = 'ann'
+                    self.listAlgorithms.setCurrentItem(self.listAlgorithms.item(5))
+
+                    # Get algo parameter dict
+                    param_dict = config_dict['param_grid']
+
+                    # hidden_layer_sizes
+                    self.NNgridlineHiddenLayers.setText(list2str(param_dict['hidden_layer_sizes'], join_c=''))
+
+                    # activation
+                    activations = param_dict['activation']
+                    for function in activations:
+                        item = self.NNgridlistActivation.findItems(function, Qt.MatchExactly)
+                        if len(item) > 0:  # If function is present
+                            row = self.NNgridlistActivation.row(item[0])
+                            self.NNgridlistActivation.item(row).setSelected(True)
+
+                    # solver
+                    solvers = param_dict['solver']
+                    for solver in solvers:
+                        item = self.NNgridlistSolver.findItems(solver, Qt.MatchExactly)
+                        if len(item) > 0:  # If solver is present
+                            row = self.NNgridlistSolver.row(item[0])
+                            self.NNgridlistSolver.item(row).setSelected(True)
+
+                    # alpha
+                    self.NNgridlineAlpha.setText(list2str(param_dict['alpha']))
+
+                    # batch_size
+                    if self.NNgridlineBatchSize.isEnabled():
+                        self.NNgridlineBatchSize.setText(list2str(param_dict['batch_size']))
+
+                    # learning_rate
+                    if self.NNgridlistLearningRate.isEnabled():
+                        learning_rates = param_dict['learning_rate']
+                        for method in learning_rates:
+                            item = self.NNgridlistLearningRate.findItems(method, Qt.MatchExactly)
+                            if len(item) > 0:  # If method is present
+                                row = self.NNgridlistLearningRate.row(item[0])
+                                self.NNgridlistLearningRate.item(row).setSelected(True)
+
+                    # learning_rate_init
+                    if self.NNgridlineLearningRateInit.isEnabled():
+                        self.NNgridlineLearningRateInit.setText(list2str(param_dict['learning_rate_init']))
+
+                    # power_t
+                    if self.NNgridlinePowerT.isEnabled():
+                        self.NNgridlinePowerT.setText(list2str(param_dict['power_t']))
+
+                    # max_iter
+                    self.NNgridlineMaxIter.setText(list2str(param_dict['max_iter']))
+
+                    # shuffle
+                    if self.NNgridlistShuffle.isEnabled():
+                        true_shuffle_list = param_dict['shuffle']
+                        shuffle_list = list()  # Replace True by 'shuffle' and False by 'no shuffle'
+                        for item in true_shuffle_list:
+                            if item:
+                                shuffle_list.append('shuffle')
+                            if item is False:
+                                shuffle_list.append('no shuffle')
+                        if shuffle_list:
+                            for shuffle in shuffle_list:
+                                item = self.NNgridlistShuffle.findItems(shuffle, Qt.MatchExactly)
+                                if len(item) > 0:  # If shuffle is present
+                                    row = self.NNgridlistShuffle.row(item[0])
+                                    self.NNgridlistShuffle.item(row).setSelected(True)
+
+                    # random_state
+                    self.NNgridlineRandomState.setText(list2str(param_dict['random_state']))
+
+                    # beta_1, beta_2 and epsilon
+                    if self.NNgridlineBeta_1.isEnabled():
+                        self.NNgridlineBeta_1.setText(list2str(param_dict['beta_1']))
+
+                    if self.NNgridlineBeta_2.isEnabled():
+                        self.NNgridlineBeta_2.setText(list2str(param_dict['beta_2']))
+
+                    if self.NNgridlineEpsilon.isEnabled():
+                        self.NNgridlineEpsilon.setText(list2str(param_dict['epsilon']))
+
                 else:
-                    self.NNspinBatchSize.setValue(parameters['batch_size'])
-            # learning_rate
-            if self.NNcomboLearningRate.isEnabled():
-                self.NNcomboLearningRate.setCurrentText(parameters['learning_rate'])
-            # learning_rate_init
-            if self.NNspinLearningRateInit.isEnabled():
-                self.NNspinLearningRateInit.setValue(parameters['learning_rate_init'])
-            # power_t
-            if self.NNspinPowerT.isEnabled():
-                self.NNspinPowerT.setValue(parameters['power_t'])
-            # max_iter
-            self.NNspinMaxIter.setValue(parameters['max_iter'])
-            # shuffle
-            if self.NNcheckShuffle.isEnabled():
-                self.NNcheckShuffle.setChecked(parameters['shuffle'])
-            # random_state
-            if parameters['random_state'] is None:
-                self.NNspinRandomState.setValue(-1)
+                    self.statusBar.showMessage('Error: Unknown selected algorithm!',
+                                               3000)
+
             else:
-                self.NNspinRandomState.setValue(parameters['random_state'])
-            # beta_1, beta_2 and epsilon
-            if self.NNspinBeta_1.isEnabled():
-                self.NNspinBeta_1.setValue(parameters['beta_1'])
-            if self.NNspinBeta_2.isEnabled():
-                self.NNspinBeta_2.setValue(parameters['beta_2'])
-            if self.NNspinEpsilon.isEnabled():
-                self.NNspinEpsilon.setValue(parameters['epsilon'])
+                # Update algorithm parameters
+                if algorithm == 'RandomForestClassifier':
+                    self.algo = 'rf'
+                    self.listAlgorithms.setCurrentItem(self.listAlgorithms.item(0))
+                    self.RFcheckImportance.setChecked(config_dict['png_features'])
 
-        elif algorithm == 'KMeans':
-            self.algo = 'kmeans'
-            self.listAlgorithms.setCurrentItem(self.listAlgorithms.item(3))
+                    # Get algo parameter dict
+                    param_dict = config_dict['parameters']
 
-            # Get algo parameter dict
-            parameters = config['parameters']
+                    # n_estimators
+                    self.RFspinEstimators.setValue(param_dict['n_estimators'])
+                    # criterion
+                    self.RFcomboCriterion.setCurrentText(param_dict['criterion'])
+                    # max_depth
+                    if param_dict['max_depth'] is None:
+                        self.RFspinMaxDepth.setValue(0)
+                    else:
+                        self.RFspinMaxDepth.setValue(param_dict['max_depth'])
+                    # min_samples_split
+                    self.RFspinSamplesSplit.setValue(param_dict['min_samples_split'])
+                    # min_samples_leaf
+                    self.RFspinSamplesLeaf.setValue(param_dict['min_samples_leaf'])
+                    # min_weight_fraction_leaf
+                    self.RFspinWeightLeaf.setValue(param_dict['min_weight_fraction_leaf'])
+                    # max_features
+                    self.RFcomboMaxFeatures.setCurrentText(param_dict['max_features'])
+                    # n_jobs
+                    if param_dict['n_jobs'] is None:
+                        self.RFspinNJob.setValue(0)
+                    else:
+                        self.RFspinNJob.setValue(param_dict['n_jobs'])
+                    # random_state
+                    if param_dict['random_state'] is None:
+                        self.RFspinRandomState.setValue(-1)
+                    else:
+                        self.RFspinRandomState.setValue(param_dict['random_state'])
 
-            # n_clusters
-            self.KMspinNClusters.setValue(parameters['n_clusters'])
-            # init
-            self.KMcomboInit.setCurrentText(parameters['init'])
-            # n_init
-            self.KMspinNInit.setValue(parameters['n_init'])
-            # max_iter
-            self.KMspinMaxIter.setValue(parameters['max_iter'])
-            # tol
-            self.KMspinTol.setValue(parameters['tol'])
-            # random_state
-            if parameters['random_state'] is None:
-                self.KMspinRandomState.setValue(-1)
-            else:
-                self.KMspinRandomState.setValue(parameters['random_state'])
-            # algorithm
-            self.KMcomboAlgorithm.setCurrentText(parameters['algorithm'])
+                elif algorithm == 'GradientBoostingClassifier':
+                    self.algo = 'gb'
+                    self.listAlgorithms.setCurrentItem(self.listAlgorithms.item(1))
+                    self.RFcheckImportance.setChecked(config_dict['png_features'])
 
-        else:
-            self.statusBar.showMessage('Error: Unknown algorithm from config file!',
-                                       3000)
+                    # Get algo parameter dict
+                    param_dict = config_dict['parameters']
 
-        # Get the selected features
-        feature_names = config['feature_names']
-        for feature in feature_names:
-            item = self.listFeatures.findItems(feature, Qt.MatchExactly)
-            if len(item) > 0:
-                row = self.listFeatures.row(item[0])
-                self.listFeatures.item(row).setSelected(True)
+                    # loss
+                    self.GBcomboLoss.setCurrentText(param_dict['loss'])
+                    # learning_rate
+                    self.GBspinLearningRate.setValue(param_dict['learning_rate'])
+                    # n_estimators
+                    self.GBspinEstimators.setValue(param_dict['n_estimators'])
+                    # subsample
+                    self.GBspinSubsample.setValue(param_dict['subsample'])
+                    # criterion
+                    self.GBcomboCriterion.setCurrentText(param_dict['criterion'])
+                    # min_samples_split
+                    self.GBspinSamplesSplit.setValue(param_dict['min_samples_split'])
+                    # min_samples_leaf
+                    self.GBspinSamplesLeaf.setValue(param_dict['min_samples_leaf'])
+                    # min_weight_fraction_leaf
+                    self.GBspinWeightLeaf.setValue(param_dict['min_weight_fraction_leaf'])
+                    # max_depth
+                    if param_dict['max_depth'] is None:
+                        self.GBspinMaxDepth.setValue(0)
+                    else:
+                        self.GBspinMaxDepth.setValue(param_dict['max_depth'])
+                    # random_state
+                    if param_dict['random_state'] is None:
+                        self.GBspinRandomState.setValue(-1)
+                    else:
+                        self.GBspinRandomState.setValue(param_dict['random_state'])
+                    # max_features
+                    if param_dict['max_features'] is None:
+                        self.GBcomboMaxFeatures.setCurrentText('None')
+                    else:
+                        self.GBcomboMaxFeatures.setCurrentText(param_dict['max_features'])
 
-        # Update the config_dict
-        self.update_config()
+                elif algorithm == 'MLPClassifier':
+                    self.algo = 'ann'
+                    self.listAlgorithms.setCurrentItem(self.listAlgorithms.item(2))
+
+                    # Get algo parameter dict
+                    param_dict = config_dict['parameters']
+
+                    # hidden_layer_sizes
+                    hidden_layers = [str(layer) for layer in param_dict['hidden_layer_sizes']]
+                    self.NNlineHiddenLayers.setText(','.join(hidden_layers))
+                    # activation
+                    self.NNcomboActivation.setCurrentText(param_dict['activation'])
+                    # solver
+                    self.NNcomboSolver.setCurrentText(param_dict['solver'])
+                    self.nn_solver_options()
+                    # alpha
+                    self.NNspinAlpha.setValue(param_dict['alpha'])
+                    # batch_size
+                    if self.NNspinBatchSize.isEnabled():
+                        if param_dict['batch_size'] == 'auto':
+                            self.NNspinBatchSize.setValue(-1)
+                        else:
+                            self.NNspinBatchSize.setValue(param_dict['batch_size'])
+                    # learning_rate
+                    if self.NNcomboLearningRate.isEnabled():
+                        self.NNcomboLearningRate.setCurrentText(param_dict['learning_rate'])
+                    # learning_rate_init
+                    if self.NNspinLearningRateInit.isEnabled():
+                        self.NNspinLearningRateInit.setValue(param_dict['learning_rate_init'])
+                    # power_t
+                    if self.NNspinPowerT.isEnabled():
+                        self.NNspinPowerT.setValue(param_dict['power_t'])
+                    # max_iter
+                    self.NNspinMaxIter.setValue(param_dict['max_iter'])
+                    # shuffle
+                    if self.NNcheckShuffle.isEnabled():
+                        self.NNcheckShuffle.setChecked(param_dict['shuffle'])
+                    # random_state
+                    if param_dict['random_state'] is None:
+                        self.NNspinRandomState.setValue(-1)
+                    else:
+                        self.NNspinRandomState.setValue(param_dict['random_state'])
+                    # beta_1, beta_2 and epsilon
+                    if self.NNspinBeta_1.isEnabled():
+                        self.NNspinBeta_1.setValue(param_dict['beta_1'])
+                    if self.NNspinBeta_2.isEnabled():
+                        self.NNspinBeta_2.setValue(param_dict['beta_2'])
+                    if self.NNspinEpsilon.isEnabled():
+                        self.NNspinEpsilon.setValue(param_dict['epsilon'])
+
+                # elif algorithm == 'KMeans':
+                #     self.algo = 'kmeans'
+                #     self.listAlgorithms.setCurrentItem(self.listAlgorithms.item(3))
+                #
+                #     # Get algo parameter dict
+                #     param_dict = config_dict['parameters']
+                #
+                #     # n_clusters
+                #     self.KMspinNClusters.setValue(param_dict['n_clusters'])
+                #     # init
+                #     self.KMcomboInit.setCurrentText(param_dict['init'])
+                #     # n_init
+                #     self.KMspinNInit.setValue(param_dict['n_init'])
+                #     # max_iter
+                #     self.KMspinMaxIter.setValue(param_dict['max_iter'])
+                #     # tol
+                #     self.KMspinTol.setValue(param_dict['tol'])
+                #     # random_state
+                #     if param_dict['random_state'] is None:
+                #         self.KMspinRandomState.setValue(-1)
+                #     else:
+                #         self.KMspinRandomState.setValue(param_dict['random_state'])
+                #     # algorithm
+                #     self.KMcomboAlgorithm.setCurrentText(param_dict['algorithm'])
+                #
+                else:
+                    self.statusBar.showMessage('Error: Unknown algorithm from config file!',
+                                               3000)
+
+            # Get the selected features
+            feature_names = config_dict['feature_names']
+            for feature in feature_names:
+                item = self.listFeatures.findItems(feature, Qt.MatchExactly)
+                if len(item) > 0:
+                    row = self.listFeatures.row(item[0])
+                    self.listFeatures.item(row).setSelected(True)
+
+            # Update the config_dict
+            self.update_config()
 
     def update_config(self):
         """
-        Update the dictionary of configuration self.config_dict.
+        Update the configuration of training, predictions or semgentation according the current tab.
         """
-
-        # Save input file, output folder and sample size
-        if self.radioLocal.isChecked():
-            self.config_dict['local_compute'] = True
-            self.config_dict['input_file'] = self.lineLocalFile.text()
-            self.config_dict['output_folder'] = self.lineLocalFolder.text()
+        if self.tabModes.currentIndex() == 0:
+            self.update_train_config()
+        elif self.tabModes.currentIndex() == 1:
+            self.update_predict_config()
+        elif self.tabModes.currentIndex() == 2:
+            self.update_segment_config()
         else:
-            self.config_dict['local_compute'] = False
-            self.config_dict['local_input'] = self.lineFile.text()
-            self.config_dict['input_file'] = self.lineServerFile.text()
-            self.config_dict['output_folder'] = self.lineServerFolder.text()
+            raise IndexError("Returning selected tab does not exist!")
 
-        self.config_dict['samples'] = self.spinSampleSize.value()
-        self.config_dict['training_ratio'] = self.spinTrainRatio.value()
+    def update_train_config(self):
+        """
+        Update the dictionary of the training configuration
+        """
+        # Erase previous config
+        self.train_config = dict()
+
+        # Save input file, output folder
+        if self.pushLocal.isChecked():
+            self.train_config['local_compute'] = True
+            self.train_config['input_file'] = self.lineLocalFile.text()
+            self.train_config['output_folder'] = self.lineLocalFolder.text()
+        else:
+            self.train_config['local_compute'] = False
+            self.train_config['local_input'] = self.lineFile.text()
+            self.train_config['input_file'] = self.lineServerFile.text()
+            self.train_config['output_folder'] = self.lineServerFolder.text()
+
+        # Save sample size and train ratio
+        self.train_config['samples'] = self.spinSampleSize.value()
+        self.train_config['training_ratio'] = self.spinTrainRatio.value()
 
         # Get the selected algorithm and the parameters
         param_dict = dict()
         selected_algo = self.listAlgorithms.selectedItems()[0].text()
+
         # if Random Forest
         if selected_algo == "Random Forest":
             self.algo = 'rf'
-            self.config_dict['algorithm'] = 'RandomForestClassifier'
-            self.config_dict['png_features'] = self.RFcheckImportance.isChecked()
+            self.train_config['algorithm'] = 'RandomForestClassifier'
+            self.train_config['grid_search'] = False
+            self.train_config['png_features'] = self.RFcheckImportance.isChecked()
 
             # n_estimators
             param_dict['n_estimators'] = self.RFspinEstimators.value()
@@ -1354,11 +2223,79 @@ class ClaspyGui(QMainWindow):
             else:
                 param_dict['random_state'] = self.RFspinRandomState.value()
 
+        # if Random Forest (GridSearchCV)
+        if selected_algo == "Random Forest (GridSearchCV)":
+            self.algo = 'rf'
+            self.train_config['algorithm'] = 'RandomForestClassifier'
+            self.train_config['grid_search'] = True
+            self.train_config['png_features'] = False
+
+            # n_estimators
+            n_estimators_list = format_numberlist(self.RFgridlineEstimators.text(), as_type='list')
+            if n_estimators_list:
+                param_dict['n_estimators'] = n_estimators_list
+
+            # criterion
+            criterion_list = [item.text() for item in self.RFgridlistCriterion.selectedItems()]
+            if criterion_list:
+                param_dict['criterion'] = criterion_list
+
+            # max_depth
+            max_depth_list = format_numberlist(self.RFgridlineMaxDepth.text(), as_type='list')
+            # Get the occurrences of '0' and remove it
+            zeros = [value for value in max_depth_list if value == 0]
+            [max_depth_list.remove(zero) for zero in zeros]
+            if max_depth_list:
+                param_dict['max_depth'] = max_depth_list
+
+            # min_samples_split
+            samples_split_list = format_numberlist(self.RFgridlineSamplesSplit.text(), as_type='list')
+            # Get values < 2
+            inferior_2 = [value for value in samples_split_list if value < 2]
+            [samples_split_list.remove(value) for value in inferior_2]
+            if samples_split_list:
+                param_dict['min_samples_split'] = samples_split_list
+
+            # min_samples_leaf
+            samples_leaf_list = format_numberlist(self.RFgridlineSamplesLeaf.text(), as_type='list')
+            # Get values < 1
+            inferior_1 = [value for value in samples_leaf_list if value < 1]
+            [samples_leaf_list.remove(value) for value in inferior_1]
+            if samples_leaf_list:
+                param_dict['min_samples_leaf'] = samples_leaf_list
+
+            # min_weight_fraction_leaf
+            weight_leaf_list = format_floatlist(self.RFgridlineWeightLeaf.text(), as_type='list')
+            if weight_leaf_list:
+                param_dict['min_weight_fraction_leaf'] = weight_leaf_list
+
+            # max_features
+            max_features_list = [item.text() for item in self.RFgridlistMaxFeatures.selectedItems()]
+            if max_features_list:
+                param_dict['max_features'] = max_features_list
+
+            # n_jobs
+            if self.RFgridspinNJob.value() == 0:
+                param_dict['n_jobs'] = 1
+            elif self.RFgridspinNJob.value() == -1:
+                param_dict['n_jobs'] = -1
+            else:
+                param_dict['n_jobs'] = self.RFgridspinNJob.value()
+
+            # random_state
+            random_state_list = format_numberlist(self.RFgridlineRandomState.text(), as_type='list')
+            # Get the occurrences of number < '0' and remove it
+            zeros_random = [value for value in random_state_list if value < 0]
+            [random_state_list.remove(value) for value in zeros_random]
+            if random_state_list:
+                param_dict['random_state'] = random_state_list
+
         # if Gradient Boosting
         elif selected_algo == "Gradient Boosting":
             self.algo = 'gb'
-            self.config_dict['algorithm'] = 'GradientBoostingClassifier'
-            self.config_dict['png_features'] = self.GBcheckImportance.isChecked()
+            self.train_config['algorithm'] = 'GradientBoostingClassifier'
+            self.train_config['grid_search'] = False
+            self.train_config['png_features'] = self.GBcheckImportance.isChecked()
 
             # loss
             param_dict['loss'] = self.GBcomboLoss.currentText()
@@ -1392,15 +2329,85 @@ class ClaspyGui(QMainWindow):
             else:
                 param_dict['max_features'] = self.GBcomboMaxFeatures.currentText()
 
+        # if Gradient Boosting with GridSearchCV
+        elif selected_algo == "Gradient Boosting (GridSearchCV)":
+            self.algo = 'gb'
+            self.train_config['algorithm'] = 'GradientBoostingClassifier'
+            self.train_config['grid_search'] = True
+            self.train_config['png_features'] = False
+
+            # loss
+            loss_list = [item.text() for item in self.GBgridlistLoss.selectedItems()]
+            if loss_list:
+                param_dict['loss'] = loss_list
+
+            # learning_rate
+            learning_rate_list = format_floatlist(self.GBgridlineLearningRate.text(), as_type='list')
+            if learning_rate_list:
+                param_dict['learning_rate'] = learning_rate_list
+
+            # n_estimators
+            n_estimators_list = format_numberlist(self.GBgridlineEstimators.text(), as_type='list')
+            if n_estimators_list:
+                param_dict['n_estimators'] = n_estimators_list
+
+            # subsample
+            subsample_list = format_floatlist(self.GBgridlineSubsample.text(), as_type='list')
+            if subsample_list:
+                param_dict['subsample'] = subsample_list
+
+            # criterion
+            criterion_list = [item.text() for item in self.GBgridlistCriterion.selectedItems()]
+            if criterion_list:
+                param_dict['criterion'] = criterion_list
+
+            # min_samples_split
+            min_samples_split_list = format_numberlist(self.GBgridlineSamplesSplit.text(), as_type='list')
+            if min_samples_split_list:
+                param_dict['min_samples_split'] = min_samples_split_list
+
+            # min_samples_leaf
+            min_samples_leaf_list = format_numberlist(self.GBgridlineSamplesLeaf.text(), as_type='list')
+            if min_samples_leaf_list:
+                param_dict['min_samples_leaf'] = min_samples_leaf_list
+
+            # min_weight_fraction_leaf
+            min_weight_leaf_list = format_floatlist(self.GBgridlineWeightLeaf.text(), as_type='list')
+            if min_weight_leaf_list:
+                param_dict['min_weight_fraction_leaf'] = min_weight_leaf_list
+
+            # max_depth
+            max_depth_list = format_numberlist(self.GBgridlineMaxDepth.text(), as_type='list')
+            # Get the occurrences of '0' and remove it
+            zeros = [value for value in max_depth_list if value == 0]
+            [max_depth_list.remove(zero) for zero in zeros]
+            if max_depth_list:
+                param_dict['max_depth'] = max_depth_list
+
+            # random_state
+            random_state_list = format_numberlist(self.GBgridlineRandomState.text(), as_type='list')
+            # Get the occurrences of number < '0' and remove it
+            zeros_random = [value for value in random_state_list if value < 0]
+            [random_state_list.remove(value) for value in zeros_random]
+            if random_state_list:
+                param_dict['random_state'] = random_state_list
+
+            # max_features
+            max_features_list = [item.text() for item in self.GBgridlistMaxFeatures.selectedItems()]
+            if max_features_list:
+                param_dict['max_features'] = max_features_list
+
         # if Neural Network
         elif selected_algo == "Neural Network":
             self.algo = 'ann'
-            self.config_dict['algorithm'] = 'MLPClassifier'
+            self.train_config['algorithm'] = 'MLPClassifier'
+            self.train_config['grid_search'] = False
+            self.train_config['png_features'] = False
 
             # hidden_layer_sizes
             hidden_layers = self.NNlineHiddenLayers.text().replace(' ', '')
             if hidden_layers == '':
-                param_dict['hidden_layer_sizes'] = (100,)
+                param_dict['hidden_layer_sizes'] = [25,50,25]
             else:
                 param_dict['hidden_layer_sizes'] = [int(layer) for layer in hidden_layers.split(',')]
             # activation
@@ -1442,51 +2449,215 @@ class ClaspyGui(QMainWindow):
             if self.NNspinEpsilon.isEnabled():
                 param_dict['epsilon'] = self.NNspinEpsilon.value()
 
-        # if K-Means Clustering
-        elif selected_algo == "K-Means Clustering":
-            self.algo = 'kmeans'
-            self.config_dict['algorithm'] = 'KMeans'
+        # if Neural Network with GridSearchCV
+        elif selected_algo == "Neural Network (GridSearchCV)":
+            self.algo = 'ann'
+            self.train_config['algorithm'] = 'MLPClassifier'
+            self.train_config['grid_search'] = True
+            self.train_config['png_features'] = False
 
-            # n_clusters
-            param_dict['n_clusters'] = self.KMspinNClusters.value()
-            # init
-            param_dict['init'] = self.KMcomboInit.currentText()
-            # n_init
-            param_dict['n_init'] = self.KMspinNInit.value()
-            # max_iter
-            param_dict['max_iter'] = self.KMspinMaxIter.value()
-            # tol
-            param_dict['tol'] = self.KMspinTol.value()
-            # random_state
-            if self.KMspinRandomState.value() == -1:
-                param_dict['random_state'] = None
+            # hidden_layer_sizes
+            hidden_layers_list = format_layerlist(self.NNgridlineHiddenLayers.text(), as_type='list')
+            if hidden_layers_list:
+                param_dict['hidden_layer_sizes'] = hidden_layers_list
             else:
-                param_dict['random_state'] = self.KMspinRandomState.value()
-            # algorithm
-            param_dict['algorithm'] = self.KMcomboAlgorithm.currentText()
+                parameter_error_box("Parameter 'hidden_layer_sizes is empty.\n"
+                                    "Please, give one list of layers, at least.")
+            # activation
+            activation_list = [item.text() for item in self.NNgridlistActivation.selectedItems()]
+            if activation_list:
+                param_dict['activation'] = activation_list
+
+            # solver
+            solver_list = [item.text() for item in self.NNgridlistSolver.selectedItems()]
+            if solver_list:
+                param_dict['solver'] = solver_list
+
+            # alpha
+            alpha_list = format_floatlist(self.NNgridlineAlpha.text(), as_type='list')
+            if alpha_list:
+                param_dict['alpha'] = alpha_list
+
+            # batch_size
+            if self.NNgridlineBatchSize.isEnabled():
+                batch_size_list = format_numberlist(self.NNgridlineBatchSize.text(), as_type='list')
+                if batch_size_list:
+                    param_dict['batch_size'] = batch_size_list
+
+            # learning_rate
+            if self.NNgridlistLearningRate.isEnabled():
+                learning_rate_list = [item.text() for item in self.NNgridlistLearningRate.selectedItems()]
+                if learning_rate_list:
+                    param_dict['learning_rate'] = learning_rate_list
+
+            # learning_rate_init
+            if self.NNgridlineLearningRateInit.isEnabled():
+                learning_init_list = format_floatlist(self.NNgridlineLearningRateInit.text(), as_type='list')
+                if learning_init_list:
+                    param_dict['learning_rate_init'] = learning_init_list
+
+            # power_t
+            if self.NNgridlinePowerT.isEnabled():
+                power_t_list = format_floatlist(self.NNgridlinePowerT.text(), as_type='list')
+                if power_t_list:
+                    param_dict['power_t'] = power_t_list
+
+            # max_iter
+            max_iter_list = format_numberlist(self.NNgridlineMaxIter.text(), as_type='list')
+            if max_iter_list:
+                param_dict['max_iter'] = max_iter_list
+
+            # shuffle
+            if self.NNgridlistShuffle.isEnabled():
+                shuffle_list = [item.text() for item in self.NNgridlistShuffle.selectedItems()]
+                true_shuffle_list = list()  # Only True or/and False accepted
+                for item in shuffle_list:
+                    if item == 'shuffle':
+                        true_shuffle_list.append(True)
+                    if item == 'no shuffle':
+                        true_shuffle_list.append(False)
+                if true_shuffle_list:
+                    param_dict['shuffle'] = true_shuffle_list
+
+            # random_state
+            random_state_list = format_numberlist(self.NNgridlineRandomState.text(), as_type='list')
+            # Get the occurrences of number < '0' and remove it
+            zeros_random = [value for value in random_state_list if value < 0]
+            [random_state_list.remove(value) for value in zeros_random]
+            if random_state_list:
+                param_dict['random_state'] = random_state_list
+
+            # beta_1, beta_2 and epsilon
+            if self.NNgridlineBeta_1.isEnabled():
+                beta_1_list = format_floatlist(self.NNgridlineBeta_1.text(), as_type='list')
+                if beta_1_list:
+                    param_dict['beta_1'] = beta_1_list
+
+            if self.NNgridlineBeta_2.isEnabled():
+                beta_2_list = format_floatlist(self.NNgridlineBeta_2.text(), as_type='list')
+                if beta_2_list:
+                    param_dict['beta_2'] = beta_2_list
+
+            if self.NNgridlineEpsilon.isEnabled():
+                epsilon_list = format_floatlist(self.NNgridlineEpsilon.text(), as_type='list')
+                if epsilon_list:
+                    param_dict['epsilon'] = epsilon_list
+
+        # if K-Means Clustering
+        # elif selected_algo == "K-Means Clustering":
+        #     self.algo = 'kmeans'
+        #     self.config_dict['algorithm'] = 'KMeans'
+        #     self.config_dict['png_features'] = False
+        #
+        #     # n_clusters
+        #     param_dict['n_clusters'] = self.KMspinNClusters.value()
+        #     # init
+        #     param_dict['init'] = self.KMcomboInit.currentText()
+        #     # n_init
+        #     param_dict['n_init'] = self.KMspinNInit.value()
+        #     # max_iter
+        #     param_dict['max_iter'] = self.KMspinMaxIter.value()
+        #     # tol
+        #     param_dict['tol'] = self.KMspinTol.value()
+        #     # random_state
+        #     if self.KMspinRandomState.value() == -1:
+        #         param_dict['random_state'] = None
+        #     else:
+        #         param_dict['random_state'] = self.KMspinRandomState.value()
+        #     # algorithm
+        #     param_dict['algorithm'] = self.KMcomboAlgorithm.currentText()
 
         # if anything else
         else:
             self.statusBar.showMessage('Error: Unknown selected algorithm!',
                                        3000)
 
-        self.config_dict['parameters'] = param_dict
+        # Save classifier parameters with GridSearchCV or not
+        if self.train_config['grid_search']:
+            self.train_config['param_grid'] = param_dict
+            try:
+                self.train_config.pop('parameters')  # Remove 'parameters'
+            except KeyError:
+                pass
+        else:
+            self.train_config['parameters'] = param_dict
+            try:
+                self.train_config.pop('param_grid')  # Remove 'param_grid'
+            except KeyError:
+                pass
 
-        # Save the random_state for data split, GridSearchCV or cross_val
-        self.config_dict['random_state'] = param_dict['random_state']
+        # Get the Random State for splitting data and Shuffle split
+        self.train_config['random_state'] = self.spinRandomState.value()
 
         # Get the current selected features
         self.selectedFeatures = [item.text() for item in self.listFeatures.selectedItems()]
         self.selectedFeatures.sort()
-        self.config_dict['feature_names'] = self.selectedFeatures
+        self.train_config['feature_names'] = self.selectedFeatures
+
+    def update_predict_config(self):
+        """
+        Update the dictionary of the prediction configuration
+        """
+        # Erase previous config
+        self.predict_config = dict()
+
+        # Save input file, output folder
+        if self.pushLocal.isChecked():
+            self.predict_config['local_compute'] = True
+            self.predict_config['input_file'] = self.lineLocalFile.text()
+            self.predict_config['output_folder'] = self.lineLocalFolder.text()
+        else:
+            self.predict_config['local_compute'] = False
+            self.predict_config['local_input'] = self.lineFile.text()
+            self.predict_config['input_file'] = self.lineServerFile.text()
+            self.predict_config['output_folder'] = self.lineServerFolder.text()
+
+        # Save sample size and train ratio
+        self.predict_config['samples'] = self.spinSampleSize.value()
+        self.predict_config['training_ratio'] = self.spinTrainRatio.value()
+
+    def update_segment_config(self):
+        """
+        Update the dictionary of the segmentation configuration
+        """
+        # Erase previous config
+        self.segment_config = dict()
+
+        # Save input file, output folder
+        if self.pushLocal.isChecked():
+            self.segment_config['local_compute'] = True
+            self.segment_config['input_file'] = self.lineLocalFile.text()
+            self.segment_config['output_folder'] = self.lineLocalFolder.text()
+        else:
+            self.segment_config['local_compute'] = False
+            self.segment_config['local_input'] = self.lineFile.text()
+            self.segment_config['input_file'] = self.lineServerFile.text()
+            self.segment_config['output_folder'] = self.lineServerFolder.text()
+
+        # Save sample size and train ratio
+        self.segment_config['samples'] = self.spinSampleSize.value()
+        self.segment_config['training_ratio'] = self.spinTrainRatio.value()
 
     def save_config(self):
         """
-        Save the self.config_dict into a JSON file
+        Save the configuration of training, predictions or semgentation according the current tab.
+        """
+        if self.tabModes.currentIndex() == 0:
+            self.save_train_config()
+        elif self.tabModes.currentIndex() == 1:
+            self.save_predict_config()
+        elif self.tabModes.currentIndex() == 2:
+            self.save_segment_config()
+        else:
+            raise IndexError("Returning selected tab does not exist!")
+
+    def save_train_config(self):
+        """
+        Save the training configuration into a JSON file
         """
         self.update_config()
 
-        if len(self.config_dict['feature_names']) > 0:
+        if len(self.train_config['feature_names']) > 0:
             # Save the JSON file
             self.statusBar.showMessage("Saving JSON config file...", 3000)
             json_file = QFileDialog.getSaveFileName(None, 'Save JSON config file',
@@ -1494,7 +2665,40 @@ class ClaspyGui(QMainWindow):
 
             if json_file[0] != '':
                 with open(json_file[0], 'w') as config_file:
-                    json.dump(self.config_dict, config_file)
+                    json.dump(self.train_config, config_file)
+                    self.statusBar.showMessage("Config file saved: {}".format(json_file[0]),
+                                               5000)
+        else:
+            nofeatures_warning()
+
+    def save_predict_config(self):
+        """
+        Nothing to save for prediction
+        """
+        parameter_box = QMessageBox()
+        parameter_box.setIcon(QMessageBox.Warning)
+        parameter_box.setText("There is nothing to save in prediction mode\n"
+                              "...for the time being!")
+        parameter_box.setWindowTitle("Saving prediction configuration?")
+        parameter_box.setStandardButtons(QMessageBox.Ok)
+        parameter_box.buttonClicked.connect(parameter_box.close)
+        parameter_box.exec_()
+
+    def save_segment_config(self):
+        """
+        Save the segmentation configuration into a JSON file
+        """
+        self.update_config()
+
+        if len(self.segment_config['feature_names']) > 0:
+            # Save the JSON file
+            self.statusBar.showMessage("Saving JSON config file...", 3000)
+            json_file = QFileDialog.getSaveFileName(None, 'Save JSON config file',
+                                                    '', "JSON files (*.json)")
+
+            if json_file[0] != '':
+                with open(json_file[0], 'w') as config_file:
+                    json.dump(self.segment_config, config_file)
                     self.statusBar.showMessage("Config file saved: {}".format(json_file[0]),
                                                5000)
         else:
@@ -1512,51 +2716,59 @@ class ClaspyGui(QMainWindow):
             with open(cmd_output_file[0], 'w') as text_file:
                 text_file.write(cmd_output)
 
-    def run_claspy_t(self):
+    def run_train(self):
         self.update_config()
 
-        # Check if some feature selected
-        if len(self.config_dict['feature_names']) > 0:
-            features = str(self.config_dict['feature_names']).replace(' ', '')
+        # Check that some feature are selected
+        if len(self.train_config['feature_names']) > 0:
+            features = str(self.train_config['feature_names']).replace(' ', '')
 
-            # Setting up parameters, remove parameters set as None
-            parameters_dict = self.config_dict['parameters']
-            keys_to_remove = list()  # Create list of keys to remove, because dictionary must keep the same length
-            for key in parameters_dict:
-                if parameters_dict[key] is None:
-                    keys_to_remove.append(key)
-            for key in keys_to_remove:
-                parameters_dict.pop(key)
-            parameters = str(parameters_dict).replace(' ', '')
+            # Train with GridSearchCV or not
+            if self.train_config['grid_search']:
+                # Setting up grid_parameters
+                grid_parameters = str(self.train_config['param_grid'])
 
-            # Create command list to run cLASpy_T
-            if self.algo != 'kmeans':
+                # Create command list to run cLASpy_T
+                command = ["/C", self.pythonPath, "cLASpy_T.py", "train",
+                           "-i", self.lineLocalFile.text(),
+                           "-o", self.lineLocalFolder.text(),
+                           "-a", self.algo,
+                           "-g", "-k", grid_parameters,
+                           "-f", features,
+                           "-s", str(self.train_config['samples']),
+                           "--train_r", str(self.train_config['training_ratio'])]
+
+                if self.train_config['random_state'] is not None:
+                    command.append("--random_state")
+                    command.append(str(self.train_config['random_state']))
+
+            else:
+                # Setting up parameters, remove parameters set as None
+                parameters_dict = self.train_config['parameters']
+                keys_to_remove = list()  # Create list of keys to remove, because dictionary must keep the same length
+                for key in parameters_dict:
+                    if parameters_dict[key] is None:
+                        keys_to_remove.append(key)
+                for key in keys_to_remove:
+                    parameters_dict.pop(key)
+                parameters = str(parameters_dict).replace(' ', '')
+
+                # Create command list to run cLASpy_T
                 command = ["/C", self.pythonPath, "cLASpy_T.py", "train",
                            "-i", self.lineLocalFile.text(),
                            "-o", self.lineLocalFolder.text(),
                            "-a", self.algo,
                            "-p", parameters,
                            "-f", features,
-                           "-s", str(self.config_dict['samples']),
-                           "--train_r", str(self.config_dict['training_ratio'])]
+                           "-s", str(self.train_config['samples']),
+                           "--train_r", str(self.train_config['training_ratio'])]
 
-                if self.config_dict['random_state'] is not None:
+                if self.train_config['random_state'] is not None:
                     command.append("--random_state")
-                    command.append(str(self.config_dict['random_state']))
+                    command.append(str(self.train_config['random_state']))
 
-                if self.config_dict['png_features']:
+                if self.train_config['png_features']:
                     command.append('--png_features')
-            else:
-                command = ["/C", self.pythonPath, "cLASpy_T.py", "segment",
-                           "-i", self.lineLocalFile.text(),
-                           "-o", self.lineLocalFolder.text(),
-                           "-p", parameters,
-                           "-f", features,
-                           "-s", str(self.config_dict['samples'])]
-
-                if self.config_dict['random_state'] is not None:
-                    command.append("--random_state")
-                    command.append(str(self.config_dict['random_state']))
 
             if self.pythonPath != '':
                 if self.process is None:
@@ -1572,6 +2784,40 @@ class ClaspyGui(QMainWindow):
                 self.plainTextCommand.appendPlainText("Set python path through Edit > Options")
         else:
             nofeatures_warning()
+
+    def run_predict(self):
+        if self.process is None:
+            self.process = QProcess()
+            self.process.readyReadStandardOutput.connect(self.handle_stdout)
+            self.process.readyReadStandardError.connect(self.handle_stderr)
+            self.process.stateChanged.connect(self.handle_state)
+            self.process.finished.connect(self.process_finished)
+            self.process.setProgram("cmd.exe")
+            self.process.setArguments(["/C", "echo", "Predict!"])
+            self.process.start()
+
+    def run_segment(self):
+
+        command = ["/C", self.pythonPath, "cLASpy_T.py", "segment",
+                   "-i", self.lineLocalFile.text(),
+                   "-o", self.lineLocalFolder.text(),
+                   "-p", parameters,
+                   "-f", features,
+                   "-s", str(self.train_config['samples'])]
+
+        if self.train_config['random_state'] is not None:
+            command.append("--random_state")
+            command.append(str(self.train_config['random_state']))
+
+        if self.process is None:
+            self.process = QProcess()
+            self.process.readyReadStandardOutput.connect(self.handle_stdout)
+            self.process.readyReadStandardError.connect(self.handle_stderr)
+            self.process.stateChanged.connect(self.handle_state)
+            self.process.finished.connect(self.process_finished)
+            self.process.setProgram("cmd.exe")
+            self.process.setArguments(["/C", "echo", "Segment!"])
+            self.process.start()
 
     def handle_stdout(self):
         data = self.process.readAllStandardOutput()

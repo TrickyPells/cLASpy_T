@@ -144,8 +144,14 @@ def update_arguments(args):
     args.algo = shortname_algo(config['algorithm'])
     args.png_features = config['png_features']
     args.random_state = config['random_state']
-    args.parameters = config['parameters']
     args.features = config['feature_names']
+    args.grid_search = config['grid_search']
+
+    # Set grid parameters or classifier parameters (GridSearchCV or not)
+    if args.grid_search:
+        args.param_grid = config['param_grid']
+    else:
+        args.parameters = config['parameters']
 
 
 def introduction(algorithm, file_path, folder_path=None):

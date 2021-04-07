@@ -71,6 +71,7 @@ def get_classifier(args, mode='training', algorithm=None):
     else:
         parameters = None
 
+    print(parameters)
     # Set the chosen learning classifier
     if algorithm == 'RandomForestClassifier':
         classifier = set_random_forest(fit_params=parameters)
@@ -135,8 +136,28 @@ def check_parameters(classifier, fit_params):
     # Get the type of classifier
     clf_name = str(type(classifier)).split('.')[-1][:-2]
 
+    print(clf_name)
+    if clf_name == 'RandomForestClassifier':
+        double_float = ['min_weight_fraction_leaf']
+
+    elif clf_name == 'GradientBoostingClassifier':
+        double_float = ['min_weight_fraction_leaf',
+                        'learning_rate', 'subsample']
+
+    elif clf_name == 'MLPClassifier':
+        double_float = ['alpha', 'learning_rate_init', 'power_t',
+                        'beta_1', 'beta_2', 'epsilon']
+
+    elif clf_name == 'KMeans':
+        double_float = ['tol']
+
+    else:
+        double_float = list()
+
     # Check if the parameters are valid for the given classifier
     for key in fit_params.keys():
+        if key in double_float:
+            fit_params[key] = float(fit_params[key])
         try:
             temp_dict = {key: fit_params[key]}
             classifier.set_params(**temp_dict)
@@ -144,6 +165,7 @@ def check_parameters(classifier, fit_params):
             print("ValueError: Invalid parameter '{}' for {}, "
                   "it was skipped!".format(str(key), clf_name))
 
+    print(fit_params)
     return classifier
 
 
@@ -456,8 +478,12 @@ def train(args):
 
         # Check param_grid exists
         if args.param_grid:
-            param_grid = yaml.safe_load(args.param_grid)
-
+            if isinstance(args.param_grid, str):
+                param_grid = yaml.safe_load(args.param_grid)
+            elif isinstance(args.param_grid, dict):
+                param_grid = args.param_grid
+            else:
+                param_grid = None
         else:
             param_grid = None
 
