@@ -32,6 +32,7 @@ import sys
 import re
 import time
 import laspy
+import joblib
 
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
@@ -246,8 +247,22 @@ def parameter_error_box(message):
     parameter_box.exec_()
 
 # -------------------------
-# -------- CLASS ----------
+# ------- CLASSES ---------
 # -------------------------
+
+
+class QHLine(QFrame):
+    def __init__(self):
+        super(QHLine, self).__init__()
+        self.setFrameShape(QFrame.HLine)
+        self.setFrameShadow(QFrame.Sunken)
+
+
+class QVLine(QFrame):
+    def __init__(self):
+        super(QVLine, self).__init__()
+        self.setFrameShape(QFrame.VLine)
+        self.setFrameShadow(QFrame.Sunken)
 
 
 class ClaspyGui(QMainWindow):
@@ -338,27 +353,52 @@ class ClaspyGui(QMainWindow):
         self.vLayoutLeft.addWidget(self.tabModes)
 
         # Central part of GUI
-        self.groupFeatures = QGroupBox("Feature Fields")
+        # List of standard field of LAS
+        self.groupStandardLAS = QGroupBox("Standard LAS Fields")
+
+        self.labelStandardLAS = QLabel("Select standard fields:\n\n\n"
+                                       "(press Ctrl for\n"
+                                       "multiple selection)")
+        self.labelStandardLAS.setAlignment(Qt.AlignLeft | Qt.AlignTop)
+        self.listStandardLAS = QListWidget()
+        self.listStandardLAS.setSelectionMode(QAbstractItemView.ExtendedSelection)
+        self.listStandardLAS.setSortingEnabled(False)
+        self.listStandardLAS.itemSelectionChanged.connect(self.number_selected_features)
+
+        self.formLayoutStandardLAS = QFormLayout()
+        self.formLayoutStandardLAS.addRow(self.labelStandardLAS, self.listStandardLAS)
+        self.groupStandardLAS.setLayout(self.formLayoutStandardLAS)
 
         # List of features
+        self.groupFeatures = QGroupBox("Extra Features")
+
         self.labelFeatures = QLabel("Select features:\n\n\n"
-                                    "(press Ctrl+Shift\n"
-                                    "for multiple selection)")
+                                    "(press Ctrl for\n"
+                                    "multiple selection)")
         self.labelFeatures.setAlignment(Qt.AlignLeft | Qt.AlignTop)
         self.listFeatures = QListWidget()
         self.listFeatures.setSelectionMode(QAbstractItemView.ExtendedSelection)
         self.listFeatures.setSortingEnabled(True)
         self.listFeatures.itemSelectionChanged.connect(self.number_selected_features)
 
+        self.formLayoutFeatures = QFormLayout()
+        self.formLayoutFeatures.addRow(self.labelFeatures, self.listFeatures)
+        self.groupFeatures.setLayout(self.formLayoutFeatures)
+
         # Number of selected features
         self.labelNbrSelFeatures = QLabel()
         self.number_selected_features()
+        self.pushResetSelection = QPushButton("Reset Selection")
+        self.pushResetSelection.clicked.connect(self.reset_selection_fields)
 
         # Fill the feature groupBox with layout
-        self.formLayoutCentral = QFormLayout()
-        self.formLayoutCentral.addRow(self.labelFeatures, self.listFeatures)
-        self.formLayoutCentral.addRow("Number of selected features:", self.labelNbrSelFeatures)
-        self.groupFeatures.setLayout(self.formLayoutCentral)
+        self.vLayoutCentral = QVBoxLayout()
+        self.vLayoutCentral.addWidget(self.groupStandardLAS)
+        self.vLayoutCentral.setStretchFactor(self.groupStandardLAS, 1)
+        self.vLayoutCentral.addWidget(self.groupFeatures)
+        self.vLayoutCentral.setStretchFactor(self.groupFeatures, 3)
+        self.vLayoutCentral.addWidget(self.pushResetSelection)
+        self.vLayoutCentral.addWidget(self.labelNbrSelFeatures)
 
         # Right part of GUI
         self.plainTextCommand = QPlainTextEdit()
@@ -411,8 +451,11 @@ class ClaspyGui(QMainWindow):
         # Fill the main layout
         self.hMainLayout = QHBoxLayout()
         self.hMainLayout.addLayout(self.vLayoutLeft)
-        self.hMainLayout.addWidget(self.groupFeatures)
+        self.hMainLayout.setStretchFactor(self.vLayoutLeft, 3)
+        self.hMainLayout.addLayout(self.vLayoutCentral)
+        self.hMainLayout.setStretchFactor(self.vLayoutCentral, 2)
         self.hMainLayout.addWidget(self.groupCommand)
+        self.hMainLayout.setStretchFactor(self.groupCommand, 3)
 
         self.vMainLayout = QVBoxLayout(self.mainWidget)
         self.vMainLayout.addLayout(self.hMainLayout)
@@ -525,7 +568,10 @@ class ClaspyGui(QMainWindow):
 
     def tabui_train(self):
         # Group Training
-        self.groupTrain = QGroupBox("Training Parameters")
+        self.groupTrain = QGroupBox("Global Parameters")
+
+        # Label: Target field exist ?
+        self.labelTarget = QLabel()
 
         # Set the sample size
         self.spinSampleSize = QDoubleSpinBox()
@@ -535,11 +581,11 @@ class ClaspyGui(QMainWindow):
         self.spinSampleSize.setWrapping(True)
         self.hLayoutSize = QHBoxLayout()
         self.hLayoutSize.addWidget(self.spinSampleSize)
-        self.hLayoutSize.addWidget(QLabel("Million points"))
+        self.hLayoutSize.addWidget(QLabel("Millions points"))
 
         # Set the training/testing ratio
         self.spinTrainRatio = QDoubleSpinBox()
-        self.spinTrainRatio.setMaximumWidth(60)
+        self.spinTrainRatio.setMaximumWidth(80)
         self.spinTrainRatio.setMinimum(0)
         self.spinTrainRatio.setMaximum(1)
         self.spinTrainRatio.setSingleStep(0.1)
@@ -547,25 +593,77 @@ class ClaspyGui(QMainWindow):
         self.spinTrainRatio.setWrapping(True)
         self.spinTrainRatio.setValue(0.5)
 
+        # Set the scaler
+        self.scalerNames = ['Standard', 'Robust', 'MinMax']
+        self.comboScaler = QComboBox()
+        self.comboScaler.setMaximumWidth(80)
+        self.comboScaler.addItems(self.scalerNames)
+        self.comboScaler.setCurrentText("Standard")
+        self.comboScaler.setToolTip("Set the method to scale the data.")
+
+        # Set the number of jobs only for GridSearchCV or Cross-Validation
+        self.spinNJobCV = QSpinBox()
+        self.spinNJobCV.setMaximumWidth(80)
+        self.spinNJobCV.setMinimum(-1)
+        self.spinNJobCV.setValue(-1)
+        self.spinNJobCV.setToolTip("Set the number of jobs for GridSearchCV and Cross-Validation.\n"
+                                   "In case of RandomForest, Total CPU used = N_jobs CV * n_jobs.")
+
         # Set the random state to split data, GridSearchCV, CrossVal...
         self.spinRandomState = QSpinBox()
         self.spinRandomState.setMaximumWidth(80)
         self.spinRandomState.setMinimum(0)
-        self.spinRandomState.setMaximum(999999)
+        self.spinRandomState.setMaximum(2147483647)  # 2^31 - 1
         self.spinRandomState.setValue(0)
         self.spinRandomState.setToolTip("Controls the randomness to split the data into train/test and\n"
-                                        "the shuffle split for GridSearchCV or simple CrossValidation.")
+                                        "the shuffle split for GridSearchCV or Cross-Validation.")
+        self.pushRandomSeed = QPushButton("New Seed")
+        self.pushRandomSeed.setMaximumWidth(75)
+        self.pushRandomSeed.clicked.connect(self.new_seed)
+        self.hLayoutRandom = QHBoxLayout()
+        self.hLayoutRandom.addWidget(self.spinRandomState)
+        self.hLayoutRandom.addWidget(self.pushRandomSeed)
 
-        # Label: Target field exist ?
-        self.labelTarget = QLabel()
+        # Set the Princiapl Component Analysis
+        self.spinPCA = QSpinBox()
+        self.spinPCA.setMaximumWidth(80)
+        self.spinPCA.setMinimum(0)
+        self.spinPCA.setMaximum(9999)
+        self.spinPCA.setValue(0)
+        self.spinPCA.setToolTip("Set the Principal Component Analysis\n"
+                                "and the number of principal components.")
 
-        # Fill the point cloud groupBox with QFormLayout
-        self.formLayoutTrain = QFormLayout()
-        self.formLayoutTrain.addRow("Number of samples:", self.hLayoutSize)
-        self.formLayoutTrain.addRow("Training ratio:", self.spinTrainRatio)
-        self.formLayoutTrain.addRow("Random State:", self.spinRandomState)
-        self.formLayoutTrain.addRow("Target field:", self.labelTarget)
-        self.groupTrain.setLayout(self.formLayoutTrain)
+        # Set the scorer
+        self.scorerNames = ['accuracy', 'balanced_accuracy', 'top_k_accuracy', 'average_precision', 'neg_brier_score',
+                            'f1_micro', 'f1_macro', 'f1_weighted',
+                            'precision_micro', 'precision_macro', 'precision_weighted',
+                            'recall_micro', 'recall_macro', 'recall_weighted',
+                            'roc_auc', 'roc_auc_ovr', 'roc_auc_ovo', 'roc_ovr_weighted', 'roc_ovo_weighted']
+        self.comboScorer = QComboBox()
+        self.comboScorer.setMaximumWidth(160)
+        self.comboScorer.addItems(self.scorerNames)
+        self.comboScorer.setCurrentText("accuracy")
+        self.comboScorer.setToolTip("Set the scorer for GridSearchCV or Cross_validation\n"
+                                    "(see the scikit-learn documentation).")
+
+        # Fill layout of training parameters
+        self.formLeftTrain = QFormLayout()
+        self.formLeftTrain.addRow("Target field:", self.labelTarget)
+        self.formLeftTrain.addRow("Number of samples:", self.hLayoutSize)
+        self.formLeftTrain.addRow("Training ratio:", self.spinTrainRatio)
+        self.formLeftTrain.addRow("Scaler:", self.comboScaler)
+
+        self.formRightTrain = QFormLayout()
+        self.formRightTrain.addRow("N_jobs CV:", self.spinNJobCV)
+        self.formRightTrain.addRow("Random State:", self.hLayoutRandom)
+        self.formRightTrain.addRow("PCA:", self.spinPCA)
+        self.formRightTrain.addRow("Scorer:", self.comboScorer)
+
+        self.hLayoutTrain = QHBoxLayout()
+        self.hLayoutTrain.addLayout(self.formLeftTrain)
+        self.hLayoutTrain.addWidget(QVLine())
+        self.hLayoutTrain.addLayout(self.formRightTrain)
+        self.groupTrain.setLayout(self.hLayoutTrain)
 
         # Selection of the algorithm
         self.groupAlgorithm = QGroupBox("Algorithm")
@@ -616,9 +714,84 @@ class ClaspyGui(QMainWindow):
         self.tabTrain.setLayout(self.vLayoutTabTrain)
 
     def tabui_predict(self):
+        # Group Prediction
+        self.groupModel = QGroupBox("Input Model")
 
-        # Fill the left layout
+        # Line for local model input
+        self.lineModelFile = QLineEdit()
+        self.lineModelFile.setPlaceholderText("Select the input model")
+        self.lineModelFile.editingFinished.connect(self.open_model)
+        self.toolButtonModel = QToolButton()
+        self.toolButtonModel.setText("Browse")
+        self.toolButtonModel.clicked.connect(self.get_model)
+        self.hLocalModel = QHBoxLayout()
+        self.hLocalModel.addWidget(self.lineModelFile)
+        self.hLocalModel.addWidget(self.toolButtonModel)
+
+        # Line for server model input
+        self.lineServerModel = QLineEdit()
+        self.lineServerModel.setPlaceholderText("Give the input model on server")
+        self.lineServerModel.setEnabled(False)
+
+        # Model layout form
+        self.formModel = QFormLayout()
+        self.formModel.addRow(QLabel("Local model input:"), self.hLocalModel)
+        self.formModel.addRow(QLabel("Server model input:"), self.lineServerModel)
+        self.groupModel.setLayout(self.formModel)
+
+        # Group Algo parameters
+        self.groupAlgoParam = QGroupBox("Algorithm")
+
+        # Name of the algorithm
+        self.labelModelName = QLabel()
+
+        # Parameters of the algorithm
+        self.textModelParam = QTextEdit()
+        self.textModelParam.setReadOnly(True)
+
+        # Form layout for the algo parameters from the loaded model
+        self.formAlgoParam = QFormLayout()
+        self.formAlgoParam.addRow(QLabel("Algorithm:"), self.labelModelName)
+        self.formAlgoParam.addRow(QLabel("Parameters:"), self.textModelParam)
+        self.groupAlgoParam.setLayout(self.formAlgoParam)
+
+        # Group Scaler parameters
+        self.groupScalerParam = QGroupBox("Scaler")
+
+        # Scaler
+        self.labelModelScaler = QLabel()
+        self.textScalerParam = QTextEdit()
+        self.textScalerParam.setReadOnly(True)
+
+        # Form layout for the scaler parameters from the loaded model
+        self.formScalerParam = QFormLayout()
+        self.formScalerParam.addRow(QLabel("Scaler:"), self.labelModelScaler)
+        self.formScalerParam.addRow(QLabel("Parameters:"), self.textScalerParam)
+        self.groupScalerParam.setLayout(self.formScalerParam)
+        self.groupScalerParam.setMaximumHeight(120)
+
+        # Group PCA parameters
+        self.groupPCAParam = QGroupBox("PCA")
+
+        # PCA
+        self.labelModelPCA = QLabel()
+        self.textPCAParam = QTextEdit()
+        self.textPCAParam.setReadOnly(True)
+
+        # Form layout for the pca parameters from the loaded model
+        self.formPCAParam = QFormLayout()
+        self.formPCAParam.addRow(QLabel("PCA:"), self.labelModelPCA)
+        self.formPCAParam.addRow(QLabel("Parameters:"), self.textPCAParam)
+        self.groupPCAParam.setLayout(self.formPCAParam)
+        self.groupPCAParam.setMaximumHeight(120)
+        self.groupPCAParam.setEnabled(False)
+
+        # Vertical layout for prediction tab
         self.vLayoutTabPredict = QVBoxLayout()
+        self.vLayoutTabPredict.addWidget(self.groupModel)
+        self.vLayoutTabPredict.addWidget(self.groupAlgoParam)
+        self.vLayoutTabPredict.addWidget(self.groupScalerParam)
+        self.vLayoutTabPredict.addWidget(self.groupPCAParam)
 
         self.tabPredict.setLayout(self.vLayoutTabPredict)
 
@@ -712,6 +885,15 @@ class ClaspyGui(QMainWindow):
         else:
             raise IndexError("Returning selected tab does not exist!")
 
+    def new_seed(self):
+        """
+        Give a new seed to random state
+        """
+        # Upadte the randomState
+        high_value = 2**31 - 1  # 2,147,483,647
+        seed = np.random.randint(0, high_value)
+        self.spinRandomState.setValue(seed)
+
     def stackui_local(self):
         form_layout = QFormLayout()
 
@@ -801,6 +983,85 @@ class ClaspyGui(QMainWindow):
 
             self.open_file()
 
+    def get_model(self):
+        self.statusBar.showMessage("Select model...", 3000)
+        filename = QFileDialog.getOpenFileName(self, 'Select model file',
+                                               '', "model files (*.model);;")
+
+        if filename[0] != '':
+            if self.pushLocal.isChecked():
+                self.lineModelFile.setText(os.path.normpath(filename[0]))
+
+            self.open_model()
+
+    def open_model(self):
+        """
+        Open the model in self.lineModelFile and write all data in prediction tab.
+        """
+        # Check if model file exist
+        model_path = os.path.normpath(self.lineModelFile.text())
+        try:
+            open_file = open(model_path)
+            file_exist = True
+        except FileNotFoundError:
+            file_exist = False
+            self.statusBar.showMessage("No such model file !", 3000)
+        except PermissionError:
+            file_exist = False
+
+        if file_exist:
+            # Check the extension of the given file
+            model_root_ext = os.path.splitext(model_path)
+
+            if model_root_ext[1] == '.model':
+                loaded_model = joblib.load(model_path)
+
+                # Retrieve features used in model
+                self.model_features = loaded_model['feature_names']
+
+                # Retrieve algorithm, model
+                algorithm = loaded_model['algorithm']
+                model = loaded_model['model']
+
+                algo_parameters = str()
+                dict_algo_param = model['classifier'].get_params()
+                for key in dict_algo_param:
+                    algo_parameters += str(key) + ': ' + str(dict_algo_param[key]) + '\n'
+
+                scaler = model['scaler']
+                scaler_parameters = str()
+                dict_scaler_param = scaler.get_params()
+                for key in dict_scaler_param:
+                    scaler_parameters += str(key) + ': ' + str(dict_scaler_param[key]) + '\n'
+
+                try:
+                    if model['PCA']:
+                        pca = model['PCA']
+                        pca_parameters = str()
+                        dict_pca_param = pca.get_params()
+                        for key in dict_pca_param:
+                            pca_parameters += str(key) + ': ' + str(dict_pca_param[key]) + '\n'
+                        self.groupPCAParam.setEnabled(True)
+                    else:
+                        pca = 'None'
+                        pca_parameters = 'None'
+                        self.groupPCAParam.setEnabled(False)
+                except KeyError:
+                    pca = 'None'
+                    pca_parameters = 'None'
+                    self.groupPCAParam.setEnabled(False)
+
+                # Update the data of the loaded model
+                self.labelModelName.setText(str(algorithm))
+                self.textModelParam.setText(algo_parameters)
+                self.labelModelScaler.setText(str(scaler))
+                self.textScalerParam.setText(scaler_parameters)
+                self.labelModelPCA.setText(str(pca))
+                self.textPCAParam.setText(pca_parameters)
+
+            else:
+                self.statusBar.showMessage("Invalid model file extension !", 3000)
+
     def open_file(self):
         if self.pushLocal.isChecked():
             file_path = os.path.normpath(self.lineLocalFile.text())
@@ -815,7 +1076,11 @@ class ClaspyGui(QMainWindow):
             feature_names = ["Encore", "en", "Test"]
             self.target = False
         elif root_ext[1] == '.las':
-            feature_names = self.open_las(file_path)
+            feature_names, standard_fields = self.open_las(file_path)
+            self.listStandardLAS.setEnabled(True)  # Enable List of standard LAS fields
+            self.listStandardLAS.clear()
+            for item in standard_fields:
+                self.listStandardLAS.addItem(str(item))
         else:
             feature_names = ["File error:", "Unknown extension file!"]
             self.statusBar.showMessage("File error: Unknown extension file!", 3000)
@@ -835,6 +1100,7 @@ class ClaspyGui(QMainWindow):
         self.listFeatures.clear()
         for item in feature_names:
             self.listFeatures.addItem(str(item))
+        self.number_selected_features()
 
     def open_las(self, file_path):
         """
@@ -886,7 +1152,7 @@ class ClaspyGui(QMainWindow):
                 self.targetName = trgt
                 extra_dimensions.remove(trgt)
 
-        return extra_dimensions
+        return extra_dimensions, standard_dimensions
 
     def get_folder(self):
         """
@@ -930,17 +1196,31 @@ class ClaspyGui(QMainWindow):
                 print("ErrorOS: Operating System not supported !")
 
     def number_selected_features(self):
-        self.max_count = 0
-        self.selected_count = 0
-        if self.listFeatures is None or self.listFeatures.count() == 0:
-            self.max_count = 0
-            self.selected_count = 0
-        else:
-            self.max_count = self.listFeatures.count()
-            self.selected_count = len(self.listFeatures.selectedItems())
+        max_count = 0
+        selected_count = 0
 
-        self.labelNbrSelFeatures.setText("{} / {}".format(self.selected_count,
-                                                          self.max_count))
+        if self.listFeatures is None and self.listStandardLAS is None:
+            max_count = 0
+            selected_count = 0
+        elif self.listFeatures is None:
+            max_count = self.listStandardLAS.count()
+            selected_count = len(self.listStandardLAS.selectedItems())
+        elif self.listStandardLAS is None:
+            max_count = self.listFeatures.count()
+            selected_count = len(self.listFeatures.selectedItems())
+        else:
+            max_count = self.listStandardLAS.count() + self.listFeatures.count()
+            selected_count = len(self.listStandardLAS.selectedItems()) + len(self.listFeatures.selectedItems())
+
+        self.labelNbrSelFeatures.setText("Number of selected features: {} / {}".format(
+            selected_count, max_count))
+
+    def reset_selection_fields(self):
+        """
+        Deselect all selected fields in listStandardLAS.
+        """
+        self.listStandardLAS.clearSelection()
+        self.listFeatures.clearSelection()
 
     def stackui_rf(self):
         form_layout = QFormLayout()
@@ -966,7 +1246,7 @@ class ClaspyGui(QMainWindow):
         self.RFcomboCriterion = QComboBox()
         self.RFcomboCriterion.setMaximumWidth(80)
         self.RFcomboCriterion.addItems(self.RFcriterion)
-        self.RFcomboCriterion.setCurrentIndex(self.RFcriterion.index("gini"))
+        self.RFcomboCriterion.setCurrentText("gini")
         self.RFcomboCriterion.setToolTip("The function to measure the quality of a split.")
         form_layout.addRow("criterion:", self.RFcomboCriterion)
 
@@ -1009,7 +1289,7 @@ class ClaspyGui(QMainWindow):
         self.RFcomboMaxFeatures = QComboBox()
         self.RFcomboMaxFeatures.setMaximumWidth(80)
         self.RFcomboMaxFeatures.addItems(self.RFmaxFeatures)
-        self.RFcomboMaxFeatures.setCurrentIndex(self.RFmaxFeatures.index("auto"))
+        self.RFcomboMaxFeatures.setCurrentText("auto")
         self.RFcomboMaxFeatures.setToolTip("The number of features to consider\n"
                                            "when looking for the best split.")
         form_layout.addRow("max_features:", self.RFcomboMaxFeatures)
@@ -1022,10 +1302,7 @@ class ClaspyGui(QMainWindow):
                                    "'0' means one job at the same time.\n"
                                    "'-1' means using all processors.")
         form_layout.addRow("n_jobs:", self.RFspinNJob)
-
-        label_h_line = QLabel()
-        label_h_line.setFrameStyle(QFrame.HLine | QFrame.Sunken)
-        form_layout.addRow(label_h_line)
+        form_layout.addRow(QHLine())
 
         self.RFcheckImportance = QCheckBox()
         self.RFcheckImportance.setChecked(False)
@@ -1156,7 +1433,7 @@ class ClaspyGui(QMainWindow):
         self.GBcomboCriterion = QComboBox()
         self.GBcomboCriterion.setMaximumWidth(120)
         self.GBcomboCriterion.addItems(self.GBcriterion)
-        self.GBcomboCriterion.setCurrentIndex(self.GBcriterion.index("friedman_mse"))
+        self.GBcomboCriterion.setCurrentText("friedman_mse")
         self.GBcomboCriterion.setToolTip("The function to measure the quality of a split.")
         form_layout.addRow("criterion:", self.GBcomboCriterion)
 
@@ -1200,7 +1477,7 @@ class ClaspyGui(QMainWindow):
         self.GBcomboMaxFeatures = QComboBox()
         self.GBcomboMaxFeatures.setMaximumWidth(80)
         self.GBcomboMaxFeatures.addItems(self.GBmaxFeatures)
-        self.GBcomboMaxFeatures.setCurrentIndex(self.GBmaxFeatures.index("None"))
+        self.GBcomboMaxFeatures.setCurrentText("None")
         self.GBcomboMaxFeatures.setToolTip("The number of features to consider\n"
                                            "when looking for the best split.")
         form_layout.addRow("max_features:", self.GBcomboMaxFeatures)
@@ -1209,7 +1486,7 @@ class ClaspyGui(QMainWindow):
         self.GBcomboLoss = QComboBox()
         self.GBcomboLoss.setMaximumWidth(80)
         self.GBcomboLoss.addItems(self.loss)
-        self.GBcomboLoss.setCurrentIndex(self.loss.index("deviance"))
+        self.GBcomboLoss.setCurrentText("deviance")
         self.GBcomboLoss.setToolTip("The loss function to be optimized. ‘deviance’ refers to logistic\n"
                                     "regression for classification with probabilistic outputs. For loss \n"
                                     "‘exponential’ gradient boosting recovers the AdaBoost algorithm.")
@@ -1237,9 +1514,7 @@ class ClaspyGui(QMainWindow):
                                         "1.0 this results in Stochastic Gradient Boosting.")
         form_layout.addRow("subsample:", self.GBspinSubsample)
 
-        label_h_line = QLabel()
-        label_h_line.setFrameStyle(QFrame.HLine | QFrame.Sunken)
-        form_layout.addRow(label_h_line)
+        form_layout.addRow(QHLine())
 
         self.GBcheckImportance = QCheckBox()
         self.GBcheckImportance.setChecked(False)
@@ -1395,7 +1670,7 @@ class ClaspyGui(QMainWindow):
         self.NNcomboActivation = QComboBox()
         self.NNcomboActivation.setMaximumWidth(80)
         self.NNcomboActivation.addItems(self.NNactivation)
-        self.NNcomboActivation.setCurrentIndex(self.NNactivation.index("relu"))
+        self.NNcomboActivation.setCurrentText("relu")
         self.NNcomboActivation.setToolTip("Activation function for the hidden layer.")
         form_layout.addRow("activation:", self.NNcomboActivation)
 
@@ -1403,7 +1678,7 @@ class ClaspyGui(QMainWindow):
         self.NNcomboSolver = QComboBox()
         self.NNcomboSolver.setMaximumWidth(80)
         self.NNcomboSolver.addItems(self.NNsolver)
-        self.NNcomboSolver.setCurrentIndex(self.NNsolver.index("adam"))
+        self.NNcomboSolver.setCurrentText("adam")
         self.NNcomboSolver.setToolTip("The solver for weight optimization.\n"
                                       "-'lbfgs' optimizer from quasi-Newton method family.\n"
                                       "-'sgd' refers to stochastic gradient descent.\n"
@@ -1433,7 +1708,7 @@ class ClaspyGui(QMainWindow):
         self.NNcomboLearningRate = QComboBox()
         self.NNcomboLearningRate.setMaximumWidth(80)
         self.NNcomboLearningRate.addItems(self.NNlearningRate)
-        self.NNcomboLearningRate.setCurrentIndex(self.NNlearningRate.index("constant"))
+        self.NNcomboLearningRate.setCurrentText("constant")
         self.NNcomboLearningRate.setEnabled(False)
         self.NNcomboLearningRate.setToolTip("Learning rate schedule for weight updates.")
         form_layout.addRow("learning_rate:", self.NNcomboLearningRate)
@@ -1786,9 +2061,19 @@ class ClaspyGui(QMainWindow):
                 self.lineServerFile.setText(config_dict['input_file'])
                 self.lineServerFolder.setText(config_dict['output_folder'])
 
+            # Set sample size and train ratio
             self.spinSampleSize.setValue(config_dict['samples'])
             self.spinTrainRatio.setValue(config_dict['training_ratio'])
+
+            # Set scaler, scorer, random_state and pca
+            self.comboScaler.setCurrentIndex(self.scalerNames.index(config_dict['scaler']))
+            self.comboScorer.setCurrentIndex(self.scorerNames.index(config_dict['scorer']))
+            self.spinNJobCV.setValue(config_dict['n_jobs_cv'])
             self.spinRandomState.setValue(config_dict['random_state'])
+            try:
+                self.spinPCA.setValue(config_dict['pca'])
+            except KeyError:
+                pass
 
             # Update algorithm
             algorithm = config_dict['algorithm']
@@ -2183,6 +2468,14 @@ class ClaspyGui(QMainWindow):
         # Save sample size and train ratio
         self.train_config['samples'] = self.spinSampleSize.value()
         self.train_config['training_ratio'] = self.spinTrainRatio.value()
+
+        # Save scaler, scorer, n_job CV, random_state and pca
+        self.train_config['scaler'] = self.comboScaler.currentText()
+        self.train_config['scorer'] = self.comboScorer.currentText()
+        self.train_config['n_jobs_cv'] = self.spinNJobCV.value()
+        self.train_config['random_state'] = self.spinRandomState.value()
+        if self.spinPCA.value() != 0:
+            self.train_config['pca'] = self.spinPCA.value()
 
         # Get the selected algorithm and the parameters
         param_dict = dict()
@@ -2586,9 +2879,6 @@ class ClaspyGui(QMainWindow):
             except KeyError:
                 pass
 
-        # Get the Random State for splitting data and Shuffle split
-        self.train_config['random_state'] = self.spinRandomState.value()
-
         # Get the current selected features
         self.selectedFeatures = [item.text() for item in self.listFeatures.selectedItems()]
         self.selectedFeatures.sort()
@@ -2719,7 +3009,7 @@ class ClaspyGui(QMainWindow):
     def run_train(self):
         self.update_config()
 
-        # Check that some feature are selected
+        # Check if some features are selected
         if len(self.train_config['feature_names']) > 0:
             features = str(self.train_config['feature_names']).replace(' ', '')
 
@@ -2730,13 +3020,20 @@ class ClaspyGui(QMainWindow):
 
                 # Create command list to run cLASpy_T
                 command = ["/C", self.pythonPath, "cLASpy_T.py", "train",
+                           "-a", self.algo,
                            "-i", self.lineLocalFile.text(),
                            "-o", self.lineLocalFolder.text(),
-                           "-a", self.algo,
-                           "-g", "-k", grid_parameters,
                            "-f", features,
+                           "-g", "-k", grid_parameters,
+                           "--scaler", self.comboScaler.currentText(),
+                           "--scoring", self.comboScorer.currentText(),
+                           "-n", str(self.spinNJobCV.value()),
                            "-s", str(self.train_config['samples']),
                            "--train_r", str(self.train_config['training_ratio'])]
+
+                if self.spinPCA.value() != 0:
+                    command.append("--pca")
+                    command.append(str(self.spinPCA.value()))
 
                 if self.train_config['random_state'] is not None:
                     command.append("--random_state")
@@ -2755,13 +3052,20 @@ class ClaspyGui(QMainWindow):
 
                 # Create command list to run cLASpy_T
                 command = ["/C", self.pythonPath, "cLASpy_T.py", "train",
+                           "-a", self.algo,
                            "-i", self.lineLocalFile.text(),
                            "-o", self.lineLocalFolder.text(),
-                           "-a", self.algo,
-                           "-p", parameters,
                            "-f", features,
+                           "-p", parameters,
+                           "--scaler", self.comboScaler.currentText(),
+                           "--scoring", self.comboScorer.currentText(),
+                           "-n", str(self.spinNJobCV.value()),
                            "-s", str(self.train_config['samples']),
                            "--train_r", str(self.train_config['training_ratio'])]
+
+                if self.spinPCA.value() != 0:
+                    command.append("--pca")
+                    command.append(str(self.spinPCA.value()))
 
                 if self.train_config['random_state'] is not None:
                     command.append("--random_state")

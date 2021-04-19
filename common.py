@@ -146,12 +146,21 @@ def update_arguments(args):
     args.random_state = config['random_state']
     args.features = config['feature_names']
     args.grid_search = config['grid_search']
+    args.scaler = config['scaler']
+    args.scoring = config['scorer']
+    args.n_jobs = config['n_jobs_cv']
 
     # Set grid parameters or classifier parameters (GridSearchCV or not)
     if args.grid_search:
         args.param_grid = config['param_grid']
     else:
         args.parameters = config['parameters']
+
+    # Check if PCA is present
+    try:
+        args.pca = config['pca']
+    except KeyError:
+        pass
 
 
 def introduction(algorithm, file_path, folder_path=None):
