@@ -212,6 +212,7 @@ def file_to_pandasframe(data_path):
     # Load data into DataFrame
     root_ext = os.path.splitext(data_path)  # split file_path into root and extension
     if root_ext[1] == '.csv':
+        file_type = 'CSV'
         frame = pd.read_csv(data_path, sep=',', header='infer')
         # Replace 'space' by '_' and clean up the header built by CloudCompare ('//X')
         for field in frame.columns.values.tolist():
@@ -221,6 +222,7 @@ def file_to_pandasframe(data_path):
                 frame = frame.rename(columns={"//X": "X"})
 
     elif root_ext[1] == '.las':
+        file_type = 'LAS'
         las = laspy.file.File(data_path, mode='r')
         print("LAS Version: {}".format(las.header.version))
         print("LAS point format: {}".format(las.header.data_format_id))
@@ -228,21 +230,17 @@ def file_to_pandasframe(data_path):
 
         # Get only the extra dimensions
         standard_dimensions = point_format[las.header.data_format_id]
-        extra_dimensions = list()
+        dimensions = list()
         for dim in las.point_format.specs:  # Get all dimensions
-            extra_dimensions.append(str(dim.name))
-
-        for dim in standard_dimensions:  # Remove all standard dimensions
-            if dim in extra_dimensions:
-                extra_dimensions.remove(dim)
+            dimensions.append(str(dim.name))
 
         frame = pd.DataFrame()
-        for dim in extra_dimensions:
+        for dim in dimensions:
             frame[dim] = las.get_reader().get_dimension(dim)
     else:
         raise ValueError("Unknown Extension file!")
 
-    return frame
+    return frame, file_type
 
 
 def get_selected_features(sel_features, data_features):
@@ -256,7 +254,6 @@ def get_selected_features(sel_features, data_features):
 
     # Check if features is a list()
     if isinstance(sel_features, list):
-        # sel_features = [feature.casefold() for feature in sel_features]
         print("\nGet selected features:")
         for feature in sel_features:
             for dt_feature in data_features:
@@ -264,13 +261,9 @@ def get_selected_features(sel_features, data_features):
                     selected_features.append(dt_feature)
                     print(" - {} asked --> {} found".format(feature, dt_feature))
 
-        # print comparison between given feature list and final selected features
-        # features.sort()
-        # selected_features.sort()
         print("\nNumber of wanted features: {}".format(len(sel_features)))
-        # print(features)
         print("Number of final selected features: {}\n".format(len(selected_features)))
-        # print("{}\n".format(selected_features))
+
         if len(sel_features) == len(selected_features):
             print(" --> All required features are present!\n")
         else:
@@ -291,7 +284,7 @@ def format_dataset(data_path, mode='training', features=None):
     :return: features_data and target as DataFrames.
     """
     # Load data into Pandas DataFrame
-    frame = file_to_pandasframe(data_path)
+    frame, file_type = file_to_pandasframe(data_path)
 
     # Create list name of all fields
     all_features = frame.columns.values.tolist()
@@ -303,7 +296,7 @@ def format_dataset(data_path, mode='training', features=None):
     field_t = None
 
     for field in all_features:
-        if field.casefold() == 'x':  # casefold() to be non case-sensitive
+        if field.casefold() == 'x':  # casefold() > non case-sensitive
             field_x = field
         if field.casefold() == 'y':
             field_y = field
@@ -316,22 +309,27 @@ def format_dataset(data_path, mode='training', features=None):
     if mode == 'training' and field_t is None:
         raise ValueError("A 'target' field is mandatory for training!")
 
-    # Create target field if exist
+    # Create target variable if exist
     if field_t:
         target = frame.loc[:, field_t]
     else:
         target = None
 
-    # Select only features fields by removing X, Y, Z and target fields
+    # Remove target field
     temp_features = all_features
-    for field in [field_x, field_y, field_z, field_t]:
-        if field:
-            temp_features.remove(field)
+    temp_features.remove(field_t)
 
     # Get only the selected features among temp_features
-    if features is None:
+    if features is None:  # Use all features except standard LAS fields and X, Y, Z
         print("All features in input_data will be used!")
         selected_features = temp_features
+        for field in [field_x, field_y, field_z]:  # remove X, Y, Z
+            selected_features.remove(field)
+        if file_type == 'LAS':
+            las = laspy.file.File(data_path, mode='r')
+            standard_dimensions = point_format[las.header.data_format_id]
+            for field in standard_dimensions:  # remove standard LAS dimensions
+                selected_features.remove(field)
 
     elif isinstance(features, str):
         features = yaml.safe_load(features)
@@ -346,7 +344,7 @@ def format_dataset(data_path, mode='training', features=None):
     # Sort data by field names
     selected_features.sort()  # Sort to be compatible between formats
 
-    # data without X, Y, Z and target fields
+    # data without target field
     data = frame.filter(selected_features, axis=1)
 
     # Replace NAN values by median

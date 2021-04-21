@@ -71,7 +71,7 @@ def get_classifier(args, mode='training', algorithm=None):
     else:
         parameters = None
 
-    print(parameters)
+    #print(parameters)
     # Set the chosen learning classifier
     if algorithm == 'RandomForestClassifier':
         classifier = set_random_forest(fit_params=parameters)
@@ -165,7 +165,6 @@ def check_parameters(classifier, fit_params):
             print("ValueError: Invalid parameter '{}' for {}, "
                   "it was skipped!".format(str(key), clf_name))
 
-    print(fit_params)
     return classifier
 
 

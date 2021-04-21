@@ -225,23 +225,22 @@ def percent_parser(output):
         return progress
 
 
-def nofeatures_warning():
+def warning_box(message, title="Warning"):
     nofeatures = QMessageBox()
     nofeatures.setIcon(QMessageBox.Warning)
-    nofeatures.setText("No feature field selected !"
-                       "\nPlease select the features you need !")
-    nofeatures.setWindowTitle("No feature selected")
+    nofeatures.setText(message)
+    nofeatures.setWindowTitle(title)
     nofeatures.setStandardButtons(QMessageBox.Ok)
     nofeatures.buttonClicked.connect(nofeatures.close)
     nofeatures.exec_()
 
 
-def parameter_error_box(message):
+def error_box(message, title="Error"):
     """Show message about algorithm parameter error in a message box"""
     parameter_box = QMessageBox()
     parameter_box.setIcon(QMessageBox.Critical)
     parameter_box.setText(message)
-    parameter_box.setWindowTitle("Algorithm parameter error")
+    parameter_box.setWindowTitle(title)
     parameter_box.setStandardButtons(QMessageBox.Ok)
     parameter_box.buttonClicked.connect(parameter_box.close)
     parameter_box.exec_()
@@ -277,6 +276,7 @@ class ClaspyGui(QMainWindow):
         self.floatlist_validator = QRegExpValidator(QRegExp("[0-9*.?0-9*,\\s]*"), self)
         self.options_dict = dict()
         self.train_config = dict()
+        self.file_type = 'NONE'
         self.process = None
 
         # Initialize options according claspy_t option file
@@ -353,84 +353,14 @@ class ClaspyGui(QMainWindow):
         self.vLayoutLeft.addWidget(self.tabModes)
 
         # Central part of GUI
-        # List of standard field of LAS
-        self.groupStandardLAS = QGroupBox("Standard LAS Fields")
-
-        self.labelStandardLAS = QLabel("Select standard fields:\n\n\n"
-                                       "(press Ctrl for\n"
-                                       "multiple selection)")
-        self.labelStandardLAS.setAlignment(Qt.AlignLeft | Qt.AlignTop)
-        self.listStandardLAS = QListWidget()
-        self.listStandardLAS.setSelectionMode(QAbstractItemView.ExtendedSelection)
-        self.listStandardLAS.setSortingEnabled(False)
-        self.listStandardLAS.itemSelectionChanged.connect(self.number_selected_features)
-
-        self.formLayoutStandardLAS = QFormLayout()
-        self.formLayoutStandardLAS.addRow(self.labelStandardLAS, self.listStandardLAS)
-        self.groupStandardLAS.setLayout(self.formLayoutStandardLAS)
-
-        # List of features
-        self.groupFeatures = QGroupBox("Extra Features")
-
-        self.labelFeatures = QLabel("Select features:\n\n\n"
-                                    "(press Ctrl for\n"
-                                    "multiple selection)")
-        self.labelFeatures.setAlignment(Qt.AlignLeft | Qt.AlignTop)
-        self.listFeatures = QListWidget()
-        self.listFeatures.setSelectionMode(QAbstractItemView.ExtendedSelection)
-        self.listFeatures.setSortingEnabled(True)
-        self.listFeatures.itemSelectionChanged.connect(self.number_selected_features)
-
-        self.formLayoutFeatures = QFormLayout()
-        self.formLayoutFeatures.addRow(self.labelFeatures, self.listFeatures)
-        self.groupFeatures.setLayout(self.formLayoutFeatures)
-
-        # Number of selected features
-        self.labelNbrSelFeatures = QLabel()
-        self.number_selected_features()
-        self.pushResetSelection = QPushButton("Reset Selection")
-        self.pushResetSelection.clicked.connect(self.reset_selection_fields)
-
-        # Fill the feature groupBox with layout
-        self.vLayoutCentral = QVBoxLayout()
-        self.vLayoutCentral.addWidget(self.groupStandardLAS)
-        self.vLayoutCentral.setStretchFactor(self.groupStandardLAS, 1)
-        self.vLayoutCentral.addWidget(self.groupFeatures)
-        self.vLayoutCentral.setStretchFactor(self.groupFeatures, 3)
-        self.vLayoutCentral.addWidget(self.pushResetSelection)
-        self.vLayoutCentral.addWidget(self.labelNbrSelFeatures)
+        self.feature_part()
+        self.groupCoordinates.setEnabled(False)
+        self.groupCoordinates.setVisible(False)
+        self.groupStandardLAS.setEnabled(False)
+        self.groupStandardLAS.setVisible(False)
 
         # Right part of GUI
-        self.plainTextCommand = QPlainTextEdit()
-        self.plainTextCommand.setReadOnly(True)
-        self.plainTextCommand.setStyleSheet(
-            """QPlainTextEdit {background-color: #333;
-                               color: #EEEEEE;}""")
-
-        # Save button
-        self.buttonSaveCommand = QPushButton("Save Command Output")
-        self.buttonSaveCommand.clicked.connect(self.save_output_command)
-
-        # Clear button
-        self.buttonClear = QPushButton("Clear")
-        self.buttonClear.clicked.connect(self.plainTextCommand.clear)
-
-        self.hLayoutSaveClear = QHBoxLayout()
-        self.hLayoutSaveClear.addWidget(self.buttonSaveCommand)
-        self.hLayoutSaveClear.addWidget(self.buttonClear)
-
-        # Progress bar
-        self.progressBar = QProgressBar()
-        self.progressBar.setMaximum(100)
-
-        # Fill layout of right part
-        self.vLayoutRight = QVBoxLayout()
-        self.vLayoutRight.addWidget(self.plainTextCommand)
-        self.vLayoutRight.addLayout(self.hLayoutSaveClear)
-        self.vLayoutRight.addWidget(self.progressBar)
-
-        self.groupCommand = QGroupBox("Command Output")
-        self.groupCommand.setLayout(self.vLayoutRight)
+        self.command_part()
 
         # Button box
         self.buttonBox = QDialogButtonBox(QDialogButtonBox.Close)
@@ -445,6 +375,10 @@ class ClaspyGui(QMainWindow):
         self.buttonRunSegment = QPushButton("Segment")
         self.buttonRunSegment.clicked.connect(self.run_segment)
         self.buttonBox.addButton(self.buttonRunSegment, QDialogButtonBox.ActionRole)
+        self.buttonStop = QPushButton("Stop")
+        self.buttonStop.clicked.connect(self.stop_process)
+        self.buttonStop.setEnabled(False)
+        self.buttonBox.addButton(self.buttonStop, QDialogButtonBox.ActionRole)
         self.buttonRunPredict.setVisible(False)
         self.buttonRunSegment.setVisible(False)
 
@@ -452,8 +386,8 @@ class ClaspyGui(QMainWindow):
         self.hMainLayout = QHBoxLayout()
         self.hMainLayout.addLayout(self.vLayoutLeft)
         self.hMainLayout.setStretchFactor(self.vLayoutLeft, 3)
-        self.hMainLayout.addLayout(self.vLayoutCentral)
-        self.hMainLayout.setStretchFactor(self.vLayoutCentral, 2)
+        self.hMainLayout.addWidget(self.groupFeatures)
+        self.hMainLayout.setStretchFactor(self.groupFeatures, 2)
         self.hMainLayout.addWidget(self.groupCommand)
         self.hMainLayout.setStretchFactor(self.groupCommand, 3)
 
@@ -495,6 +429,7 @@ class ClaspyGui(QMainWindow):
         self.statusBar = QStatusBar()
         self.setStatusBar(self.statusBar)
 
+    # Menu and Options
     def menu_file_trigger(self, action):
         if action.text() == "Open":
             self.open_config()
@@ -566,6 +501,244 @@ class ClaspyGui(QMainWindow):
         else:
             self.statusBar.showMessage("Python path not set !")
 
+    # Run on local or server
+    def stackui_local(self):
+        form_layout = QFormLayout()
+
+        # Line for local file input
+        self.lineLocalFile = QLineEdit()
+        self.lineLocalFile.setPlaceholderText("Select LAS or CSV file as input")
+        self.lineLocalFile.editingFinished.connect(self.open_file)
+        self.toolButtonFile = QToolButton()
+        self.toolButtonFile.setText("Browse")
+        self.toolButtonFile.clicked.connect(self.get_file)
+        self.hLayoutFile = QHBoxLayout()
+        self.hLayoutFile.addWidget(self.lineLocalFile)
+        self.hLayoutFile.addWidget(self.toolButtonFile)
+        form_layout.addRow("Input file:", self.hLayoutFile)
+
+        # Line for local folder output
+        self.lineLocalFolder = QLineEdit()
+        self.lineLocalFolder.setPlaceholderText("Folder where save result files")
+        self.lineLocalFolder.textChanged.connect(self.enable_open_results)
+        self.toolButtonFolder = QToolButton()
+        self.toolButtonFolder.setText("Browse")
+        self.toolButtonFolder.clicked.connect(self.get_folder)
+        self.hLayoutFolder = QHBoxLayout()
+        self.hLayoutFolder.addWidget(self.lineLocalFolder)
+        self.hLayoutFolder.addWidget(self.toolButtonFolder)
+        form_layout.addRow("Output folder:", self.hLayoutFolder)
+
+        # Button to open result folder
+        self.buttonResultFolder = QPushButton('Open Result Directory')
+        self.buttonResultFolder.setEnabled(False)
+        self.buttonResultFolder.clicked.connect(self.open_results)
+        form_layout.addWidget(self.buttonResultFolder)
+
+        # Set the layout
+        self.stack_Local.setLayout(form_layout)
+
+    def stackui_server(self):
+        form_layout = QFormLayout()
+
+        self.lineFile = QLineEdit()
+        self.lineFile.setPlaceholderText("Local file to get features")
+        self.lineFile.editingFinished.connect(self.open_file)
+        self.toolButtonFile = QToolButton()
+        self.toolButtonFile.setText("Browse")
+        self.toolButtonFile.clicked.connect(self.get_file)
+        self.hLayoutFile = QHBoxLayout()
+        self.hLayoutFile.addWidget(self.lineFile)
+        self.hLayoutFile.addWidget(self.toolButtonFile)
+        form_layout.addRow("Local input file:", self.hLayoutFile)
+
+        self.lineServerFile = QLineEdit()
+        self.lineServerFile.setPlaceholderText("File on server to compute on")
+        form_layout.addRow("Server input file:", self.lineServerFile)
+
+        self.lineServerFolder = QLineEdit()
+        self.lineServerFolder.setPlaceholderText("Folder on server where save result files")
+        form_layout.addRow("Server output folder:", self.lineServerFolder)
+
+        self.stack_Server.setLayout(form_layout)
+
+    def display_stack_local(self):
+        if self.pushLocal.isChecked():
+            self.stackInput.setCurrentIndex(0)
+            self.pushServer.setChecked(False)
+            self.buttonRunTrain.setEnabled(True)
+            self.buttonRunPredict.setEnabled(True)
+            self.buttonRunSegment.setEnabled(True)
+
+    def display_stack_server(self):
+        if self.pushServer.isChecked():
+            self.stackInput.setCurrentIndex(1)
+            self.pushLocal.setChecked(False)
+            self.buttonRunTrain.setEnabled(False)
+            self.buttonRunPredict.setEnabled(False)
+            self.buttonRunSegment.setEnabled(False)
+
+    def get_file(self):
+        self.statusBar.showMessage("Select file...", 3000)
+        filename = QFileDialog.getOpenFileName(self, 'Select CSV or LAS file',
+                                               '', "LAS files (*.las);;CSV files (*.csv)")
+
+        if filename[0] != '':
+            if self.pushLocal.isChecked():
+                self.lineLocalFile.setText(os.path.normpath(filename[0]))
+            else:
+                self.lineFile.setText(os.path.normpath(filename[0]))
+
+            self.open_file()
+
+    def open_file(self):
+        if self.pushLocal.isChecked():
+            file_path = os.path.normpath(self.lineLocalFile.text())
+        else:
+            file_path = os.path.normpath(self.lineFile.text())
+
+        root_ext = os.path.splitext(file_path)
+        if self.pushLocal.isChecked():
+            self.lineLocalFolder.setText(os.path.splitext(root_ext[0])[0])
+
+        if root_ext[1] == '.csv':
+            self.file_type = 'CSV'
+            feature_names = ["Encore", "en", "Test"]
+            self.target = False
+        elif root_ext[1] == '.las':
+            self.file_type = 'LAS'
+            feature_names, standard_fields = self.open_las(file_path)
+            self.listStandardLAS.setEnabled(True)  # Enable List of standard LAS fields
+            self.listStandardLAS.clear()
+            for item in standard_fields:
+                self.listStandardLAS.addItem(str(item))
+        else:
+            feature_names = ["File error:", "Unknown extension file!"]
+            self.statusBar.showMessage("File error: Unknown extension file!", 3000)
+
+        # Check if the target field exist
+        try:
+            self.target
+        except AttributeError:
+            self.target = False
+
+        if self.target:
+            self.labelTarget.setText("Target field is available")
+        else:
+            self.labelTarget.setText("Target field not found!!")
+
+        # Rewrite listExtraFeature
+        self.listExtraFeatures.clear()
+        for item in feature_names:
+            self.listExtraFeatures.addItem(str(item))
+        self.number_selected_features()
+
+        # Update the feature part
+        self.enable_advanced_features()
+
+    def open_las(self, file_path):
+        """
+        Open LAS file and only return the extra dimension.
+        :param file_path: The path to the LAS file.
+        :return: The list of the extra dimensions (with 'Target' field).
+        """
+        # Initialize target bool
+        self.target = False
+
+        # Infos about LAS file
+        las = laspy.file.File(file_path, mode='r')
+        version = las.header.version
+        data_format = las.header.data_format_id
+        point_count = las.header.records_count
+
+        # Set value of the train size
+        number_mpts = float(point_count / 1000000.)  # Number of million points
+        self.spinSampleSize.setMaximum(number_mpts)
+        if number_mpts > 2:
+            self.spinSampleSize.setValue(1)
+        else:
+            self.spinSampleSize.setValue(number_mpts / 2.)
+
+        # Show LAS version and number of points in status bar
+        point_count = '{:,}'.format(point_count).replace(',', ' ')  # Format with thousand separator
+        self.labelPtCldFormat.setText("LAS version {}  |  Data format: {}".format(version, data_format))
+        self.labelPtCount.setText("{}".format(point_count))
+        self.statusBar.showMessage("{} points | LAS Version: {}".format(point_count, version),
+                                   5000)
+
+        # List of the standard dimensions according the data_format of LAS (prefilled_dimensions)
+        prefilled_dimensions = point_format[data_format]
+
+        # Get the extra_dimensions
+        extra_dimensions = list()
+        for dim in las.point_format.specs:
+            extra_dimensions.append(str(dim.name))  # List of all dimension
+        for dim in prefilled_dimensions:  # Remove the pre-filled dimensions
+            if dim in extra_dimensions:
+                extra_dimensions.remove(dim)
+
+        # Get the standard dimensions in LAS file (for real, not prefilled)
+        standard_dimensions = list()
+        for dim in las.point_format.specs:
+            standard_dimensions.append(str(dim.name))
+        for dim in extra_dimensions:  # Remove the extra_dimensions, so get only the standard_dimension
+            if dim in standard_dimensions:
+                standard_dimensions.remove(dim)
+        for coord in ['X', 'Y', 'Z']:  # Remove X, Y, Z (already checkable in Advanced Features)
+            if coord in standard_dimensions:
+                standard_dimensions.remove(coord)
+
+        # Find 'target' dimension if exist
+        for trgt in ['target', 'Target', 'TARGET']:
+            if trgt in extra_dimensions:
+                self.target = True
+                self.targetName = trgt
+                extra_dimensions.remove(trgt)
+
+        return extra_dimensions, standard_dimensions
+
+    def get_folder(self):
+        """
+        Create folder to save model and report files
+        """
+        file_path = os.path.splitext(self.lineLocalFile.text())[0]
+        # Open QFile Dialog with empty lineFile
+        if file_path == '':
+            foldername = QFileDialog.getExistingDirectory(self, 'Select output folder')
+
+        else:
+            foldername = QFileDialog.getExistingDirectory(self, 'Select output folder',
+                                                          file_path + '/..')
+
+        if foldername != '':
+            if self.pushLocal.isChecked():
+                self.lineLocalFolder.setText(foldername)
+
+    def enable_open_results(self):
+        folder_path = os.path.normpath(self.lineLocalFolder.text())
+        if QDir(folder_path).exists():
+            self.buttonResultFolder.setEnabled(True)
+        else:
+            self.buttonResultFolder.setEnabled(False)
+
+    def open_results(self):
+        self.enable_open_results()
+        if self.buttonResultFolder.isEnabled():
+            folder_path = os.path.normpath(self.lineLocalFolder.text())
+            if self.platform == 'Windows':
+                self.dialog_results = QProcess()
+                self.dialog_results.setProgram("explorer")
+                self.dialog_results.setArguments([folder_path])
+                self.dialog_results.startDetached()
+            elif self.platform == 'Linux':
+                self.dialog_results = QProcess()
+                self.dialog_results.setProgram("xdg-open")
+                self.dialog_results.setArguments([folder_path])
+                self.dialog_results.startDetached()
+            else:
+                print("ErrorOS: Operating System not supported !")
+
+    # Tab of train
     def tabui_train(self):
         # Group Training
         self.groupTrain = QGroupBox("Global Parameters")
@@ -712,515 +885,6 @@ class ClaspyGui(QMainWindow):
         self.vLayoutTabTrain.addWidget(self.groupAlgorithm)
 
         self.tabTrain.setLayout(self.vLayoutTabTrain)
-
-    def tabui_predict(self):
-        # Group Prediction
-        self.groupModel = QGroupBox("Input Model")
-
-        # Line for local model input
-        self.lineModelFile = QLineEdit()
-        self.lineModelFile.setPlaceholderText("Select the input model")
-        self.lineModelFile.editingFinished.connect(self.open_model)
-        self.toolButtonModel = QToolButton()
-        self.toolButtonModel.setText("Browse")
-        self.toolButtonModel.clicked.connect(self.get_model)
-        self.hLocalModel = QHBoxLayout()
-        self.hLocalModel.addWidget(self.lineModelFile)
-        self.hLocalModel.addWidget(self.toolButtonModel)
-
-        # Line for server model input
-        self.lineServerModel = QLineEdit()
-        self.lineServerModel.setPlaceholderText("Give the input model on server")
-        self.lineServerModel.setEnabled(False)
-
-        # Model layout form
-        self.formModel = QFormLayout()
-        self.formModel.addRow(QLabel("Local model input:"), self.hLocalModel)
-        self.formModel.addRow(QLabel("Server model input:"), self.lineServerModel)
-        self.groupModel.setLayout(self.formModel)
-
-        # Group Algo parameters
-        self.groupAlgoParam = QGroupBox("Algorithm")
-
-        # Name of the algorithm
-        self.labelModelName = QLabel()
-
-        # Parameters of the algorithm
-        self.textModelParam = QTextEdit()
-        self.textModelParam.setReadOnly(True)
-
-        # Form layout for the algo parameters from the loaded model
-        self.formAlgoParam = QFormLayout()
-        self.formAlgoParam.addRow(QLabel("Algorithm:"), self.labelModelName)
-        self.formAlgoParam.addRow(QLabel("Parameters:"), self.textModelParam)
-        self.groupAlgoParam.setLayout(self.formAlgoParam)
-
-        # Group Scaler parameters
-        self.groupScalerParam = QGroupBox("Scaler")
-
-        # Scaler
-        self.labelModelScaler = QLabel()
-        self.textScalerParam = QTextEdit()
-        self.textScalerParam.setReadOnly(True)
-
-        # Form layout for the scaler parameters from the loaded model
-        self.formScalerParam = QFormLayout()
-        self.formScalerParam.addRow(QLabel("Scaler:"), self.labelModelScaler)
-        self.formScalerParam.addRow(QLabel("Parameters:"), self.textScalerParam)
-        self.groupScalerParam.setLayout(self.formScalerParam)
-        self.groupScalerParam.setMaximumHeight(120)
-
-        # Group PCA parameters
-        self.groupPCAParam = QGroupBox("PCA")
-
-        # PCA
-        self.labelModelPCA = QLabel()
-        self.textPCAParam = QTextEdit()
-        self.textPCAParam.setReadOnly(True)
-
-        # Form layout for the pca parameters from the loaded model
-        self.formPCAParam = QFormLayout()
-        self.formPCAParam.addRow(QLabel("PCA:"), self.labelModelPCA)
-        self.formPCAParam.addRow(QLabel("Parameters:"), self.textPCAParam)
-        self.groupPCAParam.setLayout(self.formPCAParam)
-        self.groupPCAParam.setMaximumHeight(120)
-        self.groupPCAParam.setEnabled(False)
-
-        # Vertical layout for prediction tab
-        self.vLayoutTabPredict = QVBoxLayout()
-        self.vLayoutTabPredict.addWidget(self.groupModel)
-        self.vLayoutTabPredict.addWidget(self.groupAlgoParam)
-        self.vLayoutTabPredict.addWidget(self.groupScalerParam)
-        self.vLayoutTabPredict.addWidget(self.groupPCAParam)
-
-        self.tabPredict.setLayout(self.vLayoutTabPredict)
-
-    def tabui_segment(self):
-        # Fill the left layout
-        self.vLayoutTabSegment = QVBoxLayout()
-
-        # Cluster algorithms
-        self.groupCluster = QGroupBox("Cluster Algorithms")
-        form_layout = QFormLayout()
-
-        self.KMspinRandomState = QSpinBox()
-        self.KMspinRandomState.setMaximumWidth(80)
-        self.KMspinRandomState.setMinimum(-1)
-        self.KMspinRandomState.setMaximum(999999)
-        self.KMspinRandomState.setValue(-1)
-        self.KMspinRandomState.setToolTip("Controls the random generation of centroids.")
-        form_layout.addRow("random_state:", self.KMspinRandomState)
-
-        self.KMspinNClusters = QSpinBox()
-        self.KMspinNClusters.setMaximumWidth(80)
-        self.KMspinNClusters.setMinimum(2)
-        self.KMspinNClusters.setMaximum(9999)
-        self.KMspinNClusters.setValue(8)
-        self.KMspinNClusters.setToolTip("The number of clusters to form as well\n"
-                                        "as the number of centroids to generate.")
-        form_layout.addRow("n_clusters:", self.KMspinNClusters)
-
-        self.KMinit = ["k-means++", "random"]
-        self.KMcomboInit = QComboBox()
-        self.KMcomboInit.setMaximumWidth(80)
-        self.KMcomboInit.addItems(self.KMinit)
-        self.KMcomboInit.setCurrentIndex(self.KMinit.index("k-means++"))
-        self.KMcomboInit.setToolTip("Method for initialization.")
-        form_layout.addRow("init:", self.KMcomboInit)
-
-        self.KMspinNInit = QSpinBox()
-        self.KMspinNInit.setMaximumWidth(80)
-        self.KMspinNInit.setMinimum(1)
-        self.KMspinNInit.setMaximum(9999)
-        self.KMspinNInit.setValue(10)
-        self.KMspinNInit.setToolTip("Number of time the k-means algorithm will be\n"
-                                    "run with different centroid seeds. The final\n"
-                                    "results will be the best output of n_init\n"
-                                    "consecutive runs in terms of inertia.")
-        form_layout.addRow("n_init:", self.KMspinNInit)
-
-        self.KMspinMaxIter = QSpinBox()
-        self.KMspinMaxIter.setMaximumWidth(80)
-        self.KMspinMaxIter.setMinimum(1)
-        self.KMspinMaxIter.setMaximum(99999)
-        self.KMspinMaxIter.setValue(300)
-        self.KMspinMaxIter.setToolTip("Maximum number of iterations of the k-means\n"
-                                      "algorithm for a single run.")
-        form_layout.addRow("max_iter:", self.KMspinMaxIter)
-
-        self.KMspinTol = QDoubleSpinBox()
-        self.KMspinTol.setMaximumWidth(80)
-        self.KMspinTol.setDecimals(8)
-        self.KMspinTol.setMinimum(0)
-        self.KMspinTol.setMaximum(9999)
-        self.KMspinTol.setValue(0.0001)
-        self.KMspinTol.setToolTip("Relative tolerance with regards to Frobenius norm\n"
-                                  "of the difference in the cluster centers of two\n"
-                                  "consecutive iterations to declare convergence.")
-        form_layout.addRow("tol:", self.KMspinTol)
-
-        self.KMalgorithm = ["auto", "full", "elkan"]
-        self.KMcomboAlgorithm = QComboBox()
-        self.KMcomboAlgorithm.setMaximumWidth(80)
-        self.KMcomboAlgorithm.addItems(self.KMalgorithm)
-        self.KMcomboAlgorithm.setCurrentIndex(self.KMalgorithm.index("auto"))
-        self.KMcomboAlgorithm.setToolTip("K-means algorithm to use.")
-        form_layout.addRow("algorithm:", self.KMcomboAlgorithm)
-
-        self.tabSegment.setLayout(form_layout)
-
-    def tab_modes_action(self, tab):
-        if tab == 0:  # For Training tab
-            self.buttonRunTrain.setVisible(True)
-            self.buttonRunPredict.setVisible(False)
-            self.buttonRunSegment.setVisible(False)
-        elif tab == 1:  # For Prediction tab
-            self.buttonRunTrain.setVisible(False)
-            self.buttonRunPredict.setVisible(True)
-            self.buttonRunSegment.setVisible(False)
-        elif tab == 2:  # For Segmentation tab
-            self.buttonRunTrain.setVisible(False)
-            self.buttonRunPredict.setVisible(False)
-            self.buttonRunSegment.setVisible(True)
-        else:
-            raise IndexError("Returning selected tab does not exist!")
-
-    def new_seed(self):
-        """
-        Give a new seed to random state
-        """
-        # Upadte the randomState
-        high_value = 2**31 - 1  # 2,147,483,647
-        seed = np.random.randint(0, high_value)
-        self.spinRandomState.setValue(seed)
-
-    def stackui_local(self):
-        form_layout = QFormLayout()
-
-        # Line for local file input
-        self.lineLocalFile = QLineEdit()
-        self.lineLocalFile.setPlaceholderText("Select LAS or CSV file as input")
-        self.lineLocalFile.editingFinished.connect(self.open_file)
-        self.toolButtonFile = QToolButton()
-        self.toolButtonFile.setText("Browse")
-        self.toolButtonFile.clicked.connect(self.get_file)
-        self.hLayoutFile = QHBoxLayout()
-        self.hLayoutFile.addWidget(self.lineLocalFile)
-        self.hLayoutFile.addWidget(self.toolButtonFile)
-        form_layout.addRow("Input file:", self.hLayoutFile)
-
-        # Line for local folder output
-        self.lineLocalFolder = QLineEdit()
-        self.lineLocalFolder.setPlaceholderText("Folder where save result files")
-        self.lineLocalFolder.textChanged.connect(self.enable_open_results)
-        self.toolButtonFolder = QToolButton()
-        self.toolButtonFolder.setText("Browse")
-        self.toolButtonFolder.clicked.connect(self.get_folder)
-        self.hLayoutFolder = QHBoxLayout()
-        self.hLayoutFolder.addWidget(self.lineLocalFolder)
-        self.hLayoutFolder.addWidget(self.toolButtonFolder)
-        form_layout.addRow("Output folder:", self.hLayoutFolder)
-
-        # Button to open result folder
-        self.buttonResultFolder = QPushButton('Open Result Directory')
-        self.buttonResultFolder.setEnabled(False)
-        self.buttonResultFolder.clicked.connect(self.open_results)
-        form_layout.addWidget(self.buttonResultFolder)
-
-        # Set the layout
-        self.stack_Local.setLayout(form_layout)
-
-    def stackui_server(self):
-        form_layout = QFormLayout()
-
-        self.lineFile = QLineEdit()
-        self.lineFile.setPlaceholderText("Local file to get features")
-        self.lineFile.editingFinished.connect(self.open_file)
-        self.toolButtonFile = QToolButton()
-        self.toolButtonFile.setText("Browse")
-        self.toolButtonFile.clicked.connect(self.get_file)
-        self.hLayoutFile = QHBoxLayout()
-        self.hLayoutFile.addWidget(self.lineFile)
-        self.hLayoutFile.addWidget(self.toolButtonFile)
-        form_layout.addRow("Local input file:", self.hLayoutFile)
-
-        self.lineServerFile = QLineEdit()
-        self.lineServerFile.setPlaceholderText("File on server to compute on")
-        form_layout.addRow("Server input file:", self.lineServerFile)
-
-        self.lineServerFolder = QLineEdit()
-        self.lineServerFolder.setPlaceholderText("Folder on server where save result files")
-        form_layout.addRow("Server output folder:", self.lineServerFolder)
-
-        self.stack_Server.setLayout(form_layout)
-
-    def display_stack_local(self):
-        if self.pushLocal.isChecked():
-            self.stackInput.setCurrentIndex(0)
-            self.pushServer.setChecked(False)
-            self.buttonRunTrain.setEnabled(True)
-            self.buttonRunPredict.setEnabled(True)
-            self.buttonRunSegment.setEnabled(True)
-
-    def display_stack_server(self):
-        if self.pushServer.isChecked():
-            self.stackInput.setCurrentIndex(1)
-            self.pushLocal.setChecked(False)
-            self.buttonRunTrain.setEnabled(False)
-            self.buttonRunPredict.setEnabled(False)
-            self.buttonRunSegment.setEnabled(False)
-
-    def get_file(self):
-        self.statusBar.showMessage("Select file...", 3000)
-        filename = QFileDialog.getOpenFileName(self, 'Select CSV or LAS file',
-                                               '', "LAS files (*.las);;CSV files (*.csv)")
-
-        if filename[0] != '':
-            if self.pushLocal.isChecked():
-                self.lineLocalFile.setText(os.path.normpath(filename[0]))
-            else:
-                self.lineFile.setText(os.path.normpath(filename[0]))
-
-            self.open_file()
-
-    def get_model(self):
-        self.statusBar.showMessage("Select model...", 3000)
-        filename = QFileDialog.getOpenFileName(self, 'Select model file',
-                                               '', "model files (*.model);;")
-
-        if filename[0] != '':
-            if self.pushLocal.isChecked():
-                self.lineModelFile.setText(os.path.normpath(filename[0]))
-
-            self.open_model()
-
-    def open_model(self):
-        """
-        Open the model in self.lineModelFile and write all data in prediction tab.
-        """
-        # Check if model file exist
-        model_path = os.path.normpath(self.lineModelFile.text())
-        try:
-            open_file = open(model_path)
-            file_exist = True
-        except FileNotFoundError:
-            file_exist = False
-            self.statusBar.showMessage("No such model file !", 3000)
-        except PermissionError:
-            file_exist = False
-
-        if file_exist:
-            # Check the extension of the given file
-            model_root_ext = os.path.splitext(model_path)
-
-            if model_root_ext[1] == '.model':
-                loaded_model = joblib.load(model_path)
-
-                # Retrieve features used in model
-                self.model_features = loaded_model['feature_names']
-
-                # Retrieve algorithm, model
-                algorithm = loaded_model['algorithm']
-                model = loaded_model['model']
-
-                algo_parameters = str()
-                dict_algo_param = model['classifier'].get_params()
-                for key in dict_algo_param:
-                    algo_parameters += str(key) + ': ' + str(dict_algo_param[key]) + '\n'
-
-                scaler = model['scaler']
-                scaler_parameters = str()
-                dict_scaler_param = scaler.get_params()
-                for key in dict_scaler_param:
-                    scaler_parameters += str(key) + ': ' + str(dict_scaler_param[key]) + '\n'
-
-                try:
-                    if model['PCA']:
-                        pca = model['PCA']
-                        pca_parameters = str()
-                        dict_pca_param = pca.get_params()
-                        for key in dict_pca_param:
-                            pca_parameters += str(key) + ': ' + str(dict_pca_param[key]) + '\n'
-                        self.groupPCAParam.setEnabled(True)
-                    else:
-                        pca = 'None'
-                        pca_parameters = 'None'
-                        self.groupPCAParam.setEnabled(False)
-                except KeyError:
-                    pca = 'None'
-                    pca_parameters = 'None'
-                    self.groupPCAParam.setEnabled(False)
-
-                # Update the data of the loaded model
-                self.labelModelName.setText(str(algorithm))
-                self.textModelParam.setText(algo_parameters)
-                self.labelModelScaler.setText(str(scaler))
-                self.textScalerParam.setText(scaler_parameters)
-                self.labelModelPCA.setText(str(pca))
-                self.textPCAParam.setText(pca_parameters)
-
-            else:
-                self.statusBar.showMessage("Invalid model file extension !", 3000)
-
-    def open_file(self):
-        if self.pushLocal.isChecked():
-            file_path = os.path.normpath(self.lineLocalFile.text())
-        else:
-            file_path = os.path.normpath(self.lineFile.text())
-
-        root_ext = os.path.splitext(file_path)
-        if self.pushLocal.isChecked():
-            self.lineLocalFolder.setText(os.path.splitext(root_ext[0])[0])
-
-        if root_ext[1] == '.csv':
-            feature_names = ["Encore", "en", "Test"]
-            self.target = False
-        elif root_ext[1] == '.las':
-            feature_names, standard_fields = self.open_las(file_path)
-            self.listStandardLAS.setEnabled(True)  # Enable List of standard LAS fields
-            self.listStandardLAS.clear()
-            for item in standard_fields:
-                self.listStandardLAS.addItem(str(item))
-        else:
-            feature_names = ["File error:", "Unknown extension file!"]
-            self.statusBar.showMessage("File error: Unknown extension file!", 3000)
-
-        # Check if the target field exist
-        try:
-            self.target
-        except AttributeError:
-            self.target = False
-
-        if self.target:
-            self.labelTarget.setText("Target field is available")
-        else:
-            self.labelTarget.setText("Target field not found!!")
-
-        # Rewrite listFeature
-        self.listFeatures.clear()
-        for item in feature_names:
-            self.listFeatures.addItem(str(item))
-        self.number_selected_features()
-
-    def open_las(self, file_path):
-        """
-        Open LAS file and only return the extra dimension.
-        :param file_path: The path to the LAS file.
-        :return: The list of the extra dimensions (with 'Target' field).
-        """
-        # Initialize target bool
-        self.target = False
-
-        # Infos about LAS file
-        las = laspy.file.File(file_path, mode='r')
-        version = las.header.version
-        data_format = las.header.data_format_id
-        point_count = las.header.records_count
-
-        # Set value of the train size
-        number_mpts = float(point_count / 1000000.)  # Number of million points
-        self.spinSampleSize.setMaximum(number_mpts)
-        if number_mpts > 2:
-            self.spinSampleSize.setValue(1)
-        else:
-            self.spinSampleSize.setValue(number_mpts / 2.)
-
-        # Show LAS version and number of points in status bar
-        point_count = '{:,}'.format(point_count).replace(',', ' ')  # Format with thousand separator
-        self.labelPtCldFormat.setText("LAS version {}  |  Data format: {}".format(version, data_format))
-        self.labelPtCount.setText("{}".format(point_count))
-        self.statusBar.showMessage("{} points | LAS Version: {}".format(point_count, version),
-                                   5000)
-
-        # List of the standard dimensions according the data_format of LAS
-        standard_dimensions = point_format[data_format]
-
-        # List of all dimensions
-        extra_dimensions = list()
-        for dim in las.point_format.specs:
-            extra_dimensions.append(str(dim.name))
-
-        # Remove the standard dimensions
-        for dim in standard_dimensions:
-            if dim in extra_dimensions:
-                extra_dimensions.remove(dim)
-
-        # Find 'target' dimension if exist
-        for trgt in ['target', 'Target', 'TARGET']:
-            if trgt in extra_dimensions:
-                self.target = True
-                self.targetName = trgt
-                extra_dimensions.remove(trgt)
-
-        return extra_dimensions, standard_dimensions
-
-    def get_folder(self):
-        """
-        Create folder to save model and report files
-        """
-        file_path = os.path.splitext(self.lineLocalFile.text())[0]
-        # Open QFile Dialog with empty lineFile
-        if file_path == '':
-            foldername = QFileDialog.getExistingDirectory(self, 'Select output folder')
-
-        else:
-            foldername = QFileDialog.getExistingDirectory(self, 'Select output folder',
-                                                          file_path + '/..')
-
-        if foldername != '':
-            if self.pushLocal.isChecked():
-                self.lineLocalFolder.setText(foldername)
-
-    def enable_open_results(self):
-        folder_path = os.path.normpath(self.lineLocalFolder.text())
-        if QDir(folder_path).exists():
-            self.buttonResultFolder.setEnabled(True)
-        else:
-            self.buttonResultFolder.setEnabled(False)
-
-    def open_results(self):
-        self.enable_open_results()
-        if self.buttonResultFolder.isEnabled():
-            folder_path = os.path.normpath(self.lineLocalFolder.text())
-            if self.platform == 'Windows':
-                self.dialog_results = QProcess()
-                self.dialog_results.setProgram("explorer")
-                self.dialog_results.setArguments([folder_path])
-                self.dialog_results.startDetached()
-            elif self.platform == 'Linux':
-                self.dialog_results = QProcess()
-                self.dialog_results.setProgram("xdg-open")
-                self.dialog_results.setArguments([folder_path])
-                self.dialog_results.startDetached()
-            else:
-                print("ErrorOS: Operating System not supported !")
-
-    def number_selected_features(self):
-        max_count = 0
-        selected_count = 0
-
-        if self.listFeatures is None and self.listStandardLAS is None:
-            max_count = 0
-            selected_count = 0
-        elif self.listFeatures is None:
-            max_count = self.listStandardLAS.count()
-            selected_count = len(self.listStandardLAS.selectedItems())
-        elif self.listStandardLAS is None:
-            max_count = self.listFeatures.count()
-            selected_count = len(self.listFeatures.selectedItems())
-        else:
-            max_count = self.listStandardLAS.count() + self.listFeatures.count()
-            selected_count = len(self.listStandardLAS.selectedItems()) + len(self.listFeatures.selectedItems())
-
-        self.labelNbrSelFeatures.setText("Number of selected features: {} / {}".format(
-            selected_count, max_count))
-
-    def reset_selection_fields(self):
-        """
-        Deselect all selected fields in listStandardLAS.
-        """
-        self.listStandardLAS.clearSelection()
-        self.listFeatures.clearSelection()
 
     def stackui_rf(self):
         form_layout = QFormLayout()
@@ -2030,6 +1694,409 @@ class ClaspyGui(QMainWindow):
                      "Neural Network (GridSearchCV)"]
         self.statusBar.showMessage(algo_list[i] + " parameters", 2000)
 
+    # Tab of predictions
+    def tabui_predict(self):
+        # Group Prediction
+        self.groupModel = QGroupBox("Input Model")
+
+        # Line for local model input
+        self.lineModelFile = QLineEdit()
+        self.lineModelFile.setPlaceholderText("Select the input model")
+        self.lineModelFile.editingFinished.connect(self.open_model)
+        self.toolButtonModel = QToolButton()
+        self.toolButtonModel.setText("Browse")
+        self.toolButtonModel.clicked.connect(self.get_model)
+        self.hLocalModel = QHBoxLayout()
+        self.hLocalModel.addWidget(self.lineModelFile)
+        self.hLocalModel.addWidget(self.toolButtonModel)
+
+        # Line for server model input
+        self.lineServerModel = QLineEdit()
+        self.lineServerModel.setPlaceholderText("Give the input model on server")
+        self.lineServerModel.setEnabled(False)
+
+        # Model layout form
+        self.formModel = QFormLayout()
+        self.formModel.addRow(QLabel("Local model input:"), self.hLocalModel)
+        self.formModel.addRow(QLabel("Server model input:"), self.lineServerModel)
+        self.groupModel.setLayout(self.formModel)
+
+        # Group Algo parameters
+        self.groupAlgoParam = QGroupBox("Algorithm")
+
+        # Name of the algorithm
+        self.labelModelName = QLabel()
+
+        # Parameters of the algorithm
+        self.textModelParam = QTextEdit()
+        self.textModelParam.setReadOnly(True)
+
+        # Form layout for the algo parameters from the loaded model
+        self.formAlgoParam = QFormLayout()
+        self.formAlgoParam.addRow(QLabel("Algorithm:"), self.labelModelName)
+        self.formAlgoParam.addRow(QLabel("Parameters:"), self.textModelParam)
+        self.groupAlgoParam.setLayout(self.formAlgoParam)
+
+        # Group Scaler parameters
+        self.groupScalerParam = QGroupBox("Scaler")
+
+        # Scaler
+        self.labelModelScaler = QLabel()
+        self.textScalerParam = QTextEdit()
+        self.textScalerParam.setReadOnly(True)
+
+        # Form layout for the scaler parameters from the loaded model
+        self.formScalerParam = QFormLayout()
+        self.formScalerParam.addRow(QLabel("Scaler:"), self.labelModelScaler)
+        self.formScalerParam.addRow(QLabel("Parameters:"), self.textScalerParam)
+        self.groupScalerParam.setLayout(self.formScalerParam)
+        self.groupScalerParam.setMaximumHeight(120)
+
+        # Group PCA parameters
+        self.groupPCAParam = QGroupBox("PCA")
+
+        # PCA
+        self.labelModelPCA = QLabel()
+        self.textPCAParam = QTextEdit()
+        self.textPCAParam.setReadOnly(True)
+
+        # Form layout for the pca parameters from the loaded model
+        self.formPCAParam = QFormLayout()
+        self.formPCAParam.addRow(QLabel("PCA:"), self.labelModelPCA)
+        self.formPCAParam.addRow(QLabel("Parameters:"), self.textPCAParam)
+        self.groupPCAParam.setLayout(self.formPCAParam)
+        self.groupPCAParam.setMaximumHeight(120)
+        self.groupPCAParam.setEnabled(False)
+
+        # Vertical layout for prediction tab
+        self.vLayoutTabPredict = QVBoxLayout()
+        self.vLayoutTabPredict.addWidget(self.groupModel)
+        self.vLayoutTabPredict.addWidget(self.groupAlgoParam)
+        self.vLayoutTabPredict.addWidget(self.groupScalerParam)
+        self.vLayoutTabPredict.addWidget(self.groupPCAParam)
+
+        self.tabPredict.setLayout(self.vLayoutTabPredict)
+
+    def get_model(self):
+        self.statusBar.showMessage("Select model...", 3000)
+        filename = QFileDialog.getOpenFileName(self, 'Select model file',
+                                               '', "model files (*.model);;")
+
+        if filename[0] != '':
+            if self.pushLocal.isChecked():
+                self.lineModelFile.setText(os.path.normpath(filename[0]))
+
+            self.open_model()
+
+    def open_model(self):
+        """
+        Open the model in self.lineModelFile and write all data in prediction tab.
+        """
+        # Check if model file exist
+        model_path = os.path.normpath(self.lineModelFile.text())
+        try:
+            open_file = open(model_path)
+            file_exist = True
+        except FileNotFoundError:
+            file_exist = False
+            self.statusBar.showMessage("No such model file !", 3000)
+        except PermissionError:
+            file_exist = False
+            self.statusBar.showMessage("Permission Error !", 3000)
+
+        if file_exist:
+            # Check the extension of the given file
+            model_root_ext = os.path.splitext(model_path)
+
+            if model_root_ext[1] == '.model':
+                loaded_model = joblib.load(model_path)
+
+                # Retrieve features used in model
+                self.model_features = loaded_model['feature_names']
+
+                # Retrieve algorithm, model
+                algorithm = loaded_model['algorithm']
+                model = loaded_model['model']
+
+                algo_parameters = str()
+                dict_algo_param = model['classifier'].get_params()
+                for key in dict_algo_param:
+                    algo_parameters += str(key) + ': ' + str(dict_algo_param[key]) + '\n'
+
+                scaler = model['scaler']
+                scaler_parameters = str()
+                dict_scaler_param = scaler.get_params()
+                for key in dict_scaler_param:
+                    scaler_parameters += str(key) + ': ' + str(dict_scaler_param[key]) + '\n'
+
+                try:
+                    if model['PCA']:
+                        pca = model['PCA']
+                        pca_parameters = str()
+                        dict_pca_param = pca.get_params()
+                        for key in dict_pca_param:
+                            pca_parameters += str(key) + ': ' + str(dict_pca_param[key]) + '\n'
+                        self.groupPCAParam.setEnabled(True)
+                    else:
+                        pca = 'None'
+                        pca_parameters = 'None'
+                        self.groupPCAParam.setEnabled(False)
+                except KeyError:
+                    pca = 'None'
+                    pca_parameters = 'None'
+                    self.groupPCAParam.setEnabled(False)
+
+                # Update the data of the loaded model
+                self.labelModelName.setText(str(algorithm))
+                self.textModelParam.setText(algo_parameters)
+                self.labelModelScaler.setText(str(scaler))
+                self.textScalerParam.setText(scaler_parameters)
+                self.labelModelPCA.setText(str(pca))
+                self.textPCAParam.setText(pca_parameters)
+
+            else:
+                self.statusBar.showMessage("Invalid model file !", 3000)
+
+    # Tab of segmentation
+    def tabui_segment(self):
+        # Fill the left layout
+        self.vLayoutTabSegment = QVBoxLayout()
+
+        # Cluster algorithms
+        self.groupCluster = QGroupBox("Cluster Algorithms")
+        form_layout = QFormLayout()
+
+        self.KMspinRandomState = QSpinBox()
+        self.KMspinRandomState.setMaximumWidth(80)
+        self.KMspinRandomState.setMinimum(-1)
+        self.KMspinRandomState.setMaximum(999999)
+        self.KMspinRandomState.setValue(-1)
+        self.KMspinRandomState.setToolTip("Controls the random generation of centroids.")
+        form_layout.addRow("random_state:", self.KMspinRandomState)
+
+        self.KMspinNClusters = QSpinBox()
+        self.KMspinNClusters.setMaximumWidth(80)
+        self.KMspinNClusters.setMinimum(2)
+        self.KMspinNClusters.setMaximum(9999)
+        self.KMspinNClusters.setValue(8)
+        self.KMspinNClusters.setToolTip("The number of clusters to form as well\n"
+                                        "as the number of centroids to generate.")
+        form_layout.addRow("n_clusters:", self.KMspinNClusters)
+
+        self.KMinit = ["k-means++", "random"]
+        self.KMcomboInit = QComboBox()
+        self.KMcomboInit.setMaximumWidth(80)
+        self.KMcomboInit.addItems(self.KMinit)
+        self.KMcomboInit.setCurrentIndex(self.KMinit.index("k-means++"))
+        self.KMcomboInit.setToolTip("Method for initialization.")
+        form_layout.addRow("init:", self.KMcomboInit)
+
+        self.KMspinNInit = QSpinBox()
+        self.KMspinNInit.setMaximumWidth(80)
+        self.KMspinNInit.setMinimum(1)
+        self.KMspinNInit.setMaximum(9999)
+        self.KMspinNInit.setValue(10)
+        self.KMspinNInit.setToolTip("Number of time the k-means algorithm will be\n"
+                                    "run with different centroid seeds. The final\n"
+                                    "results will be the best output of n_init\n"
+                                    "consecutive runs in terms of inertia.")
+        form_layout.addRow("n_init:", self.KMspinNInit)
+
+        self.KMspinMaxIter = QSpinBox()
+        self.KMspinMaxIter.setMaximumWidth(80)
+        self.KMspinMaxIter.setMinimum(1)
+        self.KMspinMaxIter.setMaximum(99999)
+        self.KMspinMaxIter.setValue(300)
+        self.KMspinMaxIter.setToolTip("Maximum number of iterations of the k-means\n"
+                                      "algorithm for a single run.")
+        form_layout.addRow("max_iter:", self.KMspinMaxIter)
+
+        self.KMspinTol = QDoubleSpinBox()
+        self.KMspinTol.setMaximumWidth(80)
+        self.KMspinTol.setDecimals(8)
+        self.KMspinTol.setMinimum(0)
+        self.KMspinTol.setMaximum(9999)
+        self.KMspinTol.setValue(0.0001)
+        self.KMspinTol.setToolTip("Relative tolerance with regards to Frobenius norm\n"
+                                  "of the difference in the cluster centers of two\n"
+                                  "consecutive iterations to declare convergence.")
+        form_layout.addRow("tol:", self.KMspinTol)
+
+        self.KMalgorithm = ["auto", "full", "elkan"]
+        self.KMcomboAlgorithm = QComboBox()
+        self.KMcomboAlgorithm.setMaximumWidth(80)
+        self.KMcomboAlgorithm.addItems(self.KMalgorithm)
+        self.KMcomboAlgorithm.setCurrentIndex(self.KMalgorithm.index("auto"))
+        self.KMcomboAlgorithm.setToolTip("K-means algorithm to use.")
+        form_layout.addRow("algorithm:", self.KMcomboAlgorithm)
+
+        self.tabSegment.setLayout(form_layout)
+
+    def tab_modes_action(self, tab):
+        if tab == 0:  # For Training tab
+            self.buttonRunTrain.setVisible(True)
+            self.buttonRunPredict.setVisible(False)
+            self.buttonRunSegment.setVisible(False)
+        elif tab == 1:  # For Prediction tab
+            self.buttonRunTrain.setVisible(False)
+            self.buttonRunPredict.setVisible(True)
+            self.buttonRunSegment.setVisible(False)
+        elif tab == 2:  # For Segmentation tab
+            self.buttonRunTrain.setVisible(False)
+            self.buttonRunPredict.setVisible(False)
+            self.buttonRunSegment.setVisible(True)
+        else:
+            raise IndexError("Returning selected tab does not exist!")
+
+    def new_seed(self):
+        """
+        Give a new seed to random state
+        """
+        # Upadte the randomState
+        high_value = 2**31 - 1  # 2,147,483,647
+        seed = np.random.randint(0, high_value)
+        self.spinRandomState.setValue(seed)
+
+    # Feature selection
+    def feature_part(self):
+        """
+        Give the central part of the GUI
+        """
+        # Global Feature Group
+        self.groupFeatures = QGroupBox("Features")
+
+        # Advanced features
+        self.checkAdvancedFeat = QCheckBox("Enable advanced features")
+        self.checkAdvancedFeat.stateChanged.connect(self.enable_advanced_features)
+        self.checkAdvancedFeat.stateChanged.connect(self.number_selected_features)
+        self.groupAdvancedFeat = QGroupBox("Advanced Features")
+
+        # Coordinate fields
+        self.groupCoordinates = QGroupBox("Coordinates")
+        self.checkX = QCheckBox("X")
+        self.checkX.setToolTip("Use X field as feature for training.")
+        self.checkX.stateChanged.connect(self.number_selected_features)
+        self.checkY = QCheckBox("Y")
+        self.checkY.setToolTip("Use Y field as feature for training.")
+        self.checkY.stateChanged.connect(self.number_selected_features)
+        self.checkZ = QCheckBox("Z")
+        self.checkZ.setToolTip("Use Z field as feature for training.")
+        self.checkZ.stateChanged.connect(self.number_selected_features)
+        self.hLayoutCoordinates = QHBoxLayout()
+        self.hLayoutCoordinates.addWidget(self.checkX)
+        self.hLayoutCoordinates.addWidget(self.checkY)
+        self.hLayoutCoordinates.addWidget(self.checkZ)
+        self.groupCoordinates.setLayout(self.hLayoutCoordinates)
+
+        # List of standard field of LAS
+        self.groupStandardLAS = QGroupBox("Standard LAS fields")
+        self.labelStandardLAS = QLabel("\n\n\n\n"
+                                       "(press Ctrl for\n"
+                                       "multiple selection)")
+        self.labelStandardLAS.setAlignment(Qt.AlignLeft | Qt.AlignTop)
+        self.listStandardLAS = QListWidget()
+        self.listStandardLAS.setSelectionMode(QAbstractItemView.ExtendedSelection)
+        self.listStandardLAS.setSortingEnabled(False)
+        self.listStandardLAS.itemSelectionChanged.connect(self.number_selected_features)
+        self.formLayoutStandardLAS = QFormLayout()
+        self.formLayoutStandardLAS.addRow(self.labelStandardLAS, self.listStandardLAS)
+        self.groupStandardLAS.setLayout(self.formLayoutStandardLAS)
+
+        # List of features
+        self.groupExtraFeatures = QGroupBox("Extra Features")
+
+        self.labelFeatures = QLabel("\n\n\n\n"
+                                    "(press Ctrl for\n"
+                                    "multiple selection)")
+        self.labelFeatures.setAlignment(Qt.AlignLeft | Qt.AlignTop)
+        self.listExtraFeatures = QListWidget()
+        self.listExtraFeatures.setSelectionMode(QAbstractItemView.ExtendedSelection)
+        self.listExtraFeatures.setSortingEnabled(True)
+        self.listExtraFeatures.itemSelectionChanged.connect(self.number_selected_features)
+
+        self.formLayoutFeatures = QFormLayout()
+        self.formLayoutFeatures.addRow(self.labelFeatures, self.listExtraFeatures)
+        self.groupExtraFeatures.setLayout(self.formLayoutFeatures)
+
+        # Number of selected features
+        self.labelNbrSelFeatures = QLabel()
+        self.number_selected_features()
+        self.pushResetSelection = QPushButton("Reset Selection")
+        self.pushResetSelection.clicked.connect(self.reset_selection_features)
+
+        # Fill the feature groupBox with layout
+        self.vLayoutCentral = QVBoxLayout()
+        self.vLayoutCentral.addWidget(self.checkAdvancedFeat)
+        self.vLayoutCentral.addWidget(self.groupCoordinates)
+        self.vLayoutCentral.addWidget(self.groupStandardLAS)
+        self.vLayoutCentral.setStretchFactor(self.groupStandardLAS, 1)
+        self.vLayoutCentral.addWidget(self.groupExtraFeatures)
+        self.vLayoutCentral.setStretchFactor(self.groupExtraFeatures, 4)
+        self.vLayoutCentral.addWidget(self.pushResetSelection)
+        self.vLayoutCentral.addWidget(self.labelNbrSelFeatures)
+
+        # Fill Feature group
+        self.groupFeatures.setLayout(self.vLayoutCentral)
+
+    def enable_advanced_features(self):
+        if self.checkAdvancedFeat.isChecked():
+            self.groupCoordinates.setVisible(True)
+            self.groupCoordinates.setEnabled(True)
+            if self.file_type == 'LAS':
+                self.groupStandardLAS.setEnabled(True)
+                self.groupStandardLAS.setVisible(True)
+            else:
+                self.groupStandardLAS.setVisible(False)
+                self.groupStandardLAS.setEnabled(False)
+        else:
+            self.groupCoordinates.setVisible(False)
+            self.groupCoordinates.setEnabled(False)
+            self.groupStandardLAS.setVisible(False)
+            self.groupStandardLAS.setEnabled(False)
+
+        self.number_selected_features()
+
+    def number_selected_features(self):
+        max_count = 0
+        self.selected_count = 0
+
+        # Coordinate Features
+        if self.checkAdvancedFeat.isChecked():
+            if self.checkX.isEnabled():
+                max_count += 1
+                if self.checkX.isChecked():
+                    self.selected_count += 1
+            if self.checkY.isEnabled():
+                max_count += 1
+                if self.checkY.isChecked():
+                    self.selected_count += 1
+            if self.checkZ.isEnabled():
+                max_count += 1
+                if self.checkZ.isChecked():
+                    self.selected_count += 1
+
+        if self.listStandardLAS is not None and self.groupStandardLAS.isEnabled():
+            max_count += self.listStandardLAS.count()
+            self.selected_count += len(self.listStandardLAS.selectedItems())
+
+        if self.listExtraFeatures is not None:
+            max_count += self.listExtraFeatures.count()
+            self.selected_count += len(self.listExtraFeatures.selectedItems())
+
+        self.labelNbrSelFeatures.setText("Number of selected features: {} / {}".format(
+            self.selected_count, max_count))
+
+    def reset_selection_features(self):
+        """
+        Deselect all selected fields in listStandardLAS.
+        """
+        self.checkX.setChecked(False)
+        self.checkY.setChecked(False)
+        self.checkZ.setChecked(False)
+        self.listStandardLAS.clearSelection()
+        self.listExtraFeatures.clearSelection()
+
+    # Configuration for train, prediction and segmentation
     def open_config(self):
         """
         Open configuration JSON file and set all saved parameters.
@@ -2426,10 +2493,28 @@ class ClaspyGui(QMainWindow):
             # Get the selected features
             feature_names = config_dict['feature_names']
             for feature in feature_names:
-                item = self.listFeatures.findItems(feature, Qt.MatchExactly)
+                # Set the coordinate feature
+                if feature == 'X':
+                    self.checkAdvancedFeat.setChecked(True)
+                    self.checkX.setChecked(True)
+                if feature == 'Y':
+                    self.checkAdvancedFeat.setChecked(True)
+                    self.checkY.setChecked(True)
+                if feature == 'Z':
+                    self.checkAdvancedFeat.setChecked(True)
+                    self.checkZ.setChecked(True)
+
+                # Set the standard LAS features
+                if self.file_type == 'LAS':
+                    standard_item = self.listStandardLAS.findItems(feature, Qt.MatchExactly)
+                    if len(standard_item) > 0:
+                        row = self.listStandardLAS.row(standard_item[0])
+                        self.listStandardLAS.item(row).setSelected(True)
+
+                item = self.listExtraFeatures.findItems(feature, Qt.MatchExactly)
                 if len(item) > 0:
-                    row = self.listFeatures.row(item[0])
-                    self.listFeatures.item(row).setSelected(True)
+                    row = self.listExtraFeatures.row(item[0])
+                    self.listExtraFeatures.item(row).setSelected(True)
 
             # Update the config_dict
             self.update_config()
@@ -2754,8 +2839,8 @@ class ClaspyGui(QMainWindow):
             if hidden_layers_list:
                 param_dict['hidden_layer_sizes'] = hidden_layers_list
             else:
-                parameter_error_box("Parameter 'hidden_layer_sizes is empty.\n"
-                                    "Please, give one list of layers, at least.")
+                param_dict['hidden_layer_sizes'] = []
+
             # activation
             activation_list = [item.text() for item in self.NNgridlistActivation.selectedItems()]
             if activation_list:
@@ -2836,30 +2921,6 @@ class ClaspyGui(QMainWindow):
                 if epsilon_list:
                     param_dict['epsilon'] = epsilon_list
 
-        # if K-Means Clustering
-        # elif selected_algo == "K-Means Clustering":
-        #     self.algo = 'kmeans'
-        #     self.config_dict['algorithm'] = 'KMeans'
-        #     self.config_dict['png_features'] = False
-        #
-        #     # n_clusters
-        #     param_dict['n_clusters'] = self.KMspinNClusters.value()
-        #     # init
-        #     param_dict['init'] = self.KMcomboInit.currentText()
-        #     # n_init
-        #     param_dict['n_init'] = self.KMspinNInit.value()
-        #     # max_iter
-        #     param_dict['max_iter'] = self.KMspinMaxIter.value()
-        #     # tol
-        #     param_dict['tol'] = self.KMspinTol.value()
-        #     # random_state
-        #     if self.KMspinRandomState.value() == -1:
-        #         param_dict['random_state'] = None
-        #     else:
-        #         param_dict['random_state'] = self.KMspinRandomState.value()
-        #     # algorithm
-        #     param_dict['algorithm'] = self.KMcomboAlgorithm.currentText()
-
         # if anything else
         else:
             self.statusBar.showMessage('Error: Unknown selected algorithm!',
@@ -2880,7 +2941,21 @@ class ClaspyGui(QMainWindow):
                 pass
 
         # Get the current selected features
-        self.selectedFeatures = [item.text() for item in self.listFeatures.selectedItems()]
+        self.selectedFeatures = list()
+        if self.checkAdvancedFeat.isChecked():  # Add X, Y, Z
+            if self.checkX.isEnabled() and self.checkX.isChecked():
+                self.selectedFeatures.append('X')
+            if self.checkY.isEnabled() and self.checkY.isChecked():
+                self.selectedFeatures.append('Y')
+            if self.checkZ.isEnabled() and self.checkZ.isChecked():
+                self.selectedFeatures.append('Z')
+
+            for feature in self.listStandardLAS.selectedItems():  # Add Standard LAS features
+                self.selectedFeatures.append(feature.text())
+
+        for feature in self.listExtraFeatures.selectedItems():  # Add Extra features
+            self.selectedFeatures.append(feature.text())
+
         self.selectedFeatures.sort()
         self.train_config['feature_names'] = self.selectedFeatures
 
@@ -2947,19 +3022,16 @@ class ClaspyGui(QMainWindow):
         """
         self.update_config()
 
-        if len(self.train_config['feature_names']) > 0:
-            # Save the JSON file
-            self.statusBar.showMessage("Saving JSON config file...", 3000)
-            json_file = QFileDialog.getSaveFileName(None, 'Save JSON config file',
-                                                    '', "JSON files (*.json)")
+        # Save the JSON file
+        self.statusBar.showMessage("Saving JSON config file...", 3000)
+        json_file = QFileDialog.getSaveFileName(None, 'Save JSON config file',
+                                                '', "JSON files (*.json)")
 
-            if json_file[0] != '':
-                with open(json_file[0], 'w') as config_file:
-                    json.dump(self.train_config, config_file)
-                    self.statusBar.showMessage("Config file saved: {}".format(json_file[0]),
-                                               5000)
-        else:
-            nofeatures_warning()
+        if json_file[0] != '':
+            with open(json_file[0], 'w') as config_file:
+                json.dump(self.train_config, config_file)
+                self.statusBar.showMessage("Config file saved: {}".format(json_file[0]),
+                                           5000)
 
     def save_predict_config(self):
         """
@@ -2980,7 +3052,7 @@ class ClaspyGui(QMainWindow):
         """
         self.update_config()
 
-        if len(self.segment_config['feature_names']) > 0:
+        if self.selected_count > 0:
             # Save the JSON file
             self.statusBar.showMessage("Saving JSON config file...", 3000)
             json_file = QFileDialog.getSaveFileName(None, 'Save JSON config file',
@@ -2992,7 +3064,44 @@ class ClaspyGui(QMainWindow):
                     self.statusBar.showMessage("Config file saved: {}".format(json_file[0]),
                                                5000)
         else:
-            nofeatures_warning()
+            warning_box("No feature field selected !\nPlease select the features you need !",
+                        "Missing features")
+
+    # Command and Run
+    def command_part(self):
+        """
+        Give the command part of the GUI.
+        """
+        self.plainTextCommand = QPlainTextEdit()
+        self.plainTextCommand.setReadOnly(True)
+        self.plainTextCommand.setStyleSheet(
+            """QPlainTextEdit {background-color: #333;
+                               color: #EEEEEE;}""")
+
+        # Save button
+        self.buttonSaveCommand = QPushButton("Save Command Output")
+        self.buttonSaveCommand.clicked.connect(self.save_output_command)
+
+        # Clear button
+        self.buttonClear = QPushButton("Clear")
+        self.buttonClear.clicked.connect(self.plainTextCommand.clear)
+
+        self.hLayoutSaveClear = QHBoxLayout()
+        self.hLayoutSaveClear.addWidget(self.buttonSaveCommand)
+        self.hLayoutSaveClear.addWidget(self.buttonClear)
+
+        # Progress bar
+        self.progressBar = QProgressBar()
+        self.progressBar.setMaximum(100)
+
+        # Fill layout of right part
+        self.vLayoutRight = QVBoxLayout()
+        self.vLayoutRight.addWidget(self.plainTextCommand)
+        self.vLayoutRight.addLayout(self.hLayoutSaveClear)
+        self.vLayoutRight.addWidget(self.progressBar)
+
+        self.groupCommand = QGroupBox("Command Output")
+        self.groupCommand.setLayout(self.vLayoutRight)
 
     def save_output_command(self):
         """
@@ -3009,8 +3118,8 @@ class ClaspyGui(QMainWindow):
     def run_train(self):
         self.update_config()
 
-        # Check if some features are selected
-        if len(self.train_config['feature_names']) > 0:
+        # Check if some features are selected  and hidden_layer_sizes exist
+        if self.selected_count > 0:
             features = str(self.train_config['feature_names']).replace(' ', '')
 
             # Train with GridSearchCV or not
@@ -3084,10 +3193,12 @@ class ClaspyGui(QMainWindow):
                     self.process.setProgram("cmd.exe")
                     self.process.setArguments(command)
                     self.process.start()
+                    self.buttonStop.setEnabled(True)
             else:
                 self.plainTextCommand.appendPlainText("Set python path through Edit > Options")
         else:
-            nofeatures_warning()
+            warning_box("No feature field selected !\nPlease select the features you need !",
+                        "Missing features")
 
     def run_predict(self):
         if self.process is None:
@@ -3105,8 +3216,8 @@ class ClaspyGui(QMainWindow):
         command = ["/C", self.pythonPath, "cLASpy_T.py", "segment",
                    "-i", self.lineLocalFile.text(),
                    "-o", self.lineLocalFolder.text(),
-                   "-p", parameters,
-                   "-f", features,
+                   # "-p", parameters,
+                   # "-f", features,
                    "-s", str(self.train_config['samples'])]
 
         if self.train_config['random_state'] is not None:
@@ -3149,6 +3260,13 @@ class ClaspyGui(QMainWindow):
         self.process = None
         self.progressBar.reset()
         self.enable_open_results()
+        self.buttonStop.setEnabled(False)
+
+    def stop_process(self):
+        self.process.kill()
+        self.plainTextCommand.appendPlainText("\n********************"
+                                              "\nProcess stopped by user!"
+                                              "\n********************")
 
     def reject(self):
         """
