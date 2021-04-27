@@ -210,7 +210,7 @@ def predict(args):
 
     # Config file exists ?
     if args.config:
-        update_arguments(args)  # Get the arguments from the config file
+        arguments_from_config(args)  # Get the arguments from the config file
 
     # Get model, scaler and pca
     print("\nStep 1/6: Loading model...", end='')
@@ -312,7 +312,7 @@ def segment(args):
 
     # Config file exists ?
     if args.config:
-        update_arguments(args)  # Get the arguments from the config file
+        arguments_from_config(args)  # Get the arguments from the config file
 
     # Get the classifier and update the selected algorithm
     algorithm, classifier = get_classifier(args, mode=mode)

@@ -420,7 +420,7 @@ def train(args):
 
     # Config file exists ?
     if args.config:
-        update_arguments(args)  # Get the arguments from the config file
+        arguments_from_config(args)  # Get the arguments from the config file
 
     # Get the classifier type
     algorithm, classifier = get_classifier(args, mode=mode)

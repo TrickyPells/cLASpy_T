@@ -47,6 +47,9 @@ from sklearn.preprocessing import StandardScaler, RobustScaler, MinMaxScaler
 # ------ VARIABLES --------
 # -------------------------
 
+# Define version of cLASpy_T
+cLASpy_T_version = '0.1.0'
+
 # Define point_format dict for LAS files
 point_format = dict()
 
@@ -127,7 +130,7 @@ def shortname_algo(algorithm):
     return algo
 
 
-def update_arguments(args):
+def arguments_from_config(args):
     """
     Update the arguments from the config file given in args.config.
     :param args: the argument parser
@@ -137,30 +140,64 @@ def update_arguments(args):
     with open(args.config, 'r') as config_file:
         config = json.load(config_file)
 
-    args.input_data = os.path.normpath(config['input_file'])
-    args.output = os.path.normpath(config['output_folder'])
-    args.samples = config['samples']
-    args.train_r = config['training_ratio']
-    args.algo = shortname_algo(config['algorithm'])
-    args.png_features = config['png_features']
-    args.random_state = config['random_state']
-    args.features = config['feature_names']
-    args.grid_search = config['grid_search']
-    args.scaler = config['scaler']
-    args.scoring = config['scorer']
-    args.n_jobs = config['n_jobs_cv']
+    # Get the version and mode of config_file
+    # version = config['version'].split('_')[0]
+    mode = config['version'].split('_')[-1]
 
-    # Set grid parameters or classifier parameters (GridSearchCV or not)
-    if args.grid_search:
-        args.param_grid = config['param_grid']
-    else:
-        args.parameters = config['parameters']
+    # Global arguments (all modes)
+    if args.input_data is None:
+        args.input_data = os.path.normpath(config['input_file'])
+    if args.output is None:
+        args.output = os.path.normpath(config['output_folder'])
 
-    # Check if PCA is present
-    try:
-        args.pca = config['pca']
-    except KeyError:
-        pass
+    # Arguments for training or segment mode
+    if mode == 'train' or mode == 'segme':
+        # if argument not set with argparser take value from config file
+        if args.algo is None:
+            args.algo = shortname_algo(config['algorithm'])
+        if args.features is None:
+            args.features = config['feature_names']
+        if args.samples is None:
+            args.samples = config['samples']
+        if args.pca is None:
+            # Check if PCA is present
+            try:
+                args.pca = config['pca']
+            except KeyError:
+                pass
+
+    # Arguments for training mode
+    if mode == 'train':
+        # if argument not set with argparser take value from config file
+        if args.png_features is False:
+            args.png_features = config['png_features']
+        if args.scaler is None:
+            args.scaler = config['scaler']
+        if args.scoring is None:
+            args.scoring = config['scorer']
+        if args.train_r is None:
+            args.train_r = config['training_ratio']
+        if args.random_state == 0:
+            args.random_state = config['random_state']
+        if args.n_jobs == -1:
+            args.n_jobs = config['n_jobs_cv']
+        # grid_search flag: always take value from config file (to avoid incompatibility)
+        args.grid_search = config['grid_search']
+        # Set grid parameters or classifier parameters (GridSearchCV or not)
+        if args.grid_search:
+            args.param_grid = config['param_grid']
+        else:
+            args.parameters = config['parameters']
+
+    # Arguments for predict mode
+    if mode == 'predi':
+        args.model = config['model']
+
+    # Arguments for segment mode
+    if mode == 'segme':
+        # if argument not set with argparser take value from config file
+        if args.parameters is None:
+            args.parameters = config['parameters']
 
 
 def introduction(algorithm, file_path, folder_path=None):

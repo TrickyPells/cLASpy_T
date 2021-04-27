@@ -161,8 +161,7 @@ parser_train.add_argument("-p", "--parameters",
 
 parser_train.add_argument("--pca",
                           help="set the Principal Component Analysis and the number of\n"
-                               "    principal components. If it enabled, default\n"
-                               "    number of principal components is 8 ('--pca=8')\n\n",
+                               "    principal components.\n\n",
                           type=int, metavar='')
 
 parser_train.add_argument("--png_features",
