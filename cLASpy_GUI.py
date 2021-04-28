@@ -3408,6 +3408,8 @@ class ClaspyGui(QMainWindow):
                     self.process.setProgram("cmd.exe")
                     self.process.setArguments(command)
                     self.process.start()
+                    self.processPID = self.process.processId()
+                    self.buttonStop.setEnabled(True)
             else:
                 self.plainTextCommand.appendPlainText("Set python path through Edit > Options")
 
@@ -3433,6 +3435,8 @@ class ClaspyGui(QMainWindow):
             self.process.setProgram("cmd.exe")
             self.process.setArguments(["/C", "echo", "Segment!"])
             self.process.start()
+            self.processPID = self.process.processId()
+            self.buttonStop.setEnabled(True)
 
     def handle_stdout(self):
         data = self.process.readAllStandardOutput()
@@ -3470,8 +3474,8 @@ class ClaspyGui(QMainWindow):
             parent_process.kill()
         except:
             self.statusBar.showMessage("ERROR: Process not killed!", 3000)
-
-        self.plainTextCommand.appendPlainText("\n********************"
+        else:
+            self.plainTextCommand.appendPlainText("\n********************"
                                               "\nProcess stopped by user!"
                                               "\n********************")
 
