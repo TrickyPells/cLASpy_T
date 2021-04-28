@@ -234,11 +234,11 @@ parser_predict.add_argument("-m", "--model",
                                  "    '/path/to/the/training/file.model'\n\n",
                             type=str, metavar='')
 
-parser_predict.add_argument("-s", "--samples",
-                            help="set the number of samples for large dataset.\n"
-                                 "    (float number in million points)\n"
-                                 "    samples = train set + test set\n\n",
-                            type=float, metavar='')
+# parser_predict.add_argument("-s", "--samples",
+#                             help="set the number of samples for large dataset.\n"
+#                                  "    (float number in million points)\n"
+#                                  "    samples = train set + test set\n\n",
+#                             type=float, metavar='')
 
 parser_predict.set_defaults(func=predict)  # Use predict function
 
@@ -288,10 +288,10 @@ parser_segment.add_argument("--pca",
                                  "    number of principal components is 8 ('--pca=8')\n\n",
                             type=int, metavar='')
 
-parser_segment.add_argument("-s", "--samples",
-                            help="set the number of samples for large dataset.\n"
-                                 "    (float number in million points)\n\n",
-                            type=float, metavar='')
+# parser_segment.add_argument("-s", "--samples",
+#                             help="set the number of samples for large dataset.\n"
+#                                  "    (float number in million points)\n\n",
+#                             type=float, metavar='')
 
 parser_segment.set_defaults(func=segment)  # Use segment function
 

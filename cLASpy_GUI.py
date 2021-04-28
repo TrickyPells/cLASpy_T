@@ -30,8 +30,7 @@
 
 import sys
 import re
-import time
-import laspy
+import psutil
 import joblib
 
 from PyQt5.QtCore import *
@@ -665,8 +664,10 @@ class ClaspyGui(QMainWindow):
 
         if self.target:
             self.labelTarget.setText("Target field is available")
+            self.SeglabelTarget.setText("Target field found, will be ignored for segmentation.")
         else:
             self.labelTarget.setText("Target field not found!!")
+            self.SeglabelTarget.setText("Target field not found! Be sure no target field exist.")
 
         # Rewrite listExtraFeature
         self.listExtraFeatures.clear()
@@ -782,7 +783,7 @@ class ClaspyGui(QMainWindow):
     # Tab of train
     def tabui_train(self):
         # Group Training
-        self.groupTrain = QGroupBox("Global Parameters")
+        self.groupTrain = QGroupBox("Data Parameters")
 
         # Label: Target field exist ?
         self.labelTarget = QLabel()
@@ -2003,6 +2004,14 @@ class ClaspyGui(QMainWindow):
 
     # Tab of segmentation
     def tabui_segment(self):
+        # Group Segmentation
+        self.groupSegment = QGroupBox("Data Parameters")
+
+        # Label: Target field exist ?
+        self.SeglabelTarget = QLabel()
+        self.SeglabelTarget.setToolTip("'Target' field must be discarded for segmentation.\n"
+                                       "Otherwise, the segmentation may be based on this field.")
+
         # Fill the left layout
         self.vLayoutTabSegment = QVBoxLayout()
 
@@ -2723,8 +2732,242 @@ class ClaspyGui(QMainWindow):
         param_dict = dict()
         selected_algo = self.comboAlgorithms.currentText()
 
+        # With GridSearchCV
+        if self.checkGridSearchCV.isChecked():
+            self.train_config['grid_search'] = True
+            # if Random Forest (GridSearchCV)
+            if selected_algo == "Random Forest":
+                self.algo = 'rf'
+                self.train_config['algorithm'] = 'RandomForestClassifier'
+                self.train_config['png_features'] = False
+
+                # n_estimators
+                n_estimators_list = format_numberlist(self.RFgridlineEstimators.text(), as_type='list')
+                if n_estimators_list:
+                    param_dict['n_estimators'] = n_estimators_list
+
+                # criterion
+                criterion_list = [item.text() for item in self.RFgridlistCriterion.selectedItems()]
+                if criterion_list:
+                    param_dict['criterion'] = criterion_list
+
+                # max_depth
+                max_depth_list = format_numberlist(self.RFgridlineMaxDepth.text(), as_type='list')
+                # Get the occurrences of '0' and remove it
+                zeros = [value for value in max_depth_list if value == 0]
+                [max_depth_list.remove(zero) for zero in zeros]
+                if max_depth_list:
+                    param_dict['max_depth'] = max_depth_list
+
+                # min_samples_split
+                samples_split_list = format_numberlist(self.RFgridlineSamplesSplit.text(), as_type='list')
+                # Get values < 2
+                inferior_2 = [value for value in samples_split_list if value < 2]
+                [samples_split_list.remove(value) for value in inferior_2]
+                if samples_split_list:
+                    param_dict['min_samples_split'] = samples_split_list
+
+                # min_samples_leaf
+                samples_leaf_list = format_numberlist(self.RFgridlineSamplesLeaf.text(), as_type='list')
+                # Get values < 1
+                inferior_1 = [value for value in samples_leaf_list if value < 1]
+                [samples_leaf_list.remove(value) for value in inferior_1]
+                if samples_leaf_list:
+                    param_dict['min_samples_leaf'] = samples_leaf_list
+
+                # min_weight_fraction_leaf
+                weight_leaf_list = format_floatlist(self.RFgridlineWeightLeaf.text(), as_type='list')
+                if weight_leaf_list:
+                    param_dict['min_weight_fraction_leaf'] = weight_leaf_list
+
+                # max_features
+                max_features_list = [item.text() for item in self.RFgridlistMaxFeatures.selectedItems()]
+                if max_features_list:
+                    param_dict['max_features'] = max_features_list
+
+                # n_jobs
+                if self.RFgridspinNJob.value() == 0:
+                    param_dict['n_jobs'] = [1]
+                elif self.RFgridspinNJob.value() == -1:
+                    param_dict['n_jobs'] = [-1]
+                else:
+                    param_dict['n_jobs'] = list(self.RFgridspinNJob.value())
+
+                # random_state
+                random_state_list = format_numberlist(self.RFgridlineRandomState.text(), as_type='list')
+                # Get the occurrences of number < '0' and remove it
+                zeros_random = [value for value in random_state_list if value < 0]
+                [random_state_list.remove(value) for value in zeros_random]
+                if random_state_list:
+                    param_dict['random_state'] = random_state_list
+
+            # if Gradient Boosting with GridSearchCV
+            elif selected_algo == "Gradient Boosting":
+                self.algo = 'gb'
+                self.train_config['algorithm'] = 'GradientBoostingClassifier'
+                self.train_config['png_features'] = False
+
+                # loss
+                loss_list = [item.text() for item in self.GBgridlistLoss.selectedItems()]
+                if loss_list:
+                    param_dict['loss'] = loss_list
+
+                # learning_rate
+                learning_rate_list = format_floatlist(self.GBgridlineLearningRate.text(), as_type='list')
+                if learning_rate_list:
+                    param_dict['learning_rate'] = learning_rate_list
+
+                # n_estimators
+                n_estimators_list = format_numberlist(self.GBgridlineEstimators.text(), as_type='list')
+                if n_estimators_list:
+                    param_dict['n_estimators'] = n_estimators_list
+
+                # subsample
+                subsample_list = format_floatlist(self.GBgridlineSubsample.text(), as_type='list')
+                if subsample_list:
+                    param_dict['subsample'] = subsample_list
+
+                # criterion
+                criterion_list = [item.text() for item in self.GBgridlistCriterion.selectedItems()]
+                if criterion_list:
+                    param_dict['criterion'] = criterion_list
+
+                # min_samples_split
+                min_samples_split_list = format_numberlist(self.GBgridlineSamplesSplit.text(), as_type='list')
+                if min_samples_split_list:
+                    param_dict['min_samples_split'] = min_samples_split_list
+
+                # min_samples_leaf
+                min_samples_leaf_list = format_numberlist(self.GBgridlineSamplesLeaf.text(), as_type='list')
+                if min_samples_leaf_list:
+                    param_dict['min_samples_leaf'] = min_samples_leaf_list
+
+                # min_weight_fraction_leaf
+                min_weight_leaf_list = format_floatlist(self.GBgridlineWeightLeaf.text(), as_type='list')
+                if min_weight_leaf_list:
+                    param_dict['min_weight_fraction_leaf'] = min_weight_leaf_list
+
+                # max_depth
+                max_depth_list = format_numberlist(self.GBgridlineMaxDepth.text(), as_type='list')
+                # Get the occurrences of '0' and remove it
+                zeros = [value for value in max_depth_list if value == 0]
+                [max_depth_list.remove(zero) for zero in zeros]
+                if max_depth_list:
+                    param_dict['max_depth'] = max_depth_list
+
+                # random_state
+                random_state_list = format_numberlist(self.GBgridlineRandomState.text(), as_type='list')
+                # Get the occurrences of number < '0' and remove it
+                zeros_random = [value for value in random_state_list if value < 0]
+                [random_state_list.remove(value) for value in zeros_random]
+                if random_state_list:
+                    param_dict['random_state'] = random_state_list
+
+                # max_features
+                max_features_list = [item.text() for item in self.GBgridlistMaxFeatures.selectedItems()]
+                if max_features_list:
+                    param_dict['max_features'] = max_features_list
+
+            # if Neural Network with GridSearchCV
+            elif selected_algo == "Neural Network":
+                self.algo = 'ann'
+                self.train_config['algorithm'] = 'MLPClassifier'
+                self.train_config['png_features'] = False
+
+                # hidden_layer_sizes
+                hidden_layers_list = format_layerlist(self.NNgridlineHiddenLayers.text(), as_type='list')
+                if hidden_layers_list:
+                    param_dict['hidden_layer_sizes'] = hidden_layers_list
+                else:
+                    param_dict['hidden_layer_sizes'] = []
+
+                # activation
+                activation_list = [item.text() for item in self.NNgridlistActivation.selectedItems()]
+                if activation_list:
+                    param_dict['activation'] = activation_list
+
+                # solver
+                solver_list = [item.text() for item in self.NNgridlistSolver.selectedItems()]
+                if solver_list:
+                    param_dict['solver'] = solver_list
+
+                # alpha
+                alpha_list = format_floatlist(self.NNgridlineAlpha.text(), as_type='list')
+                if alpha_list:
+                    param_dict['alpha'] = alpha_list
+
+                # batch_size
+                if self.NNgridlineBatchSize.isEnabled():
+                    batch_size_list = format_numberlist(self.NNgridlineBatchSize.text(), as_type='list')
+                    if batch_size_list:
+                        param_dict['batch_size'] = batch_size_list
+
+                # learning_rate
+                if self.NNgridlistLearningRate.isEnabled():
+                    learning_rate_list = [item.text() for item in self.NNgridlistLearningRate.selectedItems()]
+                    if learning_rate_list:
+                        param_dict['learning_rate'] = learning_rate_list
+
+                # learning_rate_init
+                if self.NNgridlineLearningRateInit.isEnabled():
+                    learning_init_list = format_floatlist(self.NNgridlineLearningRateInit.text(), as_type='list')
+                    if learning_init_list:
+                        param_dict['learning_rate_init'] = learning_init_list
+
+                # power_t
+                if self.NNgridlinePowerT.isEnabled():
+                    power_t_list = format_floatlist(self.NNgridlinePowerT.text(), as_type='list')
+                    if power_t_list:
+                        param_dict['power_t'] = power_t_list
+
+                # max_iter
+                max_iter_list = format_numberlist(self.NNgridlineMaxIter.text(), as_type='list')
+                if max_iter_list:
+                    param_dict['max_iter'] = max_iter_list
+
+                # shuffle
+                if self.NNgridlistShuffle.isEnabled():
+                    shuffle_list = [item.text() for item in self.NNgridlistShuffle.selectedItems()]
+                    true_shuffle_list = list()  # Only True or/and False accepted
+                    for item in shuffle_list:
+                        if item == 'shuffle':
+                            true_shuffle_list.append(True)
+                        if item == 'no shuffle':
+                            true_shuffle_list.append(False)
+                    if true_shuffle_list:
+                        param_dict['shuffle'] = true_shuffle_list
+
+                # random_state
+                random_state_list = format_numberlist(self.NNgridlineRandomState.text(), as_type='list')
+                # Get the occurrences of number < '0' and remove it
+                zeros_random = [value for value in random_state_list if value < 0]
+                [random_state_list.remove(value) for value in zeros_random]
+                if random_state_list:
+                    param_dict['random_state'] = random_state_list
+
+                # beta_1, beta_2 and epsilon
+                if self.NNgridlineBeta_1.isEnabled():
+                    beta_1_list = format_floatlist(self.NNgridlineBeta_1.text(), as_type='list')
+                    if beta_1_list:
+                        param_dict['beta_1'] = beta_1_list
+
+                if self.NNgridlineBeta_2.isEnabled():
+                    beta_2_list = format_floatlist(self.NNgridlineBeta_2.text(), as_type='list')
+                    if beta_2_list:
+                        param_dict['beta_2'] = beta_2_list
+
+                if self.NNgridlineEpsilon.isEnabled():
+                    epsilon_list = format_floatlist(self.NNgridlineEpsilon.text(), as_type='list')
+                    if epsilon_list:
+                        param_dict['epsilon'] = epsilon_list
+
+            # if anything else
+            else:
+                self.statusBar.showMessage('Error: Unknown selected algorithm!',
+                                           3000)
+
         # Without GridSearchCV
-        if self.checkGridSearchCV.isChecked() is False:
+        else:
             self.train_config['grid_search'] = False
             # if Random Forest
             if selected_algo == "Random Forest":
@@ -2854,239 +3097,6 @@ class ClaspyGui(QMainWindow):
                 self.statusBar.showMessage('Error: Unknown selected algorithm!',
                                            3000)
 
-        # With GridSearchCV
-        else:
-            self.train_config['grid_search'] = True
-            # if Random Forest (GridSearchCV)
-            if selected_algo == "Random Forest (GridSearchCV)":
-                self.algo = 'rf'
-                self.train_config['algorithm'] = 'RandomForestClassifier'
-                self.train_config['png_features'] = False
-
-                # n_estimators
-                n_estimators_list = format_numberlist(self.RFgridlineEstimators.text(), as_type='list')
-                if n_estimators_list:
-                    param_dict['n_estimators'] = n_estimators_list
-
-                # criterion
-                criterion_list = [item.text() for item in self.RFgridlistCriterion.selectedItems()]
-                if criterion_list:
-                    param_dict['criterion'] = criterion_list
-
-                # max_depth
-                max_depth_list = format_numberlist(self.RFgridlineMaxDepth.text(), as_type='list')
-                # Get the occurrences of '0' and remove it
-                zeros = [value for value in max_depth_list if value == 0]
-                [max_depth_list.remove(zero) for zero in zeros]
-                if max_depth_list:
-                    param_dict['max_depth'] = max_depth_list
-
-                # min_samples_split
-                samples_split_list = format_numberlist(self.RFgridlineSamplesSplit.text(), as_type='list')
-                # Get values < 2
-                inferior_2 = [value for value in samples_split_list if value < 2]
-                [samples_split_list.remove(value) for value in inferior_2]
-                if samples_split_list:
-                    param_dict['min_samples_split'] = samples_split_list
-
-                # min_samples_leaf
-                samples_leaf_list = format_numberlist(self.RFgridlineSamplesLeaf.text(), as_type='list')
-                # Get values < 1
-                inferior_1 = [value for value in samples_leaf_list if value < 1]
-                [samples_leaf_list.remove(value) for value in inferior_1]
-                if samples_leaf_list:
-                    param_dict['min_samples_leaf'] = samples_leaf_list
-
-                # min_weight_fraction_leaf
-                weight_leaf_list = format_floatlist(self.RFgridlineWeightLeaf.text(), as_type='list')
-                if weight_leaf_list:
-                    param_dict['min_weight_fraction_leaf'] = weight_leaf_list
-
-                # max_features
-                max_features_list = [item.text() for item in self.RFgridlistMaxFeatures.selectedItems()]
-                if max_features_list:
-                    param_dict['max_features'] = max_features_list
-
-                # n_jobs
-                if self.RFgridspinNJob.value() == 0:
-                    param_dict['n_jobs'] = 1
-                elif self.RFgridspinNJob.value() == -1:
-                    param_dict['n_jobs'] = -1
-                else:
-                    param_dict['n_jobs'] = self.RFgridspinNJob.value()
-
-                # random_state
-                random_state_list = format_numberlist(self.RFgridlineRandomState.text(), as_type='list')
-                # Get the occurrences of number < '0' and remove it
-                zeros_random = [value for value in random_state_list if value < 0]
-                [random_state_list.remove(value) for value in zeros_random]
-                if random_state_list:
-                    param_dict['random_state'] = random_state_list
-
-            # if Gradient Boosting with GridSearchCV
-            elif selected_algo == "Gradient Boosting (GridSearchCV)":
-                self.algo = 'gb'
-                self.train_config['algorithm'] = 'GradientBoostingClassifier'
-                self.train_config['png_features'] = False
-
-                # loss
-                loss_list = [item.text() for item in self.GBgridlistLoss.selectedItems()]
-                if loss_list:
-                    param_dict['loss'] = loss_list
-
-                # learning_rate
-                learning_rate_list = format_floatlist(self.GBgridlineLearningRate.text(), as_type='list')
-                if learning_rate_list:
-                    param_dict['learning_rate'] = learning_rate_list
-
-                # n_estimators
-                n_estimators_list = format_numberlist(self.GBgridlineEstimators.text(), as_type='list')
-                if n_estimators_list:
-                    param_dict['n_estimators'] = n_estimators_list
-
-                # subsample
-                subsample_list = format_floatlist(self.GBgridlineSubsample.text(), as_type='list')
-                if subsample_list:
-                    param_dict['subsample'] = subsample_list
-
-                # criterion
-                criterion_list = [item.text() for item in self.GBgridlistCriterion.selectedItems()]
-                if criterion_list:
-                    param_dict['criterion'] = criterion_list
-
-                # min_samples_split
-                min_samples_split_list = format_numberlist(self.GBgridlineSamplesSplit.text(), as_type='list')
-                if min_samples_split_list:
-                    param_dict['min_samples_split'] = min_samples_split_list
-
-                # min_samples_leaf
-                min_samples_leaf_list = format_numberlist(self.GBgridlineSamplesLeaf.text(), as_type='list')
-                if min_samples_leaf_list:
-                    param_dict['min_samples_leaf'] = min_samples_leaf_list
-
-                # min_weight_fraction_leaf
-                min_weight_leaf_list = format_floatlist(self.GBgridlineWeightLeaf.text(), as_type='list')
-                if min_weight_leaf_list:
-                    param_dict['min_weight_fraction_leaf'] = min_weight_leaf_list
-
-                # max_depth
-                max_depth_list = format_numberlist(self.GBgridlineMaxDepth.text(), as_type='list')
-                # Get the occurrences of '0' and remove it
-                zeros = [value for value in max_depth_list if value == 0]
-                [max_depth_list.remove(zero) for zero in zeros]
-                if max_depth_list:
-                    param_dict['max_depth'] = max_depth_list
-
-                # random_state
-                random_state_list = format_numberlist(self.GBgridlineRandomState.text(), as_type='list')
-                # Get the occurrences of number < '0' and remove it
-                zeros_random = [value for value in random_state_list if value < 0]
-                [random_state_list.remove(value) for value in zeros_random]
-                if random_state_list:
-                    param_dict['random_state'] = random_state_list
-
-                # max_features
-                max_features_list = [item.text() for item in self.GBgridlistMaxFeatures.selectedItems()]
-                if max_features_list:
-                    param_dict['max_features'] = max_features_list
-
-            # if Neural Network with GridSearchCV
-            elif selected_algo == "Neural Network (GridSearchCV)":
-                self.algo = 'ann'
-                self.train_config['algorithm'] = 'MLPClassifier'
-                self.train_config['png_features'] = False
-
-                # hidden_layer_sizes
-                hidden_layers_list = format_layerlist(self.NNgridlineHiddenLayers.text(), as_type='list')
-                if hidden_layers_list:
-                    param_dict['hidden_layer_sizes'] = hidden_layers_list
-                else:
-                    param_dict['hidden_layer_sizes'] = []
-
-                # activation
-                activation_list = [item.text() for item in self.NNgridlistActivation.selectedItems()]
-                if activation_list:
-                    param_dict['activation'] = activation_list
-
-                # solver
-                solver_list = [item.text() for item in self.NNgridlistSolver.selectedItems()]
-                if solver_list:
-                    param_dict['solver'] = solver_list
-
-                # alpha
-                alpha_list = format_floatlist(self.NNgridlineAlpha.text(), as_type='list')
-                if alpha_list:
-                    param_dict['alpha'] = alpha_list
-
-                # batch_size
-                if self.NNgridlineBatchSize.isEnabled():
-                    batch_size_list = format_numberlist(self.NNgridlineBatchSize.text(), as_type='list')
-                    if batch_size_list:
-                        param_dict['batch_size'] = batch_size_list
-
-                # learning_rate
-                if self.NNgridlistLearningRate.isEnabled():
-                    learning_rate_list = [item.text() for item in self.NNgridlistLearningRate.selectedItems()]
-                    if learning_rate_list:
-                        param_dict['learning_rate'] = learning_rate_list
-
-                # learning_rate_init
-                if self.NNgridlineLearningRateInit.isEnabled():
-                    learning_init_list = format_floatlist(self.NNgridlineLearningRateInit.text(), as_type='list')
-                    if learning_init_list:
-                        param_dict['learning_rate_init'] = learning_init_list
-
-                # power_t
-                if self.NNgridlinePowerT.isEnabled():
-                    power_t_list = format_floatlist(self.NNgridlinePowerT.text(), as_type='list')
-                    if power_t_list:
-                        param_dict['power_t'] = power_t_list
-
-                # max_iter
-                max_iter_list = format_numberlist(self.NNgridlineMaxIter.text(), as_type='list')
-                if max_iter_list:
-                    param_dict['max_iter'] = max_iter_list
-
-                # shuffle
-                if self.NNgridlistShuffle.isEnabled():
-                    shuffle_list = [item.text() for item in self.NNgridlistShuffle.selectedItems()]
-                    true_shuffle_list = list()  # Only True or/and False accepted
-                    for item in shuffle_list:
-                        if item == 'shuffle':
-                            true_shuffle_list.append(True)
-                        if item == 'no shuffle':
-                            true_shuffle_list.append(False)
-                    if true_shuffle_list:
-                        param_dict['shuffle'] = true_shuffle_list
-
-                # random_state
-                random_state_list = format_numberlist(self.NNgridlineRandomState.text(), as_type='list')
-                # Get the occurrences of number < '0' and remove it
-                zeros_random = [value for value in random_state_list if value < 0]
-                [random_state_list.remove(value) for value in zeros_random]
-                if random_state_list:
-                    param_dict['random_state'] = random_state_list
-
-                # beta_1, beta_2 and epsilon
-                if self.NNgridlineBeta_1.isEnabled():
-                    beta_1_list = format_floatlist(self.NNgridlineBeta_1.text(), as_type='list')
-                    if beta_1_list:
-                        param_dict['beta_1'] = beta_1_list
-
-                if self.NNgridlineBeta_2.isEnabled():
-                    beta_2_list = format_floatlist(self.NNgridlineBeta_2.text(), as_type='list')
-                    if beta_2_list:
-                        param_dict['beta_2'] = beta_2_list
-
-                if self.NNgridlineEpsilon.isEnabled():
-                    epsilon_list = format_floatlist(self.NNgridlineEpsilon.text(), as_type='list')
-                    if epsilon_list:
-                        param_dict['epsilon'] = epsilon_list
-
-            # if anything else
-            else:
-                self.statusBar.showMessage('Error: Unknown selected algorithm!',
-                                           3000)
 
         # Save classifier parameters with GridSearchCV or not
         if self.train_config['grid_search']:
@@ -3369,6 +3379,7 @@ class ClaspyGui(QMainWindow):
                     self.process.setProgram("cmd.exe")
                     self.process.setArguments(command)
                     self.process.start()
+                    self.processPID = self.process.processId()
                     self.buttonStop.setEnabled(True)
             else:
                 self.plainTextCommand.appendPlainText("Set python path through Edit > Options")
@@ -3452,7 +3463,14 @@ class ClaspyGui(QMainWindow):
         self.buttonStop.setEnabled(False)
 
     def stop_process(self):
-        self.process.kill()
+        parent_process = psutil.Process(self.processPID)
+        try:
+            for child in parent_process.children(recursive=True):
+                child.kill()
+            parent_process.kill()
+        except:
+            self.statusBar.showMessage("ERROR: Process not killed!", 3000)
+
         self.plainTextCommand.appendPlainText("\n********************"
                                               "\nProcess stopped by user!"
                                               "\n********************")
