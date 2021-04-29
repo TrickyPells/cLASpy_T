@@ -227,7 +227,7 @@ def predict(args):
     data, target = format_dataset(data_path, mode=mode, features=feature_names)
 
     # Get the number of points
-    nbr_pts = number_of_points(data.shape[0], sample_size=args.samples)
+    nbr_pts = number_of_points(data.shape[0])
     str_nbr_pts = format_nbr_pts(nbr_pts)  # Format nbr_pts as string for filename
 
     # Set the report filename
@@ -326,7 +326,7 @@ def segment(args):
     data, target = format_dataset(data_path, mode=mode, features=args.features)
 
     # Get the number of points
-    nbr_pts = number_of_points(data.shape[0], sample_size=args.samples)
+    nbr_pts = number_of_points(data.shape[0])
     str_nbr_pts = format_nbr_pts(nbr_pts)  # Format nbr_pts as string for filename
 
     # Set the report filename

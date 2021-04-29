@@ -282,11 +282,11 @@ parser_segment.add_argument("-p", "--parameters",
                                  "    -p={'n_estimators':50,'max_depth':5,'max_iter':500}\n\n",
                             type=str, metavar='')
 
-parser_segment.add_argument("--pca",
-                            help="set the Principal Component Analysis and the number of\n"
-                                 "    principal components. If it enabled, default\n"
-                                 "    number of principal components is 8 ('--pca=8')\n\n",
-                            type=int, metavar='')
+# parser_segment.add_argument("--pca",
+#                             help="set the Principal Component Analysis and the number of\n"
+#                                  "    principal components. If it enabled, default\n"
+#                                  "    number of principal components is 8 ('--pca=8')\n\n",
+#                             type=int, metavar='')
 
 # parser_segment.add_argument("-s", "--samples",
 #                             help="set the number of samples for large dataset.\n"

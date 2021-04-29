@@ -432,7 +432,7 @@ class ClaspyGui(QMainWindow):
         # Button box for Options
         self.buttonOptionsBox = QDialogButtonBox(QDialogButtonBox.Apply | QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
         self.buttonOptionsBox.button(QDialogButtonBox.Apply).clicked.connect(self.save_options)
-        self.buttonOptionsBox.accepted.connect(self.dialogOptions.close)
+        self.buttonOptionsBox.accepted.connect(self.save_close_options)
         self.buttonOptionsBox.rejected.connect(self.dialogOptions.reject)
 
         self.formLayoutOptions = QFormLayout(self.dialogOptions)
@@ -461,7 +461,15 @@ class ClaspyGui(QMainWindow):
                 json.dump(self.options_dict, options_file)
                 self.statusBar.showMessage("Python path: {}".format(self.pythonPath), 3000)
         else:
-            self.statusBar.showMessage("Python path not set !")
+            warning_box("Python path not set !\nGive the python.exe of your virtual environment.", "Python path not set")
+
+    def save_close_options(self):
+        # call save_otpion()
+        self.save_options()
+
+        # and close dialog
+        if self.linePython.text() != '':
+            self.dialogOptions.close()
 
     # Parameter part
     def parameter_part(self):
@@ -663,11 +671,11 @@ class ClaspyGui(QMainWindow):
             self.target = False
 
         if self.target:
-            self.labelTarget.setText("Target field is available")
-            self.SeglabelTarget.setText("Target field found, will be ignored for segmentation.")
+            self.labelTarget.setText("Target field is available.")
+            self.SeglabelTarget.setText("Will be discarded for segmentation.")
         else:
             self.labelTarget.setText("Target field not found!!")
-            self.SeglabelTarget.setText("Target field not found! Be sure no target field exist.")
+            self.SeglabelTarget.setText("Target field not found.")
 
         # Rewrite listExtraFeature
         self.listExtraFeatures.clear()
@@ -834,9 +842,9 @@ class ClaspyGui(QMainWindow):
                                         "the shuffle split for GridSearchCV or Cross-Validation.")
         self.pushRandomSeed = QPushButton("New Seed")
         self.pushRandomSeed.clicked.connect(lambda: new_seed(self.spinRandomState))
-        self.hLayoutRandom = QHBoxLayout()
-        self.hLayoutRandom.addWidget(self.spinRandomState)
-        self.hLayoutRandom.addWidget(self.pushRandomSeed)
+        h_layout_random = QHBoxLayout()
+        h_layout_random.addWidget(self.spinRandomState)
+        h_layout_random.addWidget(self.pushRandomSeed)
 
         # Set the Princiapl Component Analysis
         self.spinPCA = QSpinBox()
@@ -869,7 +877,7 @@ class ClaspyGui(QMainWindow):
 
         self.formRightTrain = QFormLayout()
         self.formRightTrain.addRow("N_jobs CV:", self.spinNJobCV)
-        self.formRightTrain.addRow("Random State:", self.hLayoutRandom)
+        self.formRightTrain.addRow("Random State:", h_layout_random)
         self.formRightTrain.addRow("PCA:", self.spinPCA)
         self.formRightTrain.addRow("Scorer:", self.comboScorer)
 
@@ -919,6 +927,7 @@ class ClaspyGui(QMainWindow):
         self.stackAlgo.addWidget(self.stack_GB_grid)
         self.stackAlgo.addWidget(self.stack_NN_grid)
 
+        # Make the StackAlgo scrollable
         self.scrollStackAlgo = QScrollArea()
         self.scrollStackAlgo.setFrameShape(QFrame.NoFrame)
         self.scrollStackAlgo.setWidgetResizable(True)
@@ -2009,24 +2018,55 @@ class ClaspyGui(QMainWindow):
 
         # Label: Target field exist ?
         self.SeglabelTarget = QLabel()
+        self.SeglabelTarget.setWordWrap(True)
         self.SeglabelTarget.setToolTip("'Target' field must be discarded for segmentation.\n"
                                        "Otherwise, the segmentation may be based on this field.")
 
-        # Fill the left layout
-        self.vLayoutTabSegment = QVBoxLayout()
+        # Set the scaler
+        self.SegcomboScaler = QComboBox()
+        self.SegcomboScaler.addItems(self.scalerNames)
+        self.SegcomboScaler.setCurrentText("Standard")
+        self.SegcomboScaler.setToolTip("Set the method to scale the data.")
+        self.SegcomboScaler.setEnabled(False)
+
+        # Set the Principal Component Analysis
+        self.SegspinPCA = QSpinBox()
+        self.SegspinPCA.setMaximumWidth(80)
+        self.SegspinPCA.setMinimum(0)
+        self.SegspinPCA.setMaximum(9999)
+        self.SegspinPCA.setValue(0)
+        self.SegspinPCA.setToolTip("Set the Principal Component Analysis\n"
+                                   "and the number of principal components.")
+        self.SegspinPCA.setEnabled(False)
+
+        # Fill the layout for Data parameters of the semgentation
+        form_segment = QFormLayout()
+        form_segment.addRow("Target field:", self.SeglabelTarget)
+        form_segment.addRow("Scaler:", self.SegcomboScaler)
+        form_segment.addRow("PCA:", self.SegspinPCA)
+
+        self.groupSegment.setLayout(form_segment)
+        self.groupSegment.setEnabled(False)
+        self.groupSegment.setToolTip("Not active yet!")
 
         # Cluster algorithms
-        self.groupCluster = QGroupBox("Cluster Algorithms")
-        form_layout = QFormLayout()
+        # self.groupCluster = QGroupBox("Cluster Algorithms")
+        self.groupCluster = QGroupBox("K-means Algorithm")
 
+        # random_state
         self.KMspinRandomState = QSpinBox()
         self.KMspinRandomState.setMaximumWidth(80)
         self.KMspinRandomState.setMinimum(-1)
-        self.KMspinRandomState.setMaximum(999999)
+        self.KMspinRandomState.setMaximum(2147483647)  # 2^31 - 1
         self.KMspinRandomState.setValue(-1)
         self.KMspinRandomState.setToolTip("Controls the random generation of centroids.")
-        form_layout.addRow("random_state:", self.KMspinRandomState)
+        self.KMpushRandomSeed = QPushButton("New Seed")
+        self.KMpushRandomSeed.clicked.connect(lambda: new_seed(self.KMspinRandomState))
+        h_layout_random = QHBoxLayout()
+        h_layout_random.addWidget(self.KMspinRandomState)
+        h_layout_random.addWidget(self.KMpushRandomSeed)
 
+        # n_clusters
         self.KMspinNClusters = QSpinBox()
         self.KMspinNClusters.setMaximumWidth(80)
         self.KMspinNClusters.setMinimum(2)
@@ -2034,16 +2074,16 @@ class ClaspyGui(QMainWindow):
         self.KMspinNClusters.setValue(8)
         self.KMspinNClusters.setToolTip("The number of clusters to form as well\n"
                                         "as the number of centroids to generate.")
-        form_layout.addRow("n_clusters:", self.KMspinNClusters)
 
+        # init
         self.KMinit = ["k-means++", "random"]
         self.KMcomboInit = QComboBox()
         self.KMcomboInit.setMaximumWidth(80)
         self.KMcomboInit.addItems(self.KMinit)
         self.KMcomboInit.setCurrentIndex(self.KMinit.index("k-means++"))
         self.KMcomboInit.setToolTip("Method for initialization.")
-        form_layout.addRow("init:", self.KMcomboInit)
 
+        # n_init
         self.KMspinNInit = QSpinBox()
         self.KMspinNInit.setMaximumWidth(80)
         self.KMspinNInit.setMinimum(1)
@@ -2053,8 +2093,8 @@ class ClaspyGui(QMainWindow):
                                     "run with different centroid seeds. The final\n"
                                     "results will be the best output of n_init\n"
                                     "consecutive runs in terms of inertia.")
-        form_layout.addRow("n_init:", self.KMspinNInit)
 
+        # max_iter
         self.KMspinMaxIter = QSpinBox()
         self.KMspinMaxIter.setMaximumWidth(80)
         self.KMspinMaxIter.setMinimum(1)
@@ -2062,8 +2102,8 @@ class ClaspyGui(QMainWindow):
         self.KMspinMaxIter.setValue(300)
         self.KMspinMaxIter.setToolTip("Maximum number of iterations of the k-means\n"
                                       "algorithm for a single run.")
-        form_layout.addRow("max_iter:", self.KMspinMaxIter)
 
+        # tol
         self.KMspinTol = QDoubleSpinBox()
         self.KMspinTol.setMaximumWidth(80)
         self.KMspinTol.setDecimals(8)
@@ -2073,17 +2113,33 @@ class ClaspyGui(QMainWindow):
         self.KMspinTol.setToolTip("Relative tolerance with regards to Frobenius norm\n"
                                   "of the difference in the cluster centers of two\n"
                                   "consecutive iterations to declare convergence.")
-        form_layout.addRow("tol:", self.KMspinTol)
 
+        # algorithm
         self.KMalgorithm = ["auto", "full", "elkan"]
         self.KMcomboAlgorithm = QComboBox()
         self.KMcomboAlgorithm.setMaximumWidth(80)
         self.KMcomboAlgorithm.addItems(self.KMalgorithm)
         self.KMcomboAlgorithm.setCurrentIndex(self.KMalgorithm.index("auto"))
         self.KMcomboAlgorithm.setToolTip("K-means algorithm to use.")
+
+        # form layout for cluster parameters
+        form_layout = QFormLayout()
+        form_layout.setLabelAlignment(Qt.AlignRight)
+        form_layout.addRow("random_state:", h_layout_random)
+        form_layout.addRow("n_clusters:", self.KMspinNClusters)
+        form_layout.addRow("init:", self.KMcomboInit)
+        form_layout.addRow("n_init:", self.KMspinNInit)
+        form_layout.addRow("max_iter:", self.KMspinMaxIter)
+        form_layout.addRow("tol:", self.KMspinTol)
         form_layout.addRow("algorithm:", self.KMcomboAlgorithm)
 
-        self.tabSegment.setLayout(form_layout)
+        self.groupCluster.setLayout(form_layout)
+
+        layout = QHBoxLayout()
+        layout.addWidget(self.groupSegment)
+        layout.addWidget(self.groupCluster)
+
+        self.tabSegment.setLayout(layout)
 
     def tab_modes_action(self, tab):
         if tab == 0:  # For Training tab
@@ -2241,6 +2297,36 @@ class ClaspyGui(QMainWindow):
         self.listExtraFeatures.clearSelection()
 
     # Configuration for train, prediction and segmentation
+    def set_selected_features(self, feature_names):
+        """
+        Set the selected features in the GUI according the given list.
+        :param feature_names: List of the selected features.
+        """
+        # Loop throught all selected features
+        for feature in feature_names:
+            # Set the coordinate feature
+            if feature == 'X':
+                self.checkAdvancedFeat.setChecked(True)
+                self.checkX.setChecked(True)
+            if feature == 'Y':
+                self.checkAdvancedFeat.setChecked(True)
+                self.checkY.setChecked(True)
+            if feature == 'Z':
+                self.checkAdvancedFeat.setChecked(True)
+                self.checkZ.setChecked(True)
+
+            # Set the standard LAS features
+            if self.file_type == 'LAS':
+                standard_item = self.listStandardLAS.findItems(feature, Qt.MatchExactly)
+                if len(standard_item) > 0:
+                    row = self.listStandardLAS.row(standard_item[0])
+                    self.listStandardLAS.item(row).setSelected(True)
+
+            item = self.listExtraFeatures.findItems(feature, Qt.MatchExactly)
+            if len(item) > 0:
+                row = self.listExtraFeatures.row(item[0])
+                self.listExtraFeatures.item(row).setSelected(True)
+
     def open_config(self):
         """
         Open configuration JSON file and set all saved parameters.
@@ -2632,34 +2718,15 @@ class ClaspyGui(QMainWindow):
                 self.statusBar.showMessage('Error: Unknown algorithm from config file!',
                                            3000)
 
-        # Get the selected features
+        # Set the selected features
         feature_names = config_dict['feature_names']
-        for feature in feature_names:
-            # Set the coordinate feature
-            if feature == 'X':
-                self.checkAdvancedFeat.setChecked(True)
-                self.checkX.setChecked(True)
-            if feature == 'Y':
-                self.checkAdvancedFeat.setChecked(True)
-                self.checkY.setChecked(True)
-            if feature == 'Z':
-                self.checkAdvancedFeat.setChecked(True)
-                self.checkZ.setChecked(True)
-
-            # Set the standard LAS features
-            if self.file_type == 'LAS':
-                standard_item = self.listStandardLAS.findItems(feature, Qt.MatchExactly)
-                if len(standard_item) > 0:
-                    row = self.listStandardLAS.row(standard_item[0])
-                    self.listStandardLAS.item(row).setSelected(True)
-
-            item = self.listExtraFeatures.findItems(feature, Qt.MatchExactly)
-            if len(item) > 0:
-                row = self.listExtraFeatures.row(item[0])
-                self.listExtraFeatures.item(row).setSelected(True)
+        self.set_selected_features(feature_names)
 
         # Update the train_config dict of the application
         self.update_train_config()
+
+        # Display train_tab
+        self.tabModes.setCurrentIndex(0)
 
     def open_predict_config(self, config_dict):
         """
@@ -2676,11 +2743,77 @@ class ClaspyGui(QMainWindow):
         # Update the predict_config of the application
         self.update_predict_config()
 
+        # Display predict_tab
+        self.tabModes.setCurrentIndex(1)
+
     def open_segment_config(self, config_dict):
         """
         Open the configuration file for segmentation.
         :param config_dict: The dictionnary from configuration file.
         """
+        # Segementation parameters
+        param_dict = config_dict['parameters']
+
+        # random_state
+        self.KMspinRandomState.setValue(param_dict['random_state'])
+
+        # n_clusters
+        self.KMspinNClusters.setValue(param_dict['n_clusters'])
+
+        # init
+        self.KMcomboInit.setCurrentText(param_dict['init'])
+
+        # n_init
+        self.KMspinNInit.setValue(param_dict['n_init'])
+
+        # max_iter
+        self.KMspinMaxIter.setValue(param_dict['max_iter'])
+
+        # tol
+        self.KMspinTol.setValue(param_dict['tol'])
+
+        # algorithm
+        self.KMcomboAlgorithm.setCurrentText(param_dict['algorithm'])
+
+        # Set the selected features
+        feature_names = config_dict['feature_names']
+        self.set_selected_features(feature_names)
+
+        # Update the semgent_config of the application
+        self.update_segment_config()
+
+        # Display segment_tab
+        self.tabModes.setCurrentIndex(2)
+
+    def get_selected_features(self):
+        """
+        Get the selected features and return them in list.
+        :return: List of all selected features.
+        """
+        # Initialize the list of selected features
+        selected_features = list()
+
+        # Get the coordinates features
+        if self.checkAdvancedFeat.isChecked():  # Add X, Y, Z
+            if self.checkX.isEnabled() and self.checkX.isChecked():
+                selected_features.append('X')
+            if self.checkY.isEnabled() and self.checkY.isChecked():
+                selected_features.append('Y')
+            if self.checkZ.isEnabled() and self.checkZ.isChecked():
+                selected_features.append('Z')
+
+            # Get the features from standard LAS features
+            for feature in self.listStandardLAS.selectedItems():  # Add Standard LAS features
+                selected_features.append(feature.text())
+
+        # Get features from Extra features
+        for feature in self.listExtraFeatures.selectedItems():  # Add Extra features
+            selected_features.append(feature.text())
+
+        # Sort the selected features
+        selected_features.sort()
+
+        return selected_features
 
     def update_config(self):
         """
@@ -3095,7 +3228,6 @@ class ClaspyGui(QMainWindow):
                 self.statusBar.showMessage('Error: Unknown selected algorithm!',
                                            3000)
 
-
         # Save classifier parameters with GridSearchCV or not
         if self.train_config['grid_search']:
             self.train_config['param_grid'] = param_dict
@@ -3111,22 +3243,7 @@ class ClaspyGui(QMainWindow):
                 pass
 
         # Get the current selected features
-        self.selectedFeatures = list()
-        if self.checkAdvancedFeat.isChecked():  # Add X, Y, Z
-            if self.checkX.isEnabled() and self.checkX.isChecked():
-                self.selectedFeatures.append('X')
-            if self.checkY.isEnabled() and self.checkY.isChecked():
-                self.selectedFeatures.append('Y')
-            if self.checkZ.isEnabled() and self.checkZ.isChecked():
-                self.selectedFeatures.append('Z')
-
-            for feature in self.listStandardLAS.selectedItems():  # Add Standard LAS features
-                self.selectedFeatures.append(feature.text())
-
-        for feature in self.listExtraFeatures.selectedItems():  # Add Extra features
-            self.selectedFeatures.append(feature.text())
-
-        self.selectedFeatures.sort()
+        self.selectedFeatures = self.get_selected_features()
         self.train_config['feature_names'] = self.selectedFeatures
 
     def update_predict_config(self):
@@ -3174,8 +3291,41 @@ class ClaspyGui(QMainWindow):
             self.segment_config['input_file'] = self.lineServerFile.text()
             self.segment_config['output_folder'] = self.lineServerFolder.text()
 
-        # Save sample size and train ratio
-        self.segment_config['samples'] = self.spinSampleSize.value()
+        # Save scaler and PCA
+        # self.segment_config['scaler'] = self.SegcomboScaler.currentText()
+        # if self.SegspinPCA.value() != 0:
+        #     self.segment_config['pca'] = self.SegspinPCA.value()
+
+        # Save algorithm parameters
+        param_dict = dict()
+
+        # random_state
+        param_dict['random_state'] = self.KMspinRandomState.value()
+
+        # n_clusters
+        param_dict['n_clusters'] = self.KMspinNClusters.value()
+
+        # init
+        param_dict['init'] = self.KMcomboInit.currentText()
+
+        # n_init
+        param_dict['n_init'] = self.KMspinNInit.value()
+
+        # max_iter
+        param_dict['max_iter'] = self.KMspinMaxIter.value()
+
+        # tol
+        param_dict['tol'] = self.KMspinTol.value()
+
+        # algorithm
+        param_dict['algorithm'] = self.KMcomboAlgorithm.currentText()
+
+        # Save all parameters
+        self.segment_config['parameters'] = param_dict
+
+        # Get the selected features
+        self.SegSelectedFeatures = self.get_selected_features()
+        self.segment_config['feature_names'] = self.SegSelectedFeatures
 
     def save_config(self):
         """
@@ -3249,7 +3399,7 @@ class ClaspyGui(QMainWindow):
                                                5000)
         else:
             warning_box("No feature field selected !\nPlease, select the features you need !",
-                        "Missing features")
+                        "No selected features")
 
     # Command and Run
     def command_part(self):
@@ -3302,72 +3452,75 @@ class ClaspyGui(QMainWindow):
     def run_train(self):
         self.update_config()
 
-        # Check if some features are selected  and hidden_layer_sizes exist
-        if self.selected_count > 0:
-            features = str(self.train_config['feature_names']).replace(' ', '')
+        # Check pythonPath is set
+        if self.pythonPath != '':
 
-            # Train with GridSearchCV or not
-            if self.train_config['grid_search']:
-                # Setting up grid_parameters
-                grid_parameters = str(self.train_config['param_grid'])
+            # Check if some features are selected  and hidden_layer_sizes exist
+            if self.selected_count > 0:
+                features = str(self.train_config['feature_names']).replace(' ', '')
 
-                # Create command list to run cLASpy_T
-                command = ["/C", self.pythonPath, "cLASpy_T.py", "train",
-                           "-a", self.algo,
-                           "-i", self.lineLocalFile.text(),
-                           "-o", self.lineLocalFolder.text(),
-                           "-f", features,
-                           "-g", "-k", grid_parameters,
-                           "--scaler", self.comboScaler.currentText(),
-                           "--scoring", self.comboScorer.currentText(),
-                           "-n", str(self.spinNJobCV.value()),
-                           "-s", str(self.train_config['samples']),
-                           "--train_r", str(self.train_config['training_ratio'])]
+                # Train with GridSearchCV or not
+                if self.train_config['grid_search']:
+                    # Setting up grid_parameters
+                    grid_parameters = str(self.train_config['param_grid'])
 
-                if self.spinPCA.value() != 0:
-                    command.append("--pca")
-                    command.append(str(self.spinPCA.value()))
+                    # Create command list to run cLASpy_T
+                    command = ["/C", self.pythonPath, "cLASpy_T.py", "train",
+                               "-a", self.algo,
+                               "-i", self.lineLocalFile.text(),
+                               "-o", self.lineLocalFolder.text(),
+                               "-f", features,
+                               "-g", "-k", grid_parameters,
+                               "--scaler", self.comboScaler.currentText(),
+                               "--scoring", self.comboScorer.currentText(),
+                               "-n", str(self.spinNJobCV.value()),
+                               "-s", str(self.train_config['samples']),
+                               "--train_r", str(self.train_config['training_ratio'])]
 
-                if self.train_config['random_state'] is not None:
-                    command.append("--random_state")
-                    command.append(str(self.train_config['random_state']))
+                    if self.spinPCA.value() != 0:
+                        command.append("--pca")
+                        command.append(str(self.spinPCA.value()))
 
-            else:
-                # Setting up parameters, remove parameters set as None
-                parameters_dict = self.train_config['parameters']
-                keys_to_remove = list()  # Create list of keys to remove, because dictionary must keep the same length
-                for key in parameters_dict:
-                    if parameters_dict[key] is None:
-                        keys_to_remove.append(key)
-                for key in keys_to_remove:
-                    parameters_dict.pop(key)
-                parameters = str(parameters_dict).replace(' ', '')
+                    if self.train_config['random_state'] is not None:
+                        command.append("--random_state")
+                        command.append(str(self.train_config['random_state']))
 
-                # Create command list to run cLASpy_T
-                command = ["/C", self.pythonPath, "cLASpy_T.py", "train",
-                           "-a", self.algo,
-                           "-i", self.lineLocalFile.text(),
-                           "-o", self.lineLocalFolder.text(),
-                           "-f", features,
-                           "-p", parameters,
-                           "--scaler", self.comboScaler.currentText(),
-                           "--scoring", self.comboScorer.currentText(),
-                           "-n", str(self.spinNJobCV.value()),
-                           "-s", str(self.train_config['samples']),
-                           "--train_r", str(self.train_config['training_ratio'])]
+                else:
+                    # Setting up parameters, remove parameters set as None
+                    parameters_dict = self.train_config['parameters']
+                    keys_to_remove = list()  # Create list of keys to remove, because dictionary must keep the same length
+                    for key in parameters_dict:
+                        if parameters_dict[key] is None:
+                            keys_to_remove.append(key)
+                    for key in keys_to_remove:
+                        parameters_dict.pop(key)
+                    parameters = str(parameters_dict).replace(' ', '')
 
-                if self.spinPCA.value() != 0:
-                    command.append("--pca")
-                    command.append(str(self.spinPCA.value()))
+                    # Create command list to run cLASpy_T
+                    command = ["/C", self.pythonPath, "cLASpy_T.py", "train",
+                               "-a", self.algo,
+                               "-i", self.lineLocalFile.text(),
+                               "-o", self.lineLocalFolder.text(),
+                               "-f", features,
+                               "-p", parameters,
+                               "--scaler", self.comboScaler.currentText(),
+                               "--scoring", self.comboScorer.currentText(),
+                               "-n", str(self.spinNJobCV.value()),
+                               "-s", str(self.train_config['samples']),
+                               "--train_r", str(self.train_config['training_ratio'])]
 
-                if self.train_config['random_state'] is not None:
-                    command.append("--random_state")
-                    command.append(str(self.train_config['random_state']))
+                    if self.spinPCA.value() != 0:
+                        command.append("--pca")
+                        command.append(str(self.spinPCA.value()))
 
-                if self.train_config['png_features']:
-                    command.append('--png_features')
+                    if self.train_config['random_state'] is not None:
+                        command.append("--random_state")
+                        command.append(str(self.train_config['random_state']))
 
-            if self.pythonPath != '':
+                    if self.train_config['png_features']:
+                        command.append('--png_features')
+
+                # Run training process
                 if self.process is None:
                     self.process = QProcess()
                     self.process.readyReadStandardOutput.connect(self.handle_stdout)
@@ -3379,11 +3532,13 @@ class ClaspyGui(QMainWindow):
                     self.process.start()
                     self.processPID = self.process.processId()
                     self.buttonStop.setEnabled(True)
+
             else:
-                self.plainTextCommand.appendPlainText("Set python path through Edit > Options")
+                warning_box("No feature field selected!\nPlease select the features you need!",
+                            "No features selected")
+
         else:
-            warning_box("No feature field selected!\nPlease select the features you need!",
-                        "Missing features")
+            warning_box("Set python path through Edit > Options", "Python path not set")
 
     def run_predict(self):
         self.check_model_features()  # Check if model and input file features match
@@ -3412,29 +3567,51 @@ class ClaspyGui(QMainWindow):
                 self.plainTextCommand.appendPlainText("Set python path through Edit > Options")
 
     def run_segment(self):
+        self.update_config()
 
-        command = ["/C", self.pythonPath, "cLASpy_T.py", "segment",
-                   "-i", self.lineLocalFile.text(),
-                   "-o", self.lineLocalFolder.text(),
-                   # "-p", parameters,
-                   # "-f", features,
-                   "-s", str(self.train_config['samples'])]
+        # Check pythonPath is set
+        if self.pythonPath != '':
 
-        if self.train_config['random_state'] is not None:
-            command.append("--random_state")
-            command.append(str(self.train_config['random_state']))
+            # Check if some features are selected
+            if self.selected_count > 0:
+                features = str(self.segment_config['feature_names']).replace(' ', '')
 
-        if self.process is None:
-            self.process = QProcess()
-            self.process.readyReadStandardOutput.connect(self.handle_stdout)
-            self.process.readyReadStandardError.connect(self.handle_stderr)
-            self.process.stateChanged.connect(self.handle_state)
-            self.process.finished.connect(self.process_finished)
-            self.process.setProgram("cmd.exe")
-            self.process.setArguments(["/C", "echo", "Segment!"])
-            self.process.start()
-            self.processPID = self.process.processId()
-            self.buttonStop.setEnabled(True)
+                # Setting up parameters, remove parameters set as None
+                parameters_dict = self.segment_config['parameters']
+                # Create list of keys to remove, because dictionary must keep the same length
+                keys_to_remove = list()
+                for key in parameters_dict:
+                    if parameters_dict[key] is None:
+                        keys_to_remove.append(key)
+                for key in keys_to_remove:
+                    parameters_dict.pop(key)
+                parameters = str(parameters_dict).replace(' ', '')
+
+                # Create command list to run cLASpy_T
+                command = ["/C", self.pythonPath, "cLASpy_T.py", "segment",
+                           "-i", self.lineLocalFile.text(),
+                           "-o", self.lineLocalFolder.text(),
+                           "-f", features,
+                           "-p", parameters]
+
+                # Run semgentation process
+                if self.process is None:
+                    self.process = QProcess()
+                    self.process.readyReadStandardOutput.connect(self.handle_stdout)
+                    self.process.readyReadStandardError.connect(self.handle_stderr)
+                    self.process.stateChanged.connect(self.handle_state)
+                    self.process.finished.connect(self.process_finished)
+                    self.process.setProgram("cmd.exe")
+                    self.process.setArguments(command)
+                    self.process.start()
+                    self.processPID = self.process.processId()
+                    self.buttonStop.setEnabled(True)
+
+            else:
+                warning_box("No feature field selected!\nPlease select the features you need!",
+                            "No features selected")
+        else:
+            warning_box("Set python path through Edit > Options", "Python path not set")
 
     def handle_stdout(self):
         data = self.process.readAllStandardOutput()

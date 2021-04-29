@@ -157,8 +157,8 @@ def arguments_from_config(args):
             args.algo = shortname_algo(config['algorithm'])
         if args.features is None:
             args.features = config['feature_names']
-        if args.samples is None:
-            args.samples = config['samples']
+        if args.scaler is None:
+            args.scaler = config['scaler']
         if args.pca is None:
             # Check if PCA is present
             try:
@@ -171,8 +171,8 @@ def arguments_from_config(args):
         # if argument not set with argparser take value from config file
         if args.png_features is False:
             args.png_features = config['png_features']
-        if args.scaler is None:
-            args.scaler = config['scaler']
+        if args.samples is None:
+            args.samples = config['samples']
         if args.scoring is None:
             args.scoring = config['scorer']
         if args.train_r is None:
@@ -342,19 +342,22 @@ def format_dataset(data_path, mode='training', features=None):
         if field.casefold() == 'target':
             field_t = field
 
-    # Target is mandatory for training
-    if mode == 'training' and field_t is None:
-        raise ValueError("A 'target' field is mandatory for training!")
-
     # Create target variable if exist
     if field_t:
         target = frame.loc[:, field_t]
     else:
         target = None
 
-    # Remove target field
+    # Target is mandatory for training
+    if mode == 'training' and target is None:
+        raise ValueError("A 'target' field is mandatory for training!")
+
+    # Create temp list of features
     temp_features = all_features
-    temp_features.remove(field_t)
+
+    # Remove target field if exist
+    if target is not None:
+        temp_features.remove(field_t)
 
     # Get only the selected features among temp_features
     if features is None:  # Use all features except standard LAS fields and X, Y, Z

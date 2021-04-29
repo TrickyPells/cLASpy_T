@@ -71,7 +71,6 @@ def get_classifier(args, mode='training', algorithm=None):
     else:
         parameters = None
 
-    #print(parameters)
     # Set the chosen learning classifier
     if algorithm == 'RandomForestClassifier':
         classifier = set_random_forest(fit_params=parameters)
