@@ -1117,14 +1117,14 @@ class ClaspyGui(QMainWindow):
         form_layout.addRow("max_features:", self.RFgridlistMaxFeatures)
 
         # Number of Jobs
-        self.RFgridspinNJob = QSpinBox()
-        self.RFgridspinNJob.setMaximumWidth(80)
-        self.RFgridspinNJob.setMinimum(-1)
-        self.RFgridspinNJob.setValue(-1)
-        self.RFgridspinNJob.setToolTip("The number of jobs to run in parallel.\n"
-                                       "'0' means one job at the same time.\n"
-                                       "'-1' means using all processors.")
-        form_layout.addRow("n_jobs:", self.RFgridspinNJob)
+        self.RFgridlineNJob = QLineEdit()
+        self.RFgridlineNJob.setMaximumWidth(160)
+        self.RFgridlineNJob.setValidator(self.intlist_validator)
+        self.RFgridlineNJob.setPlaceholderText("0,1,3,16...")
+        self.RFgridlineNJob.setToolTip("The number of jobs to run in parallel.\n"
+                                       "Differs from RandomForest without GridSearchCV:\n"
+                                       "'0' means all processors. Leave empty = 1x'0'")
+        form_layout.addRow("n_jobs:", self.RFgridlineNJob)
 
         self.stack_RF_grid.setLayout(form_layout)
         self.stack_RF_grid.setMaximumHeight(310)
@@ -2786,12 +2786,10 @@ class ClaspyGui(QMainWindow):
                     param_dict['max_features'] = max_features_list
 
                 # n_jobs
-                if self.RFgridspinNJob.value() == 0:
-                    param_dict['n_jobs'] = [1]
-                elif self.RFgridspinNJob.value() == -1:
-                    param_dict['n_jobs'] = [-1]
-                else:
-                    param_dict['n_jobs'] = list(self.RFgridspinNJob.value())
+                n_jobs_list = format_numberlist(self.RFgridlineNJob.text(), as_type='list')
+                n_jobs_list = [-1 if value == 0 else value for value in n_jobs_list]  # replace '0' by '-1'
+                if n_jobs_list:
+                    param_dict['n_jobs'] = n_jobs_list
 
                 # random_state
                 random_state_list = format_numberlist(self.RFgridlineRandomState.text(), as_type='list')
@@ -3476,8 +3474,8 @@ class ClaspyGui(QMainWindow):
             self.statusBar.showMessage("ERROR: Process not killed!", 3000)
         else:
             self.plainTextCommand.appendPlainText("\n********************"
-                                              "\nProcess stopped by user!"
-                                              "\n********************")
+                                                  "\nProcess stopped by user!"
+                                                  "\n********************")
 
     def reject(self):
         """
