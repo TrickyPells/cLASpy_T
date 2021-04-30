@@ -1068,7 +1068,7 @@ class ClaspyGui(QMainWindow):
 
         # List of Criterion to mesure the quality of a split (use self.RFcriterion)
         self.RFgridlistCriterion = QListWidget()
-        self.RFgridlistCriterion.setMinimumHeight(height_unit*3)
+        self.RFgridlistCriterion.setMaximumHeight(height_unit*3)
         for idx, criterion in zip(range(0, len(self.RFcriterion)), self.RFcriterion):
             self.RFgridlistCriterion.insertItem(idx, criterion)
         self.RFgridlistCriterion.setCurrentItem(self.RFgridlistCriterion.item(0))
@@ -1111,7 +1111,7 @@ class ClaspyGui(QMainWindow):
 
         # List of Maximum Features (use self.RFmaxFeatures)
         self.RFgridlistMaxFeatures = QListWidget()
-        self.RFgridlistMaxFeatures.setMinimumHeight(height_unit*4)
+        self.RFgridlistMaxFeatures.setMaximumHeight(height_unit*4)
         for idx, method in zip(range(0, len(self.RFmaxFeatures)), self.RFmaxFeatures):
             self.RFgridlistMaxFeatures.insertItem(idx, method)
         self.RFgridlistMaxFeatures.setCurrentItem(self.RFgridlistMaxFeatures.item(0))
@@ -1286,7 +1286,7 @@ class ClaspyGui(QMainWindow):
         # List of Criterion
         self.GBcriterion = ["friedman_mse", "mse"]
         self.GBgridlistCriterion = QListWidget()
-        self.GBgridlistCriterion.setMinimumHeight(height_unit*3)
+        self.GBgridlistCriterion.setMaximumHeight(height_unit*3)
         for idx, criterion in zip(range(0, len(self.GBcriterion)), self.GBcriterion):
             self.GBgridlistCriterion.insertItem(idx, criterion)
         self.GBgridlistCriterion.setCurrentItem(self.GBgridlistCriterion.item(0))
@@ -1329,7 +1329,7 @@ class ClaspyGui(QMainWindow):
 
         # List of Maximum Features (use self.RFmaxFeatures)
         self.GBgridlistMaxFeatures = QListWidget()
-        self.GBgridlistMaxFeatures.setMinimumHeight(height_unit*4)
+        self.GBgridlistMaxFeatures.setMaximumHeight(height_unit*4)
         for idx, method in zip(range(0, len(self.RFmaxFeatures)), self.RFmaxFeatures):
             self.GBgridlistMaxFeatures.insertItem(idx, method)
         self.GBgridlistMaxFeatures.setCurrentItem(self.GBgridlistMaxFeatures.item(0))
@@ -1340,7 +1340,7 @@ class ClaspyGui(QMainWindow):
 
         # List of Loss methods (use self.loss)
         self.GBgridlistLoss = QListWidget()
-        self.GBgridlistLoss.setMinimumHeight(height_unit*3)
+        self.GBgridlistLoss.setMaximumHeight(height_unit*3)
         for idx, method in zip(range(0, len(self.loss)), self.loss):
             self.GBgridlistLoss.insertItem(idx, method)
         self.GBgridlistLoss.setCurrentItem(self.GBgridlistLoss.item(0))
@@ -1549,7 +1549,7 @@ class ClaspyGui(QMainWindow):
 
         # List of Activation Function (use self.NNactivation)
         self.NNgridlistActivation = QListWidget()
-        self.NNgridlistActivation.setMinimumHeight(height_unit*5)
+        self.NNgridlistActivation.setMaximumHeight(height_unit*5)
         for idx, function in zip(range(0, len(self.NNactivation)), self.NNactivation):
             self.NNgridlistActivation.insertItem(idx, function)
         self.NNgridlistActivation.setCurrentItem(self.NNgridlistActivation.item(3))
@@ -1560,7 +1560,7 @@ class ClaspyGui(QMainWindow):
 
         # List of Solvers (use self.NNsolver)
         self.NNgridlistSolver = QListWidget()
-        self.NNgridlistSolver.setMinimumHeight(height_unit*4)
+        self.NNgridlistSolver.setMaximumHeight(height_unit*4)
         for idx, solver in zip(range(0, len(self.NNsolver)), self.NNsolver):
             self.NNgridlistSolver.insertItem(idx, solver)
         self.NNgridlistSolver.setCurrentItem(self.NNgridlistSolver.item(2))
@@ -1590,7 +1590,7 @@ class ClaspyGui(QMainWindow):
 
         # List of Learning Rate methods (use self.NNlearningRate)
         self.NNgridlistLearningRate = QListWidget()
-        self.NNgridlistLearningRate.setMinimumHeight(height_unit*4)
+        self.NNgridlistLearningRate.setMaximumHeight(height_unit*4)
         for idx, method in zip(range(0, len(self.NNlearningRate)), self.NNlearningRate):
             self.NNgridlistLearningRate.insertItem(idx, method)
         self.NNgridlistLearningRate.setCurrentItem(self.NNgridlistLearningRate.item(0))
@@ -1632,7 +1632,7 @@ class ClaspyGui(QMainWindow):
 
         # List Shuffle and not Shuffle
         self.NNgridlistShuffle = QListWidget()
-        self.NNgridlistShuffle.setMinimumHeight(height_unit*3)
+        self.NNgridlistShuffle.setMaximumHeight(height_unit*3)
         self.NNgridlistShuffle.insertItem(0, "shuffle")
         self.NNgridlistShuffle.insertItem(1, "no shuffle")
         self.NNgridlistShuffle.setCurrentItem(self.NNgridlistShuffle.item(0))
