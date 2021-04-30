@@ -1520,7 +1520,7 @@ class ClaspyGui(QMainWindow):
         form_layout.addRow("epsilon:", self.NNspinEpsilon)
 
         self.stack_NN.setLayout(form_layout)
-        self.stack_NN.setMaximumHeight(400)
+        self.stack_NN.setMaximumHeight(500)
 
         self.NNcomboSolver.currentTextChanged.connect(self.nn_solver_options)
         self.NNcomboLearningRate.currentTextChanged.connect(self.nn_solver_options)
@@ -2034,7 +2034,6 @@ class ClaspyGui(QMainWindow):
 
         # random_state
         self.KMspinRandomState = QSpinBox()
-        self.KMspinRandomState.setMaximumWidth(80)
         self.KMspinRandomState.setMinimum(-1)
         self.KMspinRandomState.setMaximum(2147483647)  # 2^31 - 1
         self.KMspinRandomState.setValue(-1)
@@ -2047,7 +2046,6 @@ class ClaspyGui(QMainWindow):
 
         # n_clusters
         self.KMspinNClusters = QSpinBox()
-        self.KMspinNClusters.setMaximumWidth(80)
         self.KMspinNClusters.setMinimum(2)
         self.KMspinNClusters.setMaximum(9999)
         self.KMspinNClusters.setValue(8)
@@ -2057,14 +2055,12 @@ class ClaspyGui(QMainWindow):
         # init
         self.KMinit = ["k-means++", "random"]
         self.KMcomboInit = QComboBox()
-        self.KMcomboInit.setMaximumWidth(80)
         self.KMcomboInit.addItems(self.KMinit)
         self.KMcomboInit.setCurrentIndex(self.KMinit.index("k-means++"))
         self.KMcomboInit.setToolTip("Method for initialization.")
 
         # n_init
         self.KMspinNInit = QSpinBox()
-        self.KMspinNInit.setMaximumWidth(80)
         self.KMspinNInit.setMinimum(1)
         self.KMspinNInit.setMaximum(9999)
         self.KMspinNInit.setValue(10)
@@ -2075,7 +2071,6 @@ class ClaspyGui(QMainWindow):
 
         # max_iter
         self.KMspinMaxIter = QSpinBox()
-        self.KMspinMaxIter.setMaximumWidth(80)
         self.KMspinMaxIter.setMinimum(1)
         self.KMspinMaxIter.setMaximum(99999)
         self.KMspinMaxIter.setValue(300)
@@ -2084,7 +2079,6 @@ class ClaspyGui(QMainWindow):
 
         # tol
         self.KMspinTol = QDoubleSpinBox()
-        self.KMspinTol.setMaximumWidth(80)
         self.KMspinTol.setDecimals(8)
         self.KMspinTol.setMinimum(0)
         self.KMspinTol.setMaximum(9999)
@@ -2096,7 +2090,6 @@ class ClaspyGui(QMainWindow):
         # algorithm
         self.KMalgorithm = ["auto", "full", "elkan"]
         self.KMcomboAlgorithm = QComboBox()
-        self.KMcomboAlgorithm.setMaximumWidth(80)
         self.KMcomboAlgorithm.addItems(self.KMalgorithm)
         self.KMcomboAlgorithm.setCurrentIndex(self.KMalgorithm.index("auto"))
         self.KMcomboAlgorithm.setToolTip("K-means algorithm to use.")
