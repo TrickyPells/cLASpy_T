@@ -135,7 +135,6 @@ def check_parameters(classifier, fit_params):
     # Get the type of classifier
     clf_name = str(type(classifier)).split('.')[-1][:-2]
 
-    print(clf_name)
     if clf_name == 'RandomForestClassifier':
         double_float = ['min_weight_fraction_leaf']
 
@@ -512,7 +511,9 @@ def train(args):
         args.png_features = False  # Overwrite 'False' if '-i' option set with grid, ann
     if args.png_features:
         feat_imp_filename = str(report_filename + '_feat_imp.png')
-        save_feature_importance(model, feature_names, feat_imp_filename)
+        feature_imp_dict = save_feature_importance(model, feature_names, feat_imp_filename)
+    else:
+        feature_imp_dict = feature_names
 
     # Create confusion matrix
     print("\nStep 5/7: Creating confusion matrix...")
@@ -549,7 +550,7 @@ def train(args):
                  data_file=args.input_data,
                  start_time=start_time,
                  elapsed_time=spent_time,
-                 feat_names=feature_names,
+                 feat_names=feature_imp_dict,
                  scaler=scaler,
                  data_len=nbr_pts,
                  train_len=train_size,

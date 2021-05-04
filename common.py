@@ -229,7 +229,7 @@ def introduction(algorithm, file_path, folder_path=None):
         folder_path = root_ext[0]  # remove extension so give folder path
 
     try:
-        os.mkdir(folder_path)  # Using file path to create new folder
+        os.makedirs(folder_path)  # Using file path to create new folders recursively
         print(" Done.")
     except (TypeError, FileExistsError):
         print(" Folder already exists.")
@@ -615,8 +615,15 @@ def write_report(filename, mode, algo, data_file, start_time, elapsed_time, appl
         report.write('Report of ' + algo + ' ' + mode)
         report.write('\n\nDatetime: ' + start_time.strftime("%Y-%m-%d %H:%M:%S"))
         report.write('\nFile: ' + data_file)
-        report.write('\n\nFeatures:\n' + '\n'.join(feat_names))
         report.write('\n\nScaling method:\n{}'.format(scaler))
+
+        # Write features depending if it's list or dict
+        if isinstance(feat_names, list):
+            report.write("\n\nFeatures:\n" + "\n".join(feat_names))
+        if isinstance(feat_names, dict):
+            report.write("\n\nFeatures,\tImportances:\n")
+            for key in feat_names:
+                report.write("{},\t{:.5f}\n".format(str(key), feat_names[key]))
 
         # Write the train and test size
         if mode == 'training':
@@ -673,7 +680,7 @@ def save_feature_importance(model, feature_names, feature_filename):
     :param model: Pipeline with RandomForest or GradientBoosting Classifier
     :param feature_names: Names of the features.
     :param feature_filename: Filename and path of the feature importance figure file.
-    :return:
+    :return: The dictionary of the feature importances.
     """
     # Get the feature importance
     importances = model.named_steps['classifier'].feature_importances_
@@ -698,3 +705,5 @@ def save_feature_importance(model, feature_names, feature_filename):
     plt.ylim([-1, len(feature_names)])
     plt.ylabel("Features")
     plt.savefig(feature_filename, bbox_inches="tight")
+
+    return feature_imp_dict
