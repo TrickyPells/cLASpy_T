@@ -651,8 +651,7 @@ class ClaspyGui(QMainWindow):
 
         if root_ext[1] == '.csv':
             self.file_type = 'CSV'
-            feature_names = ["Encore", "en", "Test"]
-            self.target = False
+            feature_names = self.open_csv(file_path)
         elif root_ext[1] == '.las':
             self.file_type = 'LAS'
             feature_names, standard_fields = self.open_las(file_path)
@@ -685,6 +684,60 @@ class ClaspyGui(QMainWindow):
 
         # Update the feature part
         self.enable_advanced_features()
+
+    def open_csv(self, file_path):
+        """
+        Open the CSV file with pandas and return the list of the feature names.
+        :param file_path: THe CSV file.
+        :return: List of the feature names.
+        """
+        # Initialize target bool
+        self.target = False
+
+        # Infos about CSV file
+        frame = pd.read_csv(file_path, sep=',', header='infer')
+        version = 'CSV'
+        point_count = len(frame)
+
+        # Set value of the train size
+        number_mpts = float(point_count / 1000000.)  # Number of million points
+        self.spinSampleSize.setMaximum(number_mpts)
+        if number_mpts > 2:
+            self.spinSampleSize.setValue(1)
+        else:
+            self.spinSampleSize.setValue(number_mpts / 2.)
+
+        # Show CSV and number of points in status bar
+        point_count = '{:,}'.format(point_count).replace(',', ' ')  # Format with thousand separator
+        self.labelPtCldFormat.setText("{}".format(version))
+        self.labelPtCount.setText("{}".format(point_count))
+        self.statusBar.showMessage("{} points on {} file".format(point_count, version), 5000)
+
+        # Get the extra dimensions and coordinates (column names)
+        extra_dimensions = list()
+        self.checkX.setEnabled(False)
+        self.checkY.setEnabled(False)
+        self.checkZ.setEnabled(False)
+        for dim in frame.columns.values.tolist():
+            if dim == '//X':
+                dim = 'X'
+            if dim in ['X', 'x']:
+                self.checkX.setEnabled(True)
+            elif dim in ['Y', 'y']:
+                self.checkY.setEnabled(True)
+            elif dim in ['Z', 'z']:
+                self.checkZ.setEnabled(True)
+            else:
+                extra_dimensions.append(dim.replace(' ', '_'))  # Replace 'space' with '_'
+
+        # Find 'target' dimension if exist
+        for trgt in ['target', 'Target', 'TARGET']:
+            if trgt in extra_dimensions:
+                self.target = True
+                self.targetName = trgt
+                extra_dimensions.remove(trgt)
+
+        return extra_dimensions
 
     def open_las(self, file_path):
         """
