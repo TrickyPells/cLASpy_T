@@ -47,6 +47,9 @@ from sklearn.preprocessing import StandardScaler, RobustScaler, MinMaxScaler
 # ------ VARIABLES --------
 # -------------------------
 
+# Define version of cLASpy_T
+cLASpy_T_version = '0.1.0'
+
 # Define point_format dict for LAS files
 point_format = dict()
 
@@ -127,7 +130,7 @@ def shortname_algo(algorithm):
     return algo
 
 
-def update_arguments(args):
+def arguments_from_config(args):
     """
     Update the arguments from the config file given in args.config.
     :param args: the argument parser
@@ -137,15 +140,64 @@ def update_arguments(args):
     with open(args.config, 'r') as config_file:
         config = json.load(config_file)
 
-    args.input_data = os.path.normpath(config['input_file'])
-    args.output = os.path.normpath(config['output_folder'])
-    args.samples = config['samples']
-    args.train_r = config['training_ratio']
-    args.algo = shortname_algo(config['algorithm'])
-    args.png_features = config['png_features']
-    args.random_state = config['random_state']
-    args.parameters = config['parameters']
-    args.features = config['feature_names']
+    # Get the version and mode of config_file
+    # version = config['version'].split('_')[0]
+    mode = config['version'].split('_')[-1]
+
+    # Global arguments (all modes)
+    if args.input_data is None:
+        args.input_data = os.path.normpath(config['input_file'])
+    if args.output is None:
+        args.output = os.path.normpath(config['output_folder'])
+
+    # Arguments for training or segment mode
+    if mode == 'train' or mode == 'segme':
+        # if argument not set with argparser take value from config file
+        if args.algo is None:
+            args.algo = shortname_algo(config['algorithm'])
+        if args.features is None:
+            args.features = config['feature_names']
+        if args.scaler is None:
+            args.scaler = config['scaler']
+        if args.pca is None:
+            # Check if PCA is present
+            try:
+                args.pca = config['pca']
+            except KeyError:
+                pass
+
+    # Arguments for training mode
+    if mode == 'train':
+        # if argument not set with argparser take value from config file
+        if args.png_features is False:
+            args.png_features = config['png_features']
+        if args.samples is None:
+            args.samples = config['samples']
+        if args.scoring is None:
+            args.scoring = config['scorer']
+        if args.train_r is None:
+            args.train_r = config['training_ratio']
+        if args.random_state == 0:
+            args.random_state = config['random_state']
+        if args.n_jobs == -1:
+            args.n_jobs = config['n_jobs_cv']
+        # grid_search flag: always take value from config file (to avoid incompatibility)
+        args.grid_search = config['grid_search']
+        # Set grid parameters or classifier parameters (GridSearchCV or not)
+        if args.grid_search:
+            args.param_grid = config['param_grid']
+        else:
+            args.parameters = config['parameters']
+
+    # Arguments for predict mode
+    if mode == 'predi':
+        args.model = config['model']
+
+    # Arguments for segment mode
+    if mode == 'segme':
+        # if argument not set with argparser take value from config file
+        if args.parameters is None:
+            args.parameters = config['parameters']
 
 
 def introduction(algorithm, file_path, folder_path=None):
@@ -177,7 +229,7 @@ def introduction(algorithm, file_path, folder_path=None):
         folder_path = root_ext[0]  # remove extension so give folder path
 
     try:
-        os.mkdir(folder_path)  # Using file path to create new folder
+        os.makedirs(folder_path)  # Using file path to create new folders recursively
         print(" Done.")
     except (TypeError, FileExistsError):
         print(" Folder already exists.")
@@ -197,6 +249,7 @@ def file_to_pandasframe(data_path):
     # Load data into DataFrame
     root_ext = os.path.splitext(data_path)  # split file_path into root and extension
     if root_ext[1] == '.csv':
+        file_type = 'CSV'
         frame = pd.read_csv(data_path, sep=',', header='infer')
         # Replace 'space' by '_' and clean up the header built by CloudCompare ('//X')
         for field in frame.columns.values.tolist():
@@ -206,6 +259,7 @@ def file_to_pandasframe(data_path):
                 frame = frame.rename(columns={"//X": "X"})
 
     elif root_ext[1] == '.las':
+        file_type = 'LAS'
         las = laspy.file.File(data_path, mode='r')
         print("LAS Version: {}".format(las.header.version))
         print("LAS point format: {}".format(las.header.data_format_id))
@@ -213,21 +267,17 @@ def file_to_pandasframe(data_path):
 
         # Get only the extra dimensions
         standard_dimensions = point_format[las.header.data_format_id]
-        extra_dimensions = list()
+        dimensions = list()
         for dim in las.point_format.specs:  # Get all dimensions
-            extra_dimensions.append(str(dim.name))
-
-        for dim in standard_dimensions:  # Remove all standard dimensions
-            if dim in extra_dimensions:
-                extra_dimensions.remove(dim)
+            dimensions.append(str(dim.name))
 
         frame = pd.DataFrame()
-        for dim in extra_dimensions:
+        for dim in dimensions:
             frame[dim] = las.get_reader().get_dimension(dim)
     else:
         raise ValueError("Unknown Extension file!")
 
-    return frame
+    return frame, file_type
 
 
 def get_selected_features(sel_features, data_features):
@@ -241,7 +291,6 @@ def get_selected_features(sel_features, data_features):
 
     # Check if features is a list()
     if isinstance(sel_features, list):
-        # sel_features = [feature.casefold() for feature in sel_features]
         print("\nGet selected features:")
         for feature in sel_features:
             for dt_feature in data_features:
@@ -249,13 +298,9 @@ def get_selected_features(sel_features, data_features):
                     selected_features.append(dt_feature)
                     print(" - {} asked --> {} found".format(feature, dt_feature))
 
-        # print comparison between given feature list and final selected features
-        # features.sort()
-        # selected_features.sort()
         print("\nNumber of wanted features: {}".format(len(sel_features)))
-        # print(features)
         print("Number of final selected features: {}\n".format(len(selected_features)))
-        # print("{}\n".format(selected_features))
+
         if len(sel_features) == len(selected_features):
             print(" --> All required features are present!\n")
         else:
@@ -276,7 +321,7 @@ def format_dataset(data_path, mode='training', features=None):
     :return: features_data and target as DataFrames.
     """
     # Load data into Pandas DataFrame
-    frame = file_to_pandasframe(data_path)
+    frame, file_type = file_to_pandasframe(data_path)
 
     # Create list name of all fields
     all_features = frame.columns.values.tolist()
@@ -288,7 +333,7 @@ def format_dataset(data_path, mode='training', features=None):
     field_t = None
 
     for field in all_features:
-        if field.casefold() == 'x':  # casefold() to be non case-sensitive
+        if field.casefold() == 'x':  # casefold() > non case-sensitive
             field_x = field
         if field.casefold() == 'y':
             field_y = field
@@ -297,26 +342,34 @@ def format_dataset(data_path, mode='training', features=None):
         if field.casefold() == 'target':
             field_t = field
 
-    # Target is mandatory for training
-    if mode == 'training' and field_t is None:
-        raise ValueError("A 'target' field is mandatory for training!")
-
-    # Create target field if exist
+    # Create target variable if exist
     if field_t:
         target = frame.loc[:, field_t]
     else:
         target = None
 
-    # Select only features fields by removing X, Y, Z and target fields
+    # Target is mandatory for training
+    if mode == 'training' and target is None:
+        raise ValueError("A 'target' field is mandatory for training!")
+
+    # Create temp list of features
     temp_features = all_features
-    for field in [field_x, field_y, field_z, field_t]:
-        if field:
-            temp_features.remove(field)
+
+    # Remove target field if exist
+    if target is not None:
+        temp_features.remove(field_t)
 
     # Get only the selected features among temp_features
-    if features is None:
+    if features is None:  # Use all features except standard LAS fields and X, Y, Z
         print("All features in input_data will be used!")
         selected_features = temp_features
+        for field in [field_x, field_y, field_z]:  # remove X, Y, Z
+            selected_features.remove(field)
+        if file_type == 'LAS':
+            las = laspy.file.File(data_path, mode='r')
+            standard_dimensions = point_format[las.header.data_format_id]
+            for field in standard_dimensions:  # remove standard LAS dimensions
+                selected_features.remove(field)
 
     elif isinstance(features, str):
         features = yaml.safe_load(features)
@@ -331,7 +384,7 @@ def format_dataset(data_path, mode='training', features=None):
     # Sort data by field names
     selected_features.sort()  # Sort to be compatible between formats
 
-    # data without X, Y, Z and target fields
+    # data without target field
     data = frame.filter(selected_features, axis=1)
 
     # Replace NAN values by median
@@ -562,8 +615,15 @@ def write_report(filename, mode, algo, data_file, start_time, elapsed_time, appl
         report.write('Report of ' + algo + ' ' + mode)
         report.write('\n\nDatetime: ' + start_time.strftime("%Y-%m-%d %H:%M:%S"))
         report.write('\nFile: ' + data_file)
-        report.write('\n\nFeatures:\n' + '\n'.join(feat_names))
         report.write('\n\nScaling method:\n{}'.format(scaler))
+
+        # Write features depending if it's list or dict
+        if isinstance(feat_names, list):
+            report.write("\n\nFeatures:\n" + "\n".join(feat_names))
+        if isinstance(feat_names, dict):
+            report.write("\n\nFeatures,\tImportances:\n")
+            for key in feat_names:
+                report.write("{},\t{:.5f}\n".format(str(key), feat_names[key]))
 
         # Write the train and test size
         if mode == 'training':
@@ -620,7 +680,7 @@ def save_feature_importance(model, feature_names, feature_filename):
     :param model: Pipeline with RandomForest or GradientBoosting Classifier
     :param feature_names: Names of the features.
     :param feature_filename: Filename and path of the feature importance figure file.
-    :return:
+    :return: The dictionary of the feature importances.
     """
     # Get the feature importance
     importances = model.named_steps['classifier'].feature_importances_
@@ -645,3 +705,5 @@ def save_feature_importance(model, feature_names, feature_filename):
     plt.ylim([-1, len(feature_names)])
     plt.ylabel("Features")
     plt.savefig(feature_filename, bbox_inches="tight")
+
+    return feature_imp_dict

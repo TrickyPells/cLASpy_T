@@ -135,8 +135,27 @@ def check_parameters(classifier, fit_params):
     # Get the type of classifier
     clf_name = str(type(classifier)).split('.')[-1][:-2]
 
+    if clf_name == 'RandomForestClassifier':
+        double_float = ['min_weight_fraction_leaf']
+
+    elif clf_name == 'GradientBoostingClassifier':
+        double_float = ['min_weight_fraction_leaf',
+                        'learning_rate', 'subsample']
+
+    elif clf_name == 'MLPClassifier':
+        double_float = ['alpha', 'learning_rate_init', 'power_t',
+                        'beta_1', 'beta_2', 'epsilon']
+
+    elif clf_name == 'KMeans':
+        double_float = ['tol']
+
+    else:
+        double_float = list()
+
     # Check if the parameters are valid for the given classifier
     for key in fit_params.keys():
+        if key in double_float:
+            fit_params[key] = float(fit_params[key])
         try:
             temp_dict = {key: fit_params[key]}
             classifier.set_params(**temp_dict)
@@ -399,7 +418,7 @@ def train(args):
 
     # Config file exists ?
     if args.config:
-        update_arguments(args)  # Get the arguments from the config file
+        arguments_from_config(args)  # Get the arguments from the config file
 
     # Get the classifier type
     algorithm, classifier = get_classifier(args, mode=mode)
@@ -456,8 +475,12 @@ def train(args):
 
         # Check param_grid exists
         if args.param_grid:
-            param_grid = yaml.safe_load(args.param_grid)
-
+            if isinstance(args.param_grid, str):
+                param_grid = yaml.safe_load(args.param_grid)
+            elif isinstance(args.param_grid, dict):
+                param_grid = args.param_grid
+            else:
+                param_grid = None
         else:
             param_grid = None
 
@@ -488,7 +511,9 @@ def train(args):
         args.png_features = False  # Overwrite 'False' if '-i' option set with grid, ann
     if args.png_features:
         feat_imp_filename = str(report_filename + '_feat_imp.png')
-        save_feature_importance(model, feature_names, feat_imp_filename)
+        feature_imp_dict = save_feature_importance(model, feature_names, feat_imp_filename)
+    else:
+        feature_imp_dict = feature_names
 
     # Create confusion matrix
     print("\nStep 5/7: Creating confusion matrix...")
@@ -525,7 +550,7 @@ def train(args):
                  data_file=args.input_data,
                  start_time=start_time,
                  elapsed_time=spent_time,
-                 feat_names=feature_names,
+                 feat_names=feature_imp_dict,
                  scaler=scaler,
                  data_len=nbr_pts,
                  train_len=train_size,
