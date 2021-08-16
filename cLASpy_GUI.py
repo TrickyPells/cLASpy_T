@@ -458,7 +458,7 @@ class ClaspyGui(QMainWindow):
             self.pythonPath = self.linePython.text()
             self.options_dict['python_path'] = self.pythonPath
             with open("claspy_options.json", 'w') as options_file:
-                json.dump(self.options_dict, options_file)
+                json.dump(self.options_dict, options_file, indent=4)
                 self.statusBar.showMessage("Python path: {}".format(self.pythonPath), 3000)
         else:
             warning_box("Python path not set !\nGive the python.exe of your virtual environment.", "Python path not set")
@@ -478,6 +478,8 @@ class ClaspyGui(QMainWindow):
         """
         # Global parameter group
         self.groupParameters = QGroupBox()
+        self.groupParameters.setObjectName("WithoutBorder")
+        self.groupParameters.setStyleSheet("QGroupBox#WithoutBorder { border: 0px }")
 
         self.labelLocalServer = QLabel("Run cLASpy_T:")
         self.labelLocalServer.setAlignment(Qt.AlignCenter)
@@ -536,16 +538,16 @@ class ClaspyGui(QMainWindow):
 
         self.tabModes.currentChanged.connect(self.tab_modes_action)
 
-        # Fill layout of left part
-        self.vLayoutLeft = QVBoxLayout()
-        self.vLayoutLeft.addWidget(self.labelLocalServer)
-        self.vLayoutLeft.addLayout(self.layoutLocalServer)
-        self.vLayoutLeft.addWidget(self.groupPtCld)
-        self.vLayoutLeft.setStretchFactor(self.groupPtCld, 1)
-        self.vLayoutLeft.addWidget(self.tabModes)
-        self.vLayoutLeft.setStretchFactor(self.tabModes, 4)
+        # Fill layout of parameter part
+        self.vLayoutParameters = QVBoxLayout()
+        self.vLayoutParameters.addWidget(self.labelLocalServer)
+        self.vLayoutParameters.addLayout(self.layoutLocalServer)
+        self.vLayoutParameters.addWidget(self.groupPtCld)
+        self.vLayoutParameters.setStretchFactor(self.groupPtCld, 1)
+        self.vLayoutParameters.addWidget(self.tabModes)
+        self.vLayoutParameters.setStretchFactor(self.tabModes, 4)
 
-        self.groupParameters.setLayout(self.vLayoutLeft)
+        self.groupParameters.setLayout(self.vLayoutParameters)
 
     # Run on local or server
     def stackui_local(self):
@@ -3379,7 +3381,7 @@ class ClaspyGui(QMainWindow):
 
             if json_file[0] != '':
                 with open(json_file[0], 'w') as config_file:
-                    json.dump(self.train_config, config_file)
+                    json.dump(self.train_config, config_file, indent=4)
                     self.statusBar.showMessage("Config file for training saved: {}".format(json_file[0]),
                                                5000)
         else:
@@ -3399,7 +3401,7 @@ class ClaspyGui(QMainWindow):
 
         if json_file[0] != '':
             with open(json_file[0], 'w') as config_file:
-                json.dump(self.predict_config, config_file)
+                json.dump(self.predict_config, config_file, indent=4)
                 self.statusBar.showMessage("Config file for prediction saved: {}".format(json_file[0]),
                                            5000)
 
@@ -3418,7 +3420,7 @@ class ClaspyGui(QMainWindow):
 
             if json_file[0] != '':
                 with open(json_file[0], 'w') as config_file:
-                    json.dump(self.segment_config, config_file)
+                    json.dump(self.segment_config, config_file, indent=4)
                     self.statusBar.showMessage("Config file saved: {}".format(json_file[0]),
                                                5000)
         else:
@@ -3556,6 +3558,7 @@ class ClaspyGui(QMainWindow):
                     self.process.start()
                     self.processPID = self.process.processId()
                     self.buttonStop.setEnabled(True)
+                    self.buttonRunTrain.setEnabled(False)
 
             else:
                 warning_box("No feature field selected!\nPlease select the features you need!",
@@ -3587,6 +3590,7 @@ class ClaspyGui(QMainWindow):
                     self.process.start()
                     self.processPID = self.process.processId()
                     self.buttonStop.setEnabled(True)
+                    self.buttonRunPredict.setEnabled(False)
             else:
                 self.plainTextCommand.appendPlainText("Set python path through Edit > Options")
 
@@ -3630,6 +3634,7 @@ class ClaspyGui(QMainWindow):
                     self.process.start()
                     self.processPID = self.process.processId()
                     self.buttonStop.setEnabled(True)
+                    self.buttonRunSegment.setEnabled(False)
 
             else:
                 warning_box("No feature field selected!\nPlease select the features you need!",
@@ -3664,6 +3669,9 @@ class ClaspyGui(QMainWindow):
         self.progressBar.reset()
         self.enable_open_results()
         self.buttonStop.setEnabled(False)
+        self.buttonRunTrain.setEnabled(True)
+        self.buttonRunPredict.setEnabled(True)
+        self.buttonRunSegment.setEnabled(True)
 
     def stop_process(self):
         parent_process = psutil.Process(self.processPID)
@@ -3674,6 +3682,9 @@ class ClaspyGui(QMainWindow):
         except:
             self.statusBar.showMessage("ERROR: Process not killed!", 3000)
         else:
+            self.buttonRunTrain.setEnabled(True)
+            self.buttonRunPredict.setEnabled(True)
+            self.buttonRunSegment.setEnabled(True)
             self.plainTextCommand.appendPlainText("\n********************"
                                                   "\nProcess stopped by user!"
                                                   "\n********************")
