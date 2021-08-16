@@ -14,7 +14,7 @@
 #  ########\/_/####\_\/######\_____\/######\/___________/###########  #
 #  ---------- REMOTE -------- SENSING --------- GROUP --------------  #
 #  #################################################################  #
-#       'predict.py' from classer library to predict dataset          #
+#       'predict.py' from cLASpy_T library to predict dataset         #
 #                    By Xavier PELLERIN LE BAS                        #
 #                         November 2019                               #
 #         REMOTE SENSING GROUP  -- https://rsg.m2c.cnrs.fr/ --        #
@@ -28,11 +28,9 @@
 # --- DEPENDENCIES ---
 # --------------------
 
-import os
-import pylas
-from training import *
+import laspy
 
-from sklearn.cluster import KMeans
+from training import *
 from sklearn.pipeline import Pipeline
 from sklearn.model_selection import GridSearchCV
 
@@ -41,36 +39,22 @@ from sklearn.model_selection import GridSearchCV
 # ------ FUNCTIONS --------
 # -------------------------
 
-def set_kmeans_cluster(fit_params):
-    """
-    Set the clustering algorithm as KMeans.
-    :param fit_params: A dict with the parameters to set up.
-    :return: classifier: the desired classifier with the required parameters
-    """
-    # Set the classifier
-    if isinstance(fit_params, dict):
-        fit_params['random_state'] = 0
-        classifier = KMeans()
-        classifier = check_parameters(classifier, fit_params)  # Check and set parameters
-
-    else:
-        classifier = KMeans()
-
-    return classifier
-
-
 def load_model(path_to_model):
     """
     Load the given model using joblib.
     :param path_to_model: The path to the model to load
     :return: loaded_model
     """
-
     # Check if path_to_model variable is str and load model
     if isinstance(path_to_model, str):
         loaded_model = joblib.load(path_to_model)
     else:
         raise TypeError("Argument 'model_to_import' must be a string!")
+
+    # Retrieve algorithm, model and field_names
+    algorithm = loaded_model['algorithm']
+    feature_names = loaded_model['feature_names']
+    loaded_model = loaded_model['model']
 
     # Check if the model is GridSearchCV or Pipeline
     if isinstance(loaded_model, GridSearchCV):
@@ -86,11 +70,11 @@ def load_model(path_to_model):
     scaler = loaded_model.named_steps['scaler']  # Load scaler
     try:
         pca = loaded_model.named_steps['pca']  # Load PCA if exists
-    except KeyError as ke:
+    except KeyError:
         print('\tAny PCA data to load from model.')
         pca = None
 
-    return model, scaler, pca
+    return algorithm, model, scaler, pca, feature_names
 
 
 def predict_with_proba(model, data_to_predic):
@@ -144,23 +128,35 @@ def save_pred_las(predictions, las_name, source_file):
     :param source_file: LAS source file name with path.
     """
     # Get LAS data in copy_data
-    copy_data = pylas.read(source_file)
+    copy_data = laspy.file.File(source_file, mode='r')
 
-    # Add dimensions according the predictions dataframe
-    copy_data.add_extra_dim(name='Prediction', type='u1',  # First dimension is 'u1' type
-                            description='Prediction done by the model')
-    copy_data['Prediction'] = predictions['Prediction']
+    # Create new LAS file
+    las_name = str(las_name + '.las')
+    output_las = laspy.file.File(las_name, mode='w', header=copy_data.header)
 
+    # Define new dimensions according the predictions dataframe
+    output_las.define_new_dimension(name='Prediction', data_type=5,
+                                    description='Prediction done by the model')
+
+    dimension_list = predictions.columns.values.tolist()
     if predictions.shape[1] > 1:
-        dimension_list = predictions.columns.values.tolist()
         dimension_list.remove('Prediction')
         for dim in dimension_list:
-            copy_data.add_extra_dim(name=dim, type='f4', description='Probability for this class')
-            copy_data[dim] = predictions[dim]
+            output_las.define_new_dimension(name=dim, data_type=9,
+                                            description='Probability fir this class')
 
-    # Write all data in the LAS output file
-    las_name = str(las_name + '.las')
-    copy_data.write(las_name)
+    # Fill output_las with original dimensions
+    for dim in copy_data.point_format:
+        data = copy_data.reader.get_dimension(dim.name)
+        output_las.writer.set_dimension(dim.name, data)
+    copy_data.close()
+
+    # Now fill output_las with new data
+    output_las.Prediction = predictions['Prediction']
+    if predictions.shape[1] > 1:
+        for dim in dimension_list:
+            output_las.writer.set_dimension(dim, predictions[dim].values)
+    output_las.close()
 
 
 def save_predictions(predictions, file_name, source_file):
@@ -173,15 +169,15 @@ def save_predictions(predictions, file_name, source_file):
     :param source_file: The path to the input file.
     """
     # Set header for the predictions
-    if predictions.shape[1] > 2:
+    if len(predictions.shape) > 1 and predictions.shape[1] > 2:
         # Get number of class in prediction array (number of column - 2)
         numb_class = predictions.shape[1] - 2
-        pred_header = ['Prediction', 'BestProba'] + ['Proba' + str(cla) for cla in range(0, numb_class)]
+        pred_header = ['Prediction', 'BestProba'] + ['ProbaClass_' + str(cla) for cla in range(0, numb_class)]
     else:
         pred_header = ['Prediction']
 
     # Set the np.array of target_pred pd.Dataframe
-    predictions = pd.DataFrame(predictions, columns=pred_header, dtype='float32').round(decimals=3)
+    predictions = pd.DataFrame(predictions, columns=pred_header, dtype='float32').round(decimals=4)
 
     # Reload data into DataFrame
     root_ext = os.path.splitext(source_file)  # split file path into root and extension
@@ -197,3 +193,180 @@ def save_predictions(predictions, file_name, source_file):
 
     else:
         print("Unknown extension!")
+
+
+# -------------------------
+# --------- MAIN ----------
+# -------------------------
+
+
+def predict(args):
+    """
+    Make predictions according the passed arguments.
+    :param args: the passed arguments.
+    """
+    # Set mode for common functions
+    mode = 'predict'
+
+    # Config file exists ?
+    if args.config:
+        arguments_from_config(args)  # Get the arguments from the config file
+
+    # Get model, scaler and pca
+    print("\nStep 1/6: Loading model...", end='')
+    model_to_load = args.model  # Set variable for the report
+    algorithm, model, scaler, pca, feature_names = load_model(model_to_load)
+    print("Done\n")
+
+    # INTRODUCTION
+    data_path, folder_path, start_time = introduction(algorithm, args.input_data, folder_path=args.output)
+    timestamp = start_time.strftime("%m%d_%H%M")  # Timestamp for file creation MonthDay_HourMinute
+
+    # FORMAT DATA as XY & Z & target DataFrames and remove raw_classification from file.
+    print("\nStep 2/6: Formatting data as pandas.Dataframe...")
+    data, target = format_dataset(data_path, mode=mode, features=feature_names)
+
+    # Get the number of points
+    nbr_pts = number_of_points(data.shape[0])
+    str_nbr_pts = format_nbr_pts(nbr_pts)  # Format nbr_pts as string for filename
+
+    # Set the report filename
+    algo = shortname_algo(algorithm)
+    report_filename = str(folder_path + '/' + mode + '_' + algo + str_nbr_pts + str(timestamp))
+
+    # Get the field names
+    # ADD TEST TO CHECK ALL MANDATORY FIELDS ARE PRESENT
+    feature_names = data.columns.values.tolist()
+
+    # Apply scaler to data
+    print("\nStep 3/6: Scaling data...")
+    data_scaled = scaler.transform(data)
+    data_scaled = pd.DataFrame.from_records(data_scaled, columns=feature_names)
+
+    # Apply pca to data if exists
+    if pca:
+        data_scaled = apply_pca(pca, data_scaled)
+        pca_compo = np.array2string(pca.components_)
+    else:
+        pca_compo = None
+
+    # Predic target of input data
+    print("\nStep 4/6: Making predictions for entire dataset...")
+    # y_pred = model.predict(data_scaled.values)
+    y_pred = predict_with_proba(model, data_scaled.values)
+
+    if target is not None:
+        # Save confusion matrix
+        print("\nCreating confusion matrix...")
+        conf_mat = confusion_matrix(target.values, y_pred.transpose()[0])
+        conf_mat = precision_recall(conf_mat)  # return Dataframe
+        test_report = classification_report(target.values, y_pred.transpose()[0])  # Get classification report
+        print("\n{}\n".format(test_report))
+    else:
+        conf_mat = None
+        test_report = None
+
+    # Save classifaction result as point cloud file with all data
+    print("\nStep 5/6: Saving classified point cloud:")
+    predic_filename = report_filename
+    print(predic_filename)
+    save_predictions(y_pred, predic_filename, data_path)
+
+    # Create and save prediction report
+    print("\nStep 6/6: Creating classification report:")
+    print(report_filename + '.txt')
+
+    # Get the model parameters to print in the report
+    applied_parameters = ["{}: {}".format(param, model.get_params()[param])
+                          for param in model.get_params()]
+
+    # Compute elapsed time
+    spent_time = datetime.now() - start_time
+
+    # Write the entire report
+    write_report(report_filename,
+                 mode=mode,
+                 algo=algorithm,
+                 data_file=args.input_data,
+                 start_time=start_time,
+                 elapsed_time=spent_time,
+                 feat_names=feature_names,
+                 scaler=scaler,
+                 data_len=nbr_pts,
+                 applied_param=applied_parameters,
+                 pca_compo=pca_compo,
+                 model=model_to_load,
+                 conf_mat=conf_mat,
+                 score_report=test_report)
+
+    print("\nPredictions done in {}".format(spent_time))
+
+
+def segment(args):
+    """
+    Segment input_data point cloud according the passed arguments.
+    :param args: the passed arguments.
+    """
+    # Set mode for common functions
+    mode = 'segment'
+
+    # Config file exists ?
+    if args.config:
+        arguments_from_config(args)  # Get the arguments from the config file
+
+    # Get the classifier and update the selected algorithm
+    algorithm, classifier = get_classifier(args, mode=mode)
+
+    # INTRODUCTION
+    data_path, folder_path, start_time = introduction('KMeans', args.input_data, folder_path=args.output)
+    timestamp = start_time.strftime("%m%d_%H%M")  # Timestamp for file creation MonthDay_HourMinute
+
+    # FORMAT DATA as XY & Z & target DataFrames and remove raw_classification from file.
+    print("\nStep 1/4: Formatting data as pandas.Dataframe...")
+    data, target = format_dataset(data_path, mode=mode, features=args.features)
+
+    # Get the number of points
+    nbr_pts = number_of_points(data.shape[0])
+    str_nbr_pts = format_nbr_pts(nbr_pts)  # Format nbr_pts as string for filename
+
+    # Set the report filename
+    report_filename = str(folder_path + '/' + mode + '_' + args.algo + str_nbr_pts + str(timestamp))
+
+    # Get the field names
+    feature_names = data.columns.values.tolist()
+
+    # Clustering the input data
+    print("\nStep 2/4: Clustering the dataset...")
+    y_pred = classifier.fit_predict(data)
+
+    # Save clustering result as point cloud file with all data
+    print("\nStep 3/4: Saving segmented point cloud as CSV file:")
+    predic_filename = str(report_filename + '.csv')
+    print(predic_filename)
+    save_predictions(y_pred, predic_filename, data_path)
+    scaler = None
+
+    # Create and save prediction report
+    print("\nStep 4/4: Creating segmentation report:")
+    print(report_filename + '.txt')
+
+    # Get the model parameters to print in the report
+    applied_parameters = ["{}: {}".format(param, classifier.get_params()[param])
+                          for param in classifier.get_params()]
+
+    # Compute elapsed time
+    spent_time = datetime.now() - start_time
+
+    # Write the entire report
+    write_report(report_filename,
+                 mode=mode,
+                 algo=algorithm,
+                 data_file=args.input_data,
+                 start_time=start_time,
+                 elapsed_time=spent_time,
+                 feat_names=feature_names,
+                 scaler=scaler,
+                 data_len=nbr_pts,
+                 applied_param=applied_parameters)
+
+    print("\nSegmentation done in {}".format(spent_time))

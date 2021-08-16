@@ -14,7 +14,7 @@
 #  ########\/_/####\_\/######\_____\/######\/___________/###########  #
 #  ---------- REMOTE -------- SENSING --------- GROUP --------------  #
 #  #################################################################  #
-#                'common.py' from classer library                     #
+#                'common.py' from clASpy_T library                    #
 #                    By Xavier PELLERIN LE BAS                        #
 #                         November 2019                               #
 #         REMOTE SENSING GROUP  -- https://rsg.m2c.cnrs.fr/ --        #
@@ -30,12 +30,15 @@
 # --------------------
 
 import os
-from datetime import datetime
-
-import pylas
+import yaml
+import json
+import laspy
 import numpy as np
 import pandas as pd
+
+from datetime import datetime
 from matplotlib import pyplot as plt
+from laspy import file
 from sklearn.decomposition import PCA
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler, RobustScaler, MinMaxScaler
@@ -43,6 +46,9 @@ from sklearn.preprocessing import StandardScaler, RobustScaler, MinMaxScaler
 # -------------------------
 # ------ VARIABLES --------
 # -------------------------
+
+# Define version of cLASpy_T
+cLASpy_T_version = '0.1.0'
 
 # Define point_format dict for LAS files
 point_format = dict()
@@ -56,8 +62,8 @@ wavepacket = ['wavepacket_index', 'wavepacket_offset', 'wavepacket_size',
 # Point formats for LAS 1.2 to 1.4
 point_format[0] = ['X', 'Y', 'Z', 'intensity', 'return_number', 'number_of_returns',
                    'scan_direction_flag', 'edge_of_flight_line', 'classification',
-                   'synthetic', 'key_point', 'withheld', 'scan_angle_rank',
-                   'user_data', 'point_source_id']
+                   'raw_classification', 'flag_byte', 'synthetic', 'key_point',
+                   'withheld', 'scan_angle_rank', 'user_data', 'point_source_id', 'pt_src_id']
 point_format[1] = point_format[0] + gps_time
 point_format[2] = point_format[0] + rgb
 point_format[3] = point_format[0] + gps_time + rgb
@@ -69,8 +75,9 @@ point_format[5] = point_format[0] + gps_time + rgb + wavepacket
 # Point formats for LAS 1.4
 point_format[6] = ['X', 'Y', 'Z', 'intensity', 'return_number', 'number_of_returns',
                    'synthetic', 'key_point', 'withheld', 'overlap', 'scanner_channel',
-                   'scan_direction_flag', 'edge_of_flight_line', 'classification',
-                   'user_data', 'scan_angle_rank', 'point_source_id', 'gps_time']
+                   'raw_classification', 'flag_byte', 'scan_direction_flag',
+                   'edge_of_flight_line', 'classification', 'user_data',
+                   'scan_angle_rank', 'point_source_id', 'pt_src_id', 'gps_time']
 point_format[7] = point_format[6] + rgb
 point_format[8] = point_format[6] + rgb + nir
 point_format[9] = point_format[6] + wavepacket
@@ -81,18 +88,131 @@ point_format[10] = point_format[6] + rgb + nir + wavepacket
 # -------------------------
 
 
-def introduction(algo, file_path):
+def fullname_algo(algo):
+    """
+    Give the fullname of selected algorithm.
+    :param algo: the selected algo.
+    :return: the fullname of the algorithm
+    """
+    # Get fullname of algorithm according algo
+    if algo == 'rf':
+        algorithm = 'RandomForestClassifier'
+    elif algo == 'gb':
+        algorithm = 'GradientBoostingClassifier'
+    elif algo == 'ann':
+        algorithm = 'MLPClassifier'
+    elif algo == 'kmeans':
+        algorithm = 'KMeans'
+    else:
+        raise ValueError("Choose a machine learning algorithm ('--algo')!")
+
+    return algorithm
+
+
+def shortname_algo(algorithm):
+    """
+    Give the short name of selected algorithm
+    :param algorithm: the selected algo.
+    :return: the fullname of the algorithm
+    """
+    # Get short name of algorithm
+    if algorithm == 'RandomForestClassifier':
+        algo = 'rf'
+    elif algorithm == 'GradientBoostingClassifier':
+        algo = 'gb'
+    elif algorithm == 'MLPClassifier':
+        algo = 'ann'
+    elif algorithm == 'KMeans':
+        algo = 'kmeans'
+    else:
+        raise ValueError("Choose a machine learning algorithm ('--algo')!")
+
+    return algo
+
+
+def arguments_from_config(args):
+    """
+    Update the arguments from the config file given in args.config.
+    :param args: the argument parser
+    """
+    # Open the config file
+    args.config = os.path.normpath(args.config)
+    with open(args.config, 'r') as config_file:
+        config = json.load(config_file)
+
+    # Get the version and mode of config_file
+    # version = config['version'].split('_')[0]
+    mode = config['version'].split('_')[-1]
+
+    # Global arguments (all modes)
+    if args.input_data is None:
+        args.input_data = os.path.normpath(config['input_file'])
+    if args.output is None:
+        args.output = os.path.normpath(config['output_folder'])
+
+    # Arguments for training or segment mode
+    if mode == 'train' or mode == 'segme':
+        # if argument not set with argparser take value from config file
+        if args.algo is None:
+            args.algo = shortname_algo(config['algorithm'])
+        if args.features is None:
+            args.features = config['feature_names']
+        if args.scaler is None:
+            args.scaler = config['scaler']
+        if args.pca is None:
+            # Check if PCA is present
+            try:
+                args.pca = config['pca']
+            except KeyError:
+                pass
+
+    # Arguments for training mode
+    if mode == 'train':
+        # if argument not set with argparser take value from config file
+        if args.png_features is False:
+            args.png_features = config['png_features']
+        if args.samples is None:
+            args.samples = config['samples']
+        if args.scoring is None:
+            args.scoring = config['scorer']
+        if args.train_r is None:
+            args.train_r = config['training_ratio']
+        if args.random_state == 0:
+            args.random_state = config['random_state']
+        if args.n_jobs == -1:
+            args.n_jobs = config['n_jobs_cv']
+        # grid_search flag: always take value from config file (to avoid incompatibility)
+        args.grid_search = config['grid_search']
+        # Set grid parameters or classifier parameters (GridSearchCV or not)
+        if args.grid_search:
+            args.param_grid = config['param_grid']
+        else:
+            args.parameters = config['parameters']
+
+    # Arguments for predict mode
+    if mode == 'predi':
+        args.model = config['model']
+
+    # Arguments for segment mode
+    if mode == 'segme':
+        # if argument not set with argparser take value from config file
+        if args.parameters is None:
+            args.parameters = config['parameters']
+
+
+def introduction(algorithm, file_path, folder_path=None):
     """
     Prompt the introduction, create folder to store results
-    and return the start_time
-    :param algo: Algorithm used
-    :param file_path: CSV or LAS file of used data
-    :return: raw_data, folder_path and start time
+    and return the start_time.
+    :param algorithm: algorithm used.
+    :param file_path: CSV or LAS file of used data.
+    :param folder_path: the folder where to save result files.
+    :return: raw_data, folder_path and start time.
     """
     # Prompt information about algorithm and file
     data_path = os.path.normpath(file_path)
     print("\n####### POINT CLOUD CLASSIFICATION #######\n"
-          "Algorithm used: {}".format(algo))
+          "Algorithm used: {}".format(algorithm))
 
     # Check CSV or LAS file
     root_ext = os.path.splitext(data_path)  # split file_path into root and extension
@@ -105,9 +225,11 @@ def introduction(algo, file_path):
 
     # Create a folder to store models, reports and predictions
     print("Create a new folder to store the result files...", end='')
-    folder_path = root_ext[0]  # remove extension so give folder path
+    if folder_path is None:
+        folder_path = root_ext[0]  # remove extension so give folder path
+
     try:
-        os.mkdir(folder_path)  # Using file path to create new folder
+        os.makedirs(folder_path)  # Using file path to create new folders recursively
         print(" Done.")
     except (TypeError, FileExistsError):
         print(" Folder already exists.")
@@ -127,6 +249,7 @@ def file_to_pandasframe(data_path):
     # Load data into DataFrame
     root_ext = os.path.splitext(data_path)  # split file_path into root and extension
     if root_ext[1] == '.csv':
+        file_type = 'CSV'
         frame = pd.read_csv(data_path, sep=',', header='infer')
         # Replace 'space' by '_' and clean up the header built by CloudCompare ('//X')
         for field in frame.columns.values.tolist():
@@ -136,32 +259,72 @@ def file_to_pandasframe(data_path):
                 frame = frame.rename(columns={"//X": "X"})
 
     elif root_ext[1] == '.las':
-        las = pylas.read(data_path)
+        file_type = 'LAS'
+        las = laspy.file.File(data_path, mode='r')
         print("LAS Version: {}".format(las.header.version))
-        print("LAS point format: {}".format(las.point_format.id))
-        print("Number of points: {}".format(las.header.point_count))
-        extra_dims = list(las.point_format.extra_dimension_names)  # Only get the extra dimensions
+        print("LAS point format: {}".format(las.header.data_format_id))
+        print("Number of points: {:,}".format(las.header.records_count))
+
+        # Get only the extra dimensions
+        standard_dimensions = point_format[las.header.data_format_id]
+        dimensions = list()
+        for dim in las.point_format.specs:  # Get all dimensions
+            dimensions.append(str(dim.name))
+
         frame = pd.DataFrame()
-        for dim in extra_dims:
-            frame[dim] = las[dim]
+        for dim in dimensions:
+            frame[dim] = las.get_reader().get_dimension(dim)
     else:
-        raise ValueError("Unknown Extension file !")
+        raise ValueError("Unknown Extension file!")
 
-    return frame
+    return frame, file_type
 
 
-def format_dataset(data_path, mode='training'):
+def get_selected_features(sel_features, data_features):
+    """
+    :param sel_features: the wanted features (selected by user).
+    :param data_features: all features in input_data except ('x', 'y', 'z' and 'target').
+    :return: selected_features, the final selected features.
+    """
+    # Initialization
+    selected_features = list()  # The final list of all features found in input data
+
+    # Check if features is a list()
+    if isinstance(sel_features, list):
+        print("\nGet selected features:")
+        for feature in sel_features:
+            for dt_feature in data_features:
+                if dt_feature.casefold() == feature.casefold():
+                    selected_features.append(dt_feature)
+                    print(" - {} asked --> {} found".format(feature, dt_feature))
+
+        print("\nNumber of wanted features: {}".format(len(sel_features)))
+        print("Number of final selected features: {}\n".format(len(selected_features)))
+
+        if len(sel_features) == len(selected_features):
+            print(" --> All required features are present!\n")
+        else:
+            differences = list(set(sel_features) - set(selected_features))
+            raise ValueError("{} features are missing in 'input_data'!".format(differences))
+    else:
+        raise TypeError("Selected features must be a list of string!")
+
+    return selected_features
+
+
+def format_dataset(data_path, mode='training', features=None):
     """
     Format the input data as panda DataFrame. Exclude XYZ fields.
-    :param data_path: Path of the input data as text file (.CSV).
-    :param mode: Set the mode ['training', 'prediction'] to check mandatory 'target' field in case of training.
-    :return: features_data, coord, height and target as DataFrames.
+    :param data_path: path of the input data.
+    :param mode: set the mode ['training', 'predict', 'segment'] to check mandatory 'target' field in case of training.
+    :param features: the features selected to train the model or make predictions.
+    :return: features_data and target as DataFrames.
     """
     # Load data into Pandas DataFrame
-    frame = file_to_pandasframe(data_path)
+    frame, file_type = file_to_pandasframe(data_path)
 
     # Create list name of all fields
-    all_field_names = frame.columns.values.tolist()
+    all_features = frame.columns.values.tolist()
 
     # Search X, Y, Z, target and raw_classif fields
     field_x = None
@@ -169,8 +332,8 @@ def format_dataset(data_path, mode='training'):
     field_z = None
     field_t = None
 
-    for field in all_field_names:
-        if field.casefold() == 'x':  # casefold() to be non case-sensitive
+    for field in all_features:
+        if field.casefold() == 'x':  # casefold() > non case-sensitive
             field_x = field
         if field.casefold() == 'y':
             field_y = field
@@ -179,30 +342,53 @@ def format_dataset(data_path, mode='training'):
         if field.casefold() == 'target':
             field_t = field
 
-    # Target is mandatory for training
-    if mode == 'training' and field_t is None:
-        raise ValueError("A 'target' field is mandatory for training!")
-
-    # Create target field if exist
+    # Create target variable if exist
     if field_t:
         target = frame.loc[:, field_t]
     else:
         target = None
 
-    # Select only features fields by removing X, Y, Z and target fields
-    sel_feat_names = all_field_names
-    for field in [field_x, field_y, field_z, field_t]:
-        if field:
-            sel_feat_names.remove(field)
+    # Target is mandatory for training
+    if mode == 'training' and target is None:
+        raise ValueError("A 'target' field is mandatory for training!")
+
+    # Create temp list of features
+    temp_features = all_features
+
+    # Remove target field if exist
+    if target is not None:
+        temp_features.remove(field_t)
+
+    # Get only the selected features among temp_features
+    if features is None:  # Use all features except standard LAS fields and X, Y, Z
+        print("All features in input_data will be used!")
+        selected_features = temp_features
+        for field in [field_x, field_y, field_z]:  # remove X, Y, Z
+            selected_features.remove(field)
+        if file_type == 'LAS':
+            las = laspy.file.File(data_path, mode='r')
+            standard_dimensions = point_format[las.header.data_format_id]
+            for field in standard_dimensions:  # remove standard LAS dimensions
+                selected_features.remove(field)
+
+    elif isinstance(features, str):
+        features = yaml.safe_load(features)
+        selected_features = get_selected_features(features, temp_features)
+
+    elif isinstance(features, list):
+        selected_features = get_selected_features(features, temp_features)
+
+    else:
+        raise TypeError("Selected features must be a list of string!")
 
     # Sort data by field names
-    sel_feat_names.sort()  # Sorted to be compatible with other format
+    selected_features.sort()  # Sort to be compatible between formats
 
-    # data without X, Y, Z and target fields
-    data = frame.filter(sel_feat_names, axis=1)
+    # data without target field
+    data = frame.filter(selected_features, axis=1)
 
     # Replace NAN values by median
-    data.fillna(value=data.median(0), inplace=True)  # .median(0) computes median/col
+    data.fillna(value=data.median(0), inplace=True)  # .median(0) computes median by column
 
     return data, target
 
@@ -342,40 +528,33 @@ def precision_recall(conf_mat):
     return conf_mat_up
 
 
-def nbr_pts(data_length, sample_size=None, mode='training'):
+def number_of_points(data_length, sample_size=None, magnitude=1000000):
     """
     Set the number of point according the magnitude.
-    :param sample_size: Float of the number of point for training.
-    :param data_length: Total number of points in data file.
-    :param mode: 'training', 'unsupervised' and 'prediction' modes.
-    :return: nbr_pts: Integer of the number of points.
+    :param sample_size: float of the number of point for training.
+    :param data_length: total number of points in data file.
+    :param magnitude: the order of magnitude.
+    :return: int_nbr_pts: integer of the number of points.
     """
-    # Initiation
-    magnitude = 1000000
-
     # Tests data_length and sample_size exist as number
     try:
         data_length = float(data_length)
-    except ValueError as ve:
-        raise ValueError("'data_length' parameter must be a number")
+    except ValueError:
+        raise ValueError("ValueError: 'data_length' parameter must be a number!")
 
-    if sample_size is not None:  # Check if the sample_size and is a number
+    if sample_size is not None:  # Check if the sample_size is a number
         try:
-            samples_size = float(sample_size)
-        except ValueError as ve:
+            sample_size = float(sample_size)
+        except ValueError:
             sample_size = 0.05
-            print("ValueError: sample size must be a number\n"
-                  "sample size set to default: 0.05 Mpts.")
+            print("ValueError: 'sample_size' must be a number!\n"
+                  "Sample size set to default value: 0.05 Mpts.")
 
-    # Crop data only on training mode
-    if mode == 'training':
-        # Sample size > Data size
-        if sample_size is None or sample_size * magnitude >= data_length:
-            int_nbr_pts = int(data_length)  # Number of points of entire point cloud
-        else:
-            int_nbr_pts = int(sample_size * magnitude)  # Number of points < sample size
+    # Sample size > Data size or not ?
+    if sample_size is None or sample_size * magnitude >= data_length:
+        int_nbr_pts = int(data_length)  # Number of points of entire point cloud
     else:
-        int_nbr_pts = int(data_length)
+        int_nbr_pts = int(sample_size * magnitude)  # Sample size
 
     return int_nbr_pts
 
@@ -412,7 +591,7 @@ def write_report(filename, mode, algo, data_file, start_time, elapsed_time, appl
     """
     Write the report of training or predictions in .TXT file.
     :param filename: Entire path and filename without extension.
-    :param mode: 'train' or 'pred' mode.
+    :param mode: 'training', 'predict' or 'segment' modes.
     :param algo: Algorithm used for training or predictions.
     :param data_file: Data file used to make training or predictions.
     :param start_time: Time when the script began.
@@ -436,19 +615,30 @@ def write_report(filename, mode, algo, data_file, start_time, elapsed_time, appl
         report.write('Report of ' + algo + ' ' + mode)
         report.write('\n\nDatetime: ' + start_time.strftime("%Y-%m-%d %H:%M:%S"))
         report.write('\nFile: ' + data_file)
-        report.write('\n\nFeatures:\n' + '\n'.join(feat_names))
         report.write('\n\nScaling method:\n{}'.format(scaler))
+
+        # Write features depending if it's list or dict
+        if isinstance(feat_names, list):
+            report.write("\n\nFeatures:\n" + "\n".join(feat_names))
+        if isinstance(feat_names, dict):
+            report.write("\n\nFeatures,\tImportances:\n")
+            for key in feat_names:
+                report.write("{},\t{:.5f}\n".format(str(key), feat_names[key]))
 
         # Write the train and test size
         if mode == 'training':
-            report.write('\n\nNumber of points for training: ' + str(data_len) + ' pts')
-            report.write('\nTrain size: ' + str(train_len) + ' pts')
-            report.write('\nTest size: ' + str(test_len) + ' pts')
+            report.write('\n\nNumber of points for training: {:,} pts'.format(data_len).replace(',', ' '))
+            report.write('\nTrain size: {:,} pts'.format(train_len).replace(',', ' '))
+            report.write('\nTest size: {:,} pts'.format(test_len).replace(',', ' '))
 
         # Write the number of point to predict
-        if mode == 'prediction':
-            report.write('\n\nNumber of points to predict: ' + str(data_len) + ' pts')
+        if mode == 'predict':
+            report.write('\n\nNumber of points to predict: {:,} pts'.format(data_len).replace(',', ' '))
             report.write('\nModel used: ' + model)
+
+        # Write the number of point to segment
+        if mode == 'segment':
+            report.write('\n\nNumber of points to segment: {:,} pts'.format(data_len).replace(',', ' '))
 
         if pca_compo:
             report.write('\n\nPCA Components:\n')
@@ -490,7 +680,7 @@ def save_feature_importance(model, feature_names, feature_filename):
     :param model: Pipeline with RandomForest or GradientBoosting Classifier
     :param feature_names: Names of the features.
     :param feature_filename: Filename and path of the feature importance figure file.
-    :return:
+    :return: The dictionary of the feature importances.
     """
     # Get the feature importance
     importances = model.named_steps['classifier'].feature_importances_
@@ -515,3 +705,5 @@ def save_feature_importance(model, feature_names, feature_filename):
     plt.ylim([-1, len(feature_names)])
     plt.ylabel("Features")
     plt.savefig(feature_filename, bbox_inches="tight")
+
+    return feature_imp_dict
