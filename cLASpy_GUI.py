@@ -284,7 +284,7 @@ class ClaspyGui(QMainWindow):
         # Variable Initialization
         self.platform = get_platform()
         self.cLASpy_T_version = cLASpy_T_version
-        self.cLASpy_GUI_version = '0.1.0'
+        self.cLASpy_GUI_version = '0.1.1'
         self.cLASpy_train_version = self.cLASpy_GUI_version + '_train'
         self.cLASpy_predi_version = self.cLASpy_GUI_version + '_predi'
         self.cLASpy_segme_version = self.cLASpy_GUI_version + '_segme'
@@ -342,16 +342,14 @@ class ClaspyGui(QMainWindow):
         self.buttonRunSegment.setVisible(False)
 
         # Fill the main layout
-        self.hMainLayout = QHBoxLayout()
-        self.hMainLayout.addWidget(self.groupParameters)
-        self.hMainLayout.setStretchFactor(self.groupParameters, 3)
-        self.hMainLayout.addWidget(self.groupFeatures)
-        self.hMainLayout.setStretchFactor(self.groupFeatures, 2)
-        self.hMainLayout.addWidget(self.groupCommand)
-        self.hMainLayout.setStretchFactor(self.groupCommand, 4)
+        self.splitterMain = QSplitter(Qt.Horizontal)
+        self.splitterMain.addWidget(self.groupParameters)
+        self.splitterMain.addWidget(self.groupFeatures)
+        self.splitterMain.addWidget(self.groupCommand)
+        self.splitterMain.setSizes(([200, 100, 468]))
 
         self.vMainLayout = QVBoxLayout(self.mainWidget)
-        self.vMainLayout.addLayout(self.hMainLayout)
+        self.vMainLayout.addWidget(self.splitterMain)
         self.vMainLayout.addWidget(self.buttonBox)
 
         # setCentralWidget
@@ -389,7 +387,7 @@ class ClaspyGui(QMainWindow):
         self.setStatusBar(self.statusBar)
 
         # Geometry
-        self.setGeometry(100, 50, 1024, 576)
+        self.setGeometry(10, 10, 1024, 768)
 
     # Menu and Options
     def menu_file_trigger(self, action):
@@ -474,7 +472,7 @@ class ClaspyGui(QMainWindow):
     # Parameter part
     def parameter_part(self):
         """
-        Part to set all parameters (Input data, algorithms, algo parameters...
+        Part to set all parameters (Input data, algorithms, algo parameters...)
         """
         # Global parameter group
         self.groupParameters = QGroupBox()
@@ -482,7 +480,7 @@ class ClaspyGui(QMainWindow):
         self.groupParameters.setStyleSheet("QGroupBox#WithoutBorder { border: 0px }")
 
         self.labelLocalServer = QLabel("Run cLASpy_T:")
-        self.labelLocalServer.setAlignment(Qt.AlignCenter)
+        self.labelLocalServer.setAlignment(Qt.AlignLeft)
         self.pushLocal = QPushButton("on Local")
         self.pushLocal.setToolTip("To run cLASpy_T on this computer")
         self.pushLocal.setCheckable(True)
@@ -495,7 +493,7 @@ class ClaspyGui(QMainWindow):
         self.pushServer.setChecked(False)
         self.pushServer.clicked.connect(self.display_stack_server)
 
-        self.layoutLocalServer = QHBoxLayout()
+        self.layoutLocalServer = QVBoxLayout()
         self.layoutLocalServer.addWidget(self.pushLocal)
         self.layoutLocalServer.addWidget(self.pushServer)
 
@@ -527,14 +525,30 @@ class ClaspyGui(QMainWindow):
         self.tabPredict = QWidget()  # Widget for tab predict
         self.tabSegment = QWidget()  # Widget for tab segment
 
+        # Make tabs scrollable
+        self.scrollTabTrain = QScrollArea()
+        self.scrollTabTrain.setFrameShape(QFrame.NoFrame)
+        self.scrollTabTrain.setWidgetResizable(True)
+        self.scrollTabTrain.setWidget(self.tabTrain)
+
+        self.scrollTabPredict = QScrollArea()
+        self.scrollTabPredict.setFrameShape(QFrame.NoFrame)
+        self.scrollTabPredict.setWidgetResizable(True)
+        self.scrollTabPredict.setWidget(self.tabPredict)
+
+        self.scrollTabSegment = QScrollArea()
+        self.scrollTabSegment.setFrameShape(QFrame.NoFrame)
+        self.scrollTabSegment.setWidgetResizable(True)
+        self.scrollTabSegment.setWidget(self.tabSegment)
+
         self.tabui_train()
         self.tabui_predict()
         self.tabui_segment()
 
         self.tabModes = QTabWidget()  # TabWidget to group all tabs
-        self.tabModes.addTab(self.tabTrain, "Training")
-        self.tabModes.addTab(self.tabPredict, "Prediction")
-        self.tabModes.addTab(self.tabSegment, "Segmentation")
+        self.tabModes.addTab(self.scrollTabTrain, "Training")
+        self.tabModes.addTab(self.scrollTabPredict, "Prediction")
+        self.tabModes.addTab(self.scrollTabSegment, "Segmentation")
 
         self.tabModes.currentChanged.connect(self.tab_modes_action)
 
@@ -675,8 +689,8 @@ class ClaspyGui(QMainWindow):
             self.labelTarget.setText("Target field is available.")
             self.SeglabelTarget.setText("Will be discarded for segmentation.")
         else:
-            self.labelTarget.setText("Target field not found!!")
-            self.SeglabelTarget.setText("Target field not found.")
+            self.labelTarget.setText("Not found!!")
+            self.SeglabelTarget.setText("Not mandatory.")
 
         # Rewrite listExtraFeature
         self.listExtraFeatures.clear()
@@ -846,104 +860,10 @@ class ClaspyGui(QMainWindow):
     # Tab of train
     def tabui_train(self):
         # Group Training
-        self.groupTrain = QGroupBox("Data Parameters")
+        self.groupTrain = QGroupBox("Training Parameters")
 
         # Label: Target field exist ?
         self.labelTarget = QLabel()
-
-        # Set the sample size
-        self.spinSampleSize = QDoubleSpinBox()
-        # self.spinSampleSize.setMaximumWidth(80)
-        self.spinSampleSize.setMinimum(0)
-        self.spinSampleSize.setDecimals(6)
-        self.spinSampleSize.setWrapping(True)
-        self.hLayoutSize = QHBoxLayout()
-        self.hLayoutSize.addWidget(self.spinSampleSize)
-        self.hLayoutSize.addWidget(QLabel("Millions points"))
-
-        # Set the training/testing ratio
-        self.spinTrainRatio = QDoubleSpinBox()
-        self.spinTrainRatio.setMaximumWidth(80)
-        self.spinTrainRatio.setMinimum(0)
-        self.spinTrainRatio.setMaximum(1)
-        self.spinTrainRatio.setSingleStep(0.1)
-        self.spinTrainRatio.setDecimals(3)
-        self.spinTrainRatio.setWrapping(True)
-        self.spinTrainRatio.setValue(0.5)
-
-        # Set the scaler
-        self.scalerNames = ['Standard', 'Robust', 'MinMax']
-        self.comboScaler = QComboBox()
-        # self.comboScaler.setMaximumWidth(80)
-        self.comboScaler.addItems(self.scalerNames)
-        self.comboScaler.setCurrentText("Standard")
-        self.comboScaler.setToolTip("Set the method to scale the data.")
-
-        # Set the number of jobs only for GridSearchCV or Cross-Validation
-        self.spinNJobCV = QSpinBox()
-        self.spinNJobCV.setMaximumWidth(80)
-        self.spinNJobCV.setMinimum(-1)
-        self.spinNJobCV.setValue(-1)
-        self.spinNJobCV.setToolTip("Set the number of jobs for GridSearchCV and Cross-Validation.\n"
-                                   "In case of RandomForest, Total CPU used = N_jobs CV * n_jobs.")
-
-        # Set the random state to split data, GridSearchCV, CrossVal...
-        self.spinRandomState = QSpinBox()
-        # self.spinRandomState.setMaximumWidth(80)
-        self.spinRandomState.setMinimum(0)
-        self.spinRandomState.setMaximum(2147483647)  # 2^31 - 1
-        self.spinRandomState.setValue(0)
-        self.spinRandomState.setToolTip("Controls the randomness to split the data into train/test and\n"
-                                        "the shuffle split for GridSearchCV or Cross-Validation.")
-        self.pushRandomSeed = QPushButton("New Seed")
-        self.pushRandomSeed.clicked.connect(lambda: new_seed(self.spinRandomState))
-        h_layout_random = QHBoxLayout()
-        h_layout_random.addWidget(self.spinRandomState)
-        h_layout_random.addWidget(self.pushRandomSeed)
-
-        # Set the Princiapl Component Analysis
-        self.spinPCA = QSpinBox()
-        self.spinPCA.setMaximumWidth(80)
-        self.spinPCA.setMinimum(0)
-        self.spinPCA.setMaximum(9999)
-        self.spinPCA.setValue(0)
-        self.spinPCA.setToolTip("Set the Principal Component Analysis\n"
-                                "and the number of principal components.")
-
-        # Set the scorer
-        self.scorerNames = ['accuracy', 'balanced_accuracy', 'top_k_accuracy', 'average_precision', 'neg_brier_score',
-                            'f1_micro', 'f1_macro', 'f1_weighted',
-                            'precision_micro', 'precision_macro', 'precision_weighted',
-                            'recall_micro', 'recall_macro', 'recall_weighted',
-                            'roc_auc', 'roc_auc_ovr', 'roc_auc_ovo', 'roc_ovr_weighted', 'roc_ovo_weighted']
-        self.comboScorer = QComboBox()
-        # self.comboScorer.setMaximumWidth(160)
-        self.comboScorer.addItems(self.scorerNames)
-        self.comboScorer.setCurrentText("accuracy")
-        self.comboScorer.setToolTip("Set the scorer for GridSearchCV or Cross_validation\n"
-                                    "(see the scikit-learn documentation).")
-
-        # Fill layout of training parameters
-        self.formLeftTrain = QFormLayout()
-        self.formLeftTrain.addRow("Target field:", self.labelTarget)
-        self.formLeftTrain.addRow("Number of samples:", self.hLayoutSize)
-        self.formLeftTrain.addRow("Training ratio:", self.spinTrainRatio)
-        self.formLeftTrain.addRow("Scaler:", self.comboScaler)
-
-        self.formRightTrain = QFormLayout()
-        self.formRightTrain.addRow("N_jobs CV:", self.spinNJobCV)
-        self.formRightTrain.addRow("Random State:", h_layout_random)
-        self.formRightTrain.addRow("PCA:", self.spinPCA)
-        self.formRightTrain.addRow("Scorer:", self.comboScorer)
-
-        self.hLayoutTrain = QHBoxLayout()
-        self.hLayoutTrain.addLayout(self.formLeftTrain)
-        self.hLayoutTrain.addWidget(QVLine())
-        self.hLayoutTrain.addLayout(self.formRightTrain)
-        self.groupTrain.setLayout(self.hLayoutTrain)
-
-        # Algorithm group
-        self.groupAlgorithm = QGroupBox("Algorithm")
 
         # ComboBox of Algorithms and GridSearchCV
         self.comboAlgorithms = QComboBox()
@@ -960,6 +880,89 @@ class ClaspyGui(QMainWindow):
                                           "(See the scikit-learn documentation)")
         self.checkGridSearchCV.stateChanged.connect(self.display_stack_algo)
 
+        # Set the sample size
+        self.spinSampleSize = QDoubleSpinBox()
+        self.spinSampleSize.setMinimum(0)
+        self.spinSampleSize.setDecimals(6)
+        self.spinSampleSize.setWrapping(True)
+        self.hLayoutSize = QHBoxLayout()
+        self.hLayoutSize.addWidget(self.spinSampleSize)
+        self.hLayoutSize.addWidget(QLabel("Millions points"))
+
+        # Set the training/testing ratio
+        self.spinTrainRatio = QDoubleSpinBox()
+        self.spinTrainRatio.setMinimum(0)
+        self.spinTrainRatio.setMaximum(1)
+        self.spinTrainRatio.setSingleStep(0.1)
+        self.spinTrainRatio.setDecimals(3)
+        self.spinTrainRatio.setWrapping(True)
+        self.spinTrainRatio.setValue(0.5)
+
+        # Set the scaler
+        self.scalerNames = ['Standard', 'Robust', 'MinMax']
+        self.comboScaler = QComboBox()
+        self.comboScaler.addItems(self.scalerNames)
+        self.comboScaler.setCurrentText("Standard")
+        self.comboScaler.setToolTip("Set the method to scale the data.")
+
+        # Set the Principal Component Analysis
+        self.spinPCA = QSpinBox()
+        self.spinPCA.setMinimum(0)
+        self.spinPCA.setMaximum(9999)
+        self.spinPCA.setValue(0)
+        self.spinPCA.setToolTip("Set the Principal Component Analysis\n"
+                                "and the number of principal components.")
+
+        # Set the scorer
+        self.scorerNames = ['accuracy', 'balanced_accuracy', 'top_k_accuracy', 'average_precision', 'neg_brier_score',
+                            'f1_micro', 'f1_macro', 'f1_weighted',
+                            'precision_micro', 'precision_macro', 'precision_weighted',
+                            'recall_micro', 'recall_macro', 'recall_weighted',
+                            'roc_auc', 'roc_auc_ovr', 'roc_auc_ovo', 'roc_ovr_weighted', 'roc_ovo_weighted']
+        self.comboScorer = QComboBox()
+        self.comboScorer.addItems(self.scorerNames)
+        self.comboScorer.setCurrentText("accuracy")
+        self.comboScorer.setToolTip("Set the scorer for GridSearchCV or Cross_validation\n"
+                                    "(see the scikit-learn documentation).")
+
+        # Set the random state to split data, GridSearchCV, CrossVal...
+        self.spinRandomState = QSpinBox()
+        self.spinRandomState.setMinimum(0)
+        self.spinRandomState.setMaximum(2147483647)  # 2^31 - 1
+        self.spinRandomState.setValue(0)
+        self.spinRandomState.setToolTip("Controls the randomness to split the data into train/test and\n"
+                                        "the shuffle split for GridSearchCV or Cross-Validation.")
+        self.pushRandomSeed = QPushButton("New Seed")
+        self.pushRandomSeed.clicked.connect(lambda: new_seed(self.spinRandomState))
+        h_layout_random = QHBoxLayout()
+        h_layout_random.addWidget(self.spinRandomState)
+        h_layout_random.addWidget(self.pushRandomSeed)
+
+        # Set the number of jobs only for GridSearchCV or Cross-Validation
+        self.spinNJobCV = QSpinBox()
+        self.spinNJobCV.setMinimum(-1)
+        self.spinNJobCV.setValue(-1)
+        self.spinNJobCV.setToolTip("Set the number of jobs for GridSearchCV and Cross-Validation.\n"
+                                   "In case of RandomForest, Total CPU used = N_jobs CV * n_jobs.")
+
+        # Fill layout of training parameters
+        self.formTrainParam = QFormLayout()
+        self.formTrainParam.addRow("Target field:", self.labelTarget)
+        self.formTrainParam.addRow("Select Algorithm:", self.comboAlgorithms)
+        self.formTrainParam.addRow("GridSearchCV:", self.checkGridSearchCV)
+        self.formTrainParam.addRow("Number of samples:", self.hLayoutSize)
+        self.formTrainParam.addRow("Training ratio:", self.spinTrainRatio)
+        self.formTrainParam.addRow("Scaler:", self.comboScaler)
+        self.formTrainParam.addRow("PCA:", self.spinPCA)
+        self.formTrainParam.addRow("Scorer:", self.comboScorer)
+
+        self.formTrainParam.addRow("Random State:", h_layout_random)
+        self.formTrainParam.addRow("N_jobs CV:", self.spinNJobCV)
+        self.groupTrain.setLayout(self.formTrainParam)
+
+        # Algorithm group
+        self.groupAlgorithm = QGroupBox("Algorithm parameters")
+
         # Stacks for the parameters of the algo
         self.stack_RF = QWidget()
         self.stack_RF_grid = QWidget()
@@ -974,7 +977,7 @@ class ClaspyGui(QMainWindow):
         self.stackui_gb_grid()
         self.stackui_nn_grid()
         self.stackAlgo = QStackedWidget(self)
-        self.stackAlgo.setMaximumHeight(310)
+        # self.stackAlgo.setMaximumHeight(310)
         self.stackAlgo.addWidget(self.stack_RF)
         self.stackAlgo.addWidget(self.stack_GB)
         self.stackAlgo.addWidget(self.stack_NN)
@@ -982,18 +985,10 @@ class ClaspyGui(QMainWindow):
         self.stackAlgo.addWidget(self.stack_GB_grid)
         self.stackAlgo.addWidget(self.stack_NN_grid)
 
-        # Make the StackAlgo scrollable
-        self.scrollStackAlgo = QScrollArea()
-        self.scrollStackAlgo.setFrameShape(QFrame.NoFrame)
-        self.scrollStackAlgo.setWidgetResizable(True)
-        self.scrollStackAlgo.setWidget(self.stackAlgo)
-
-        # Fill the algorithm groupBox with QFormLayout
-        self.formLayoutAlgo = QFormLayout()
-        self.formLayoutAlgo.addRow("Select Algorithm:", self.comboAlgorithms)
-        self.formLayoutAlgo.addRow("GridSearchCV:", self.checkGridSearchCV)
-        self.formLayoutAlgo.addRow("Algorithm parameters:", self.scrollStackAlgo)
-        self.groupAlgorithm.setLayout(self.formLayoutAlgo)
+        # Fill layout of algorithm parameters
+        self.vLayoutAlgoParam = QVBoxLayout()
+        self.vLayoutAlgoParam.addWidget(self.stackAlgo)
+        self.groupAlgorithm.setLayout(self.vLayoutAlgoParam)
 
         # Fill the left layout
         self.vLayoutTabTrain = QVBoxLayout()
@@ -1004,12 +999,8 @@ class ClaspyGui(QMainWindow):
 
     def stackui_rf(self):
         form_layout = QFormLayout()
-        form_layout.setLabelAlignment(Qt.AlignRight)
-
-        widget_width = int(self.groupAlgorithm.width()/5)
 
         self.RFspinRandomState = QSpinBox()
-        self.RFspinRandomState.setMaximumWidth(widget_width)
         self.RFspinRandomState.setMinimum(-1)
         self.RFspinRandomState.setMaximum(2147483647)
         self.RFspinRandomState.setValue(-1)
@@ -1022,7 +1013,6 @@ class ClaspyGui(QMainWindow):
         form_layout.addRow("random_state:", h_layout_random)
 
         self.RFspinEstimators = QSpinBox()
-        self.RFspinEstimators.setMaximumWidth(widget_width)
         self.RFspinEstimators.setMinimum(2)
         self.RFspinEstimators.setMaximum(999999)
         self.RFspinEstimators.setValue(100)
@@ -1031,14 +1021,12 @@ class ClaspyGui(QMainWindow):
 
         self.RFcriterion = ["gini", "entropy"]
         self.RFcomboCriterion = QComboBox()
-        self.RFcomboCriterion.setMaximumWidth(widget_width)
         self.RFcomboCriterion.addItems(self.RFcriterion)
         self.RFcomboCriterion.setCurrentText("gini")
         self.RFcomboCriterion.setToolTip("The function to measure the quality of a split.")
         form_layout.addRow("criterion:", self.RFcomboCriterion)
 
         self.RFspinMaxDepth = QSpinBox()
-        self.RFspinMaxDepth.setMaximumWidth(widget_width)
         self.RFspinMaxDepth.setMinimum(0)
         self.RFspinMaxDepth.setMaximum(9999)
         self.RFspinMaxDepth.setValue(0)
@@ -1046,7 +1034,6 @@ class ClaspyGui(QMainWindow):
         form_layout.addRow("max_depth:", self.RFspinMaxDepth)
 
         self.RFspinSamplesSplit = QSpinBox()
-        self.RFspinSamplesSplit.setMaximumWidth(widget_width)
         self.RFspinSamplesSplit.setMinimum(2)
         self.RFspinSamplesSplit.setMaximum(999999)
         self.RFspinSamplesSplit.setValue(2)
@@ -1055,7 +1042,6 @@ class ClaspyGui(QMainWindow):
         form_layout.addRow("min_samples_split:", self.RFspinSamplesSplit)
 
         self.RFspinSamplesLeaf = QSpinBox()
-        self.RFspinSamplesLeaf.setMaximumWidth(widget_width)
         self.RFspinSamplesLeaf.setMaximum(999999)
         self.RFspinSamplesLeaf.setValue(1)
         self.RFspinSamplesLeaf.setToolTip("The minimum number of samples required\n"
@@ -1063,7 +1049,6 @@ class ClaspyGui(QMainWindow):
         form_layout.addRow("min_samples_leaf:", self.RFspinSamplesLeaf)
 
         self.RFspinWeightLeaf = QDoubleSpinBox()
-        self.RFspinWeightLeaf.setMaximumWidth(widget_width)
         self.RFspinWeightLeaf.setDecimals(4)
         self.RFspinWeightLeaf.setMaximum(1)
         self.RFspinWeightLeaf.setValue(0)
@@ -1074,7 +1059,6 @@ class ClaspyGui(QMainWindow):
 
         self.RFmaxFeatures = ["auto", "sqrt", "log2"]
         self.RFcomboMaxFeatures = QComboBox()
-        self.RFcomboMaxFeatures.setMaximumWidth(widget_width)
         self.RFcomboMaxFeatures.addItems(self.RFmaxFeatures)
         self.RFcomboMaxFeatures.setCurrentText("auto")
         self.RFcomboMaxFeatures.setToolTip("The number of features to consider\n"
@@ -1082,7 +1066,6 @@ class ClaspyGui(QMainWindow):
         form_layout.addRow("max_features:", self.RFcomboMaxFeatures)
 
         self.RFspinNJob = QSpinBox()
-        self.RFspinNJob.setMaximumWidth(widget_width)
         self.RFspinNJob.setMinimum(-1)
         self.RFspinNJob.setValue(-1)
         self.RFspinNJob.setToolTip("The number of jobs to run in parallel.\n"
@@ -1099,13 +1082,9 @@ class ClaspyGui(QMainWindow):
         form_layout.addRow("Export feature importances:", self.RFcheckImportance)
 
         self.stack_RF.setLayout(form_layout)
-        self.stack_RF.setMaximumHeight(360)
 
     def stackui_rf_grid(self):
         form_layout = QFormLayout()
-        form_layout.setLabelAlignment(Qt.AlignRight)
-
-        height_unit = 25
 
         # List of Random State
         self.RFgridlineRandomState = QLineEdit()
@@ -1123,7 +1102,6 @@ class ClaspyGui(QMainWindow):
 
         # List of Criterion to mesure the quality of a split (use self.RFcriterion)
         self.RFgridlistCriterion = QListWidget()
-        self.RFgridlistCriterion.setMaximumHeight(height_unit*3)
         for idx, criterion in zip(range(0, len(self.RFcriterion)), self.RFcriterion):
             self.RFgridlistCriterion.insertItem(idx, criterion)
         self.RFgridlistCriterion.setCurrentItem(self.RFgridlistCriterion.item(0))
@@ -1166,7 +1144,6 @@ class ClaspyGui(QMainWindow):
 
         # List of Maximum Features (use self.RFmaxFeatures)
         self.RFgridlistMaxFeatures = QListWidget()
-        self.RFgridlistMaxFeatures.setMaximumHeight(height_unit*4)
         for idx, method in zip(range(0, len(self.RFmaxFeatures)), self.RFmaxFeatures):
             self.RFgridlistMaxFeatures.insertItem(idx, method)
         self.RFgridlistMaxFeatures.setCurrentItem(self.RFgridlistMaxFeatures.item(0))
@@ -1190,12 +1167,8 @@ class ClaspyGui(QMainWindow):
 
     def stackui_gb(self):
         form_layout = QFormLayout()
-        form_layout.setLabelAlignment(Qt.AlignRight)
-
-        widget_width = int(self.groupAlgorithm.width()/5)
 
         self.GBspinRandomState = QSpinBox()
-        self.GBspinRandomState.setMaximumWidth(widget_width)
         self.GBspinRandomState.setMinimum(-1)
         self.GBspinRandomState.setMaximum(2147483647)
         self.GBspinRandomState.setValue(-1)
@@ -1208,7 +1181,6 @@ class ClaspyGui(QMainWindow):
         form_layout.addRow("random_state:", h_layout_random)
 
         self.GBspinEstimators = QSpinBox()
-        self.GBspinEstimators.setMaximumWidth(widget_width)
         self.GBspinEstimators.setMinimum(2)
         self.GBspinEstimators.setMaximum(9999999)
         self.GBspinEstimators.setValue(100)
@@ -1220,14 +1192,12 @@ class ClaspyGui(QMainWindow):
 
         self.GBcriterion = ["friedman_mse", "mse"]
         self.GBcomboCriterion = QComboBox()
-        self.GBcomboCriterion.setMaximumWidth(widget_width)
         self.GBcomboCriterion.addItems(self.GBcriterion)
         self.GBcomboCriterion.setCurrentText("friedman_mse")
         self.GBcomboCriterion.setToolTip("The function to measure the quality of a split.")
         form_layout.addRow("criterion:", self.GBcomboCriterion)
 
         self.GBspinMaxDepth = QSpinBox()
-        self.GBspinMaxDepth.setMaximumWidth(widget_width)
         self.GBspinMaxDepth.setMinimum(0)
         self.GBspinMaxDepth.setMaximum(9999)
         self.GBspinMaxDepth.setValue(3)
@@ -1236,7 +1206,6 @@ class ClaspyGui(QMainWindow):
         form_layout.addRow("max_depth:", self.GBspinMaxDepth)
 
         self.GBspinSamplesSplit = QSpinBox()
-        self.GBspinSamplesSplit.setMaximumWidth(widget_width)
         self.GBspinSamplesSplit.setMinimum(2)
         self.GBspinSamplesSplit.setMaximum(999999)
         self.GBspinSamplesSplit.setValue(2)
@@ -1245,7 +1214,6 @@ class ClaspyGui(QMainWindow):
         form_layout.addRow("min_samples_split:", self.GBspinSamplesSplit)
 
         self.GBspinSamplesLeaf = QSpinBox()
-        self.GBspinSamplesLeaf.setMaximumWidth(widget_width)
         self.GBspinSamplesLeaf.setMaximum(999999)
         self.GBspinSamplesLeaf.setValue(1)
         self.GBspinSamplesLeaf.setToolTip("The minimum number of samples required\n"
@@ -1253,7 +1221,6 @@ class ClaspyGui(QMainWindow):
         form_layout.addRow("min_samples_leaf:", self.GBspinSamplesLeaf)
 
         self.GBspinWeightLeaf = QDoubleSpinBox()
-        self.GBspinWeightLeaf.setMaximumWidth(widget_width)
         self.GBspinWeightLeaf.setDecimals(4)
         self.GBspinWeightLeaf.setMaximum(1)
         self.GBspinWeightLeaf.setValue(0)
@@ -1264,7 +1231,6 @@ class ClaspyGui(QMainWindow):
 
         self.GBmaxFeatures = ["None", "auto", "sqrt", "log2"]
         self.GBcomboMaxFeatures = QComboBox()
-        self.GBcomboMaxFeatures.setMaximumWidth(widget_width)
         self.GBcomboMaxFeatures.addItems(self.GBmaxFeatures)
         self.GBcomboMaxFeatures.setCurrentText("None")
         self.GBcomboMaxFeatures.setToolTip("The number of features to consider\n"
@@ -1273,7 +1239,6 @@ class ClaspyGui(QMainWindow):
 
         self.loss = ["deviance", "exponential"]
         self.GBcomboLoss = QComboBox()
-        self.GBcomboLoss.setMaximumWidth(widget_width)
         self.GBcomboLoss.addItems(self.loss)
         self.GBcomboLoss.setCurrentText("deviance")
         self.GBcomboLoss.setToolTip("The loss function to be optimized. ‘deviance’ refers to logistic\n"
@@ -1282,7 +1247,6 @@ class ClaspyGui(QMainWindow):
         form_layout.addRow("loss:", self.GBcomboLoss)
 
         self.GBspinLearningRate = QDoubleSpinBox()
-        self.GBspinLearningRate.setMaximumWidth(widget_width)
         self.GBspinLearningRate.setDecimals(6)
         self.GBspinLearningRate.setMaximum(999999)
         self.GBspinLearningRate.setMinimum(0)
@@ -1293,7 +1257,6 @@ class ClaspyGui(QMainWindow):
         form_layout.addRow("learning_rate:", self.GBspinLearningRate)
 
         self.GBspinSubsample = QDoubleSpinBox()
-        self.GBspinSubsample.setMaximumWidth(widget_width)
         self.GBspinSubsample.setDecimals(4)
         self.GBspinSubsample.setMaximum(999999)
         self.GBspinSubsample.setMinimum(0)
@@ -1313,13 +1276,9 @@ class ClaspyGui(QMainWindow):
         form_layout.addRow("Export feature importances:", self.GBcheckImportance)
 
         self.stack_GB.setLayout(form_layout)
-        self.stack_GB.setMaximumHeight(420)
 
     def stackui_gb_grid(self):
         form_layout = QFormLayout()
-        form_layout.setLabelAlignment(Qt.AlignRight)
-
-        height_unit = 25
 
         # List of Random State
         self.GBgridlineRandomState = QLineEdit()
@@ -1341,7 +1300,6 @@ class ClaspyGui(QMainWindow):
         # List of Criterion
         self.GBcriterion = ["friedman_mse", "mse"]
         self.GBgridlistCriterion = QListWidget()
-        self.GBgridlistCriterion.setMaximumHeight(height_unit*3)
         for idx, criterion in zip(range(0, len(self.GBcriterion)), self.GBcriterion):
             self.GBgridlistCriterion.insertItem(idx, criterion)
         self.GBgridlistCriterion.setCurrentItem(self.GBgridlistCriterion.item(0))
@@ -1384,7 +1342,6 @@ class ClaspyGui(QMainWindow):
 
         # List of Maximum Features (use self.RFmaxFeatures)
         self.GBgridlistMaxFeatures = QListWidget()
-        self.GBgridlistMaxFeatures.setMaximumHeight(height_unit*4)
         for idx, method in zip(range(0, len(self.RFmaxFeatures)), self.RFmaxFeatures):
             self.GBgridlistMaxFeatures.insertItem(idx, method)
         self.GBgridlistMaxFeatures.setCurrentItem(self.GBgridlistMaxFeatures.item(0))
@@ -1395,7 +1352,6 @@ class ClaspyGui(QMainWindow):
 
         # List of Loss methods (use self.loss)
         self.GBgridlistLoss = QListWidget()
-        self.GBgridlistLoss.setMaximumHeight(height_unit*3)
         for idx, method in zip(range(0, len(self.loss)), self.loss):
             self.GBgridlistLoss.insertItem(idx, method)
         self.GBgridlistLoss.setCurrentItem(self.GBgridlistLoss.item(0))
@@ -1429,12 +1385,8 @@ class ClaspyGui(QMainWindow):
 
     def stackui_nn(self):
         form_layout = QFormLayout()
-        form_layout.setLabelAlignment(Qt.AlignRight)
-
-        widget_width = int(self.groupAlgorithm.width()/5)
 
         self.NNspinRandomState = QSpinBox()
-        self.NNspinRandomState.setMaximumWidth(widget_width)
         self.NNspinRandomState.setMinimum(-1)
         self.NNspinRandomState.setMaximum(2147483647)
         self.NNspinRandomState.setValue(-1)
@@ -1449,7 +1401,6 @@ class ClaspyGui(QMainWindow):
         form_layout.addRow("random_state:", h_layout_random)
 
         self.NNlineHiddenLayers = QLineEdit()
-        self.NNlineHiddenLayers.setMaximumWidth(widget_width)
         self.NNlineHiddenLayers.setPlaceholderText("Example: 50,100,50")
         self.NNlineHiddenLayers.setToolTip("The ith element represents the number of neurons\n"
                                            "in the ith hidden layer.")
@@ -1457,7 +1408,6 @@ class ClaspyGui(QMainWindow):
 
         self.NNactivation = ["identity", "logistic", "tanh", "relu"]
         self.NNcomboActivation = QComboBox()
-        self.NNcomboActivation.setMaximumWidth(widget_width)
         self.NNcomboActivation.addItems(self.NNactivation)
         self.NNcomboActivation.setCurrentText("relu")
         self.NNcomboActivation.setToolTip("Activation function for the hidden layer.")
@@ -1465,7 +1415,6 @@ class ClaspyGui(QMainWindow):
 
         self.NNsolver = ["lbfgs", "sgd", "adam"]
         self.NNcomboSolver = QComboBox()
-        self.NNcomboSolver.setMaximumWidth(widget_width)
         self.NNcomboSolver.addItems(self.NNsolver)
         self.NNcomboSolver.setCurrentText("adam")
         self.NNcomboSolver.setToolTip("The solver for weight optimization.\n"
@@ -1476,7 +1425,6 @@ class ClaspyGui(QMainWindow):
         form_layout.addRow("solver:", self.NNcomboSolver)
 
         self.NNspinAlpha = QDoubleSpinBox()
-        self.NNspinAlpha.setMaximumWidth(widget_width)
         self.NNspinAlpha.setDecimals(8)
         self.NNspinAlpha.setMinimum(0)
         self.NNspinAlpha.setMaximum(999999)
@@ -1485,7 +1433,6 @@ class ClaspyGui(QMainWindow):
         form_layout.addRow("alpha:", self.NNspinAlpha)
 
         self.NNspinBatchSize = QSpinBox()
-        self.NNspinBatchSize.setMaximumWidth(widget_width)
         self.NNspinBatchSize.setMinimum(-1)
         self.NNspinBatchSize.setMaximum(999999)
         self.NNspinBatchSize.setValue(-1)
@@ -1495,7 +1442,6 @@ class ClaspyGui(QMainWindow):
 
         self.NNlearningRate = ["constant", "invscaling", "adaptive"]
         self.NNcomboLearningRate = QComboBox()
-        self.NNcomboLearningRate.setMaximumWidth(widget_width)
         self.NNcomboLearningRate.addItems(self.NNlearningRate)
         self.NNcomboLearningRate.setCurrentText("constant")
         self.NNcomboLearningRate.setEnabled(False)
@@ -1503,7 +1449,6 @@ class ClaspyGui(QMainWindow):
         form_layout.addRow("learning_rate:", self.NNcomboLearningRate)
 
         self.NNspinLearningRateInit = QDoubleSpinBox()
-        self.NNspinLearningRateInit.setMaximumWidth(widget_width)
         self.NNspinLearningRateInit.setDecimals(6)
         self.NNspinLearningRateInit.setMinimum(0)
         self.NNspinLearningRateInit.setMaximum(9999)
@@ -1514,7 +1459,6 @@ class ClaspyGui(QMainWindow):
         form_layout.addRow("learning_rate_init:", self.NNspinLearningRateInit)
 
         self.NNspinPowerT = QDoubleSpinBox()
-        self.NNspinPowerT.setMaximumWidth(widget_width)
         self.NNspinPowerT.setDecimals(6)
         self.NNspinPowerT.setMinimum(0)
         self.NNspinPowerT.setMaximum(9999)
@@ -1527,7 +1471,6 @@ class ClaspyGui(QMainWindow):
         form_layout.addRow("power_t:", self.NNspinPowerT)
 
         self.NNspinMaxIter = QSpinBox()
-        self.NNspinMaxIter.setMaximumWidth(widget_width)
         self.NNspinMaxIter.setMinimum(1)
         self.NNspinMaxIter.setMaximum(99999)
         self.NNspinMaxIter.setValue(200)
@@ -1544,7 +1487,6 @@ class ClaspyGui(QMainWindow):
         form_layout.addRow("shuffle:", self.NNcheckShuffle)
 
         self.NNspinBeta_1 = QDoubleSpinBox()
-        self.NNspinBeta_1.setMaximumWidth(widget_width)
         self.NNspinBeta_1.setDecimals(6)
         self.NNspinBeta_1.setMinimum(0)
         self.NNspinBeta_1.setMaximum(1)
@@ -1555,7 +1497,6 @@ class ClaspyGui(QMainWindow):
         form_layout.addRow("beta_1:", self.NNspinBeta_1)
 
         self.NNspinBeta_2 = QDoubleSpinBox()
-        self.NNspinBeta_2.setMaximumWidth(widget_width)
         self.NNspinBeta_2.setDecimals(6)
         self.NNspinBeta_2.setMinimum(0)
         self.NNspinBeta_2.setMaximum(1)
@@ -1566,7 +1507,6 @@ class ClaspyGui(QMainWindow):
         form_layout.addRow("beta_2:", self.NNspinBeta_2)
 
         self.NNspinEpsilon = QDoubleSpinBox()
-        self.NNspinEpsilon.setMaximumWidth(widget_width)
         self.NNspinEpsilon.setDecimals(8)
         self.NNspinEpsilon.setMinimum(0)
         self.NNspinEpsilon.setValue(0.00000001)
@@ -1575,16 +1515,12 @@ class ClaspyGui(QMainWindow):
         form_layout.addRow("epsilon:", self.NNspinEpsilon)
 
         self.stack_NN.setLayout(form_layout)
-        self.stack_NN.setMaximumHeight(500)
 
         self.NNcomboSolver.currentTextChanged.connect(self.nn_solver_options)
         self.NNcomboLearningRate.currentTextChanged.connect(self.nn_solver_options)
 
     def stackui_nn_grid(self):
         form_layout = QFormLayout()
-        form_layout.setLabelAlignment(Qt.AlignRight)
-
-        height_unit = 25
 
         # List of Random State
         self.NNgridlineRandomState = QLineEdit()
@@ -1604,7 +1540,6 @@ class ClaspyGui(QMainWindow):
 
         # List of Activation Function (use self.NNactivation)
         self.NNgridlistActivation = QListWidget()
-        self.NNgridlistActivation.setMaximumHeight(height_unit*5)
         for idx, function in zip(range(0, len(self.NNactivation)), self.NNactivation):
             self.NNgridlistActivation.insertItem(idx, function)
         self.NNgridlistActivation.setCurrentItem(self.NNgridlistActivation.item(3))
@@ -1615,7 +1550,6 @@ class ClaspyGui(QMainWindow):
 
         # List of Solvers (use self.NNsolver)
         self.NNgridlistSolver = QListWidget()
-        self.NNgridlistSolver.setMaximumHeight(height_unit*4)
         for idx, solver in zip(range(0, len(self.NNsolver)), self.NNsolver):
             self.NNgridlistSolver.insertItem(idx, solver)
         self.NNgridlistSolver.setCurrentItem(self.NNgridlistSolver.item(2))
@@ -1645,7 +1579,6 @@ class ClaspyGui(QMainWindow):
 
         # List of Learning Rate methods (use self.NNlearningRate)
         self.NNgridlistLearningRate = QListWidget()
-        self.NNgridlistLearningRate.setMaximumHeight(height_unit*4)
         for idx, method in zip(range(0, len(self.NNlearningRate)), self.NNlearningRate):
             self.NNgridlistLearningRate.insertItem(idx, method)
         self.NNgridlistLearningRate.setCurrentItem(self.NNgridlistLearningRate.item(0))
@@ -1687,7 +1620,6 @@ class ClaspyGui(QMainWindow):
 
         # List Shuffle and not Shuffle
         self.NNgridlistShuffle = QListWidget()
-        self.NNgridlistShuffle.setMaximumHeight(height_unit*3)
         self.NNgridlistShuffle.insertItem(0, "shuffle")
         self.NNgridlistShuffle.insertItem(1, "no shuffle")
         self.NNgridlistShuffle.setCurrentItem(self.NNgridlistShuffle.item(0))
@@ -1724,7 +1656,6 @@ class ClaspyGui(QMainWindow):
         form_layout.addRow("epsilon:", self.NNgridlineEpsilon)
 
         self.stack_NN_grid.setLayout(form_layout)
-        self.stack_NN_grid.setMaximumHeight(700)
 
         self.NNgridlistSolver.itemSelectionChanged.connect(self.nn_grid_solver_options)
         self.NNgridlistLearningRate.itemSelectionChanged.connect(self.nn_grid_solver_options)
@@ -1893,14 +1824,11 @@ class ClaspyGui(QMainWindow):
         v_layout_features.addWidget(self.pushModelFeatures)
         self.groupModelFeatures.setLayout(v_layout_features)
 
-        h_algo_feature = QHBoxLayout()
-        h_algo_feature.addWidget(self.groupAlgoParam)
-        h_algo_feature.addWidget(self.groupModelFeatures)
-
         # Vertical layout for prediction tab
         self.vLayoutTabPredict = QVBoxLayout()
         self.vLayoutTabPredict.addWidget(self.groupModel)
-        self.vLayoutTabPredict.addLayout(h_algo_feature)
+        self.vLayoutTabPredict.addWidget(self.groupAlgoParam)
+        self.vLayoutTabPredict.addWidget(self.groupModelFeatures)
 
         self.tabPredict.setLayout(self.vLayoutTabPredict)
 
@@ -2048,7 +1976,7 @@ class ClaspyGui(QMainWindow):
     # Tab of segmentation
     def tabui_segment(self):
         # Group Segmentation
-        self.groupSegment = QGroupBox("Data Parameters")
+        self.groupSegment = QGroupBox("Segmentation Parameters")
 
         # Label: Target field exist ?
         self.SeglabelTarget = QLabel()
@@ -2065,7 +1993,6 @@ class ClaspyGui(QMainWindow):
 
         # Set the Principal Component Analysis
         self.SegspinPCA = QSpinBox()
-        self.SegspinPCA.setMaximumWidth(80)
         self.SegspinPCA.setMinimum(0)
         self.SegspinPCA.setMaximum(9999)
         self.SegspinPCA.setValue(0)
@@ -2162,7 +2089,7 @@ class ClaspyGui(QMainWindow):
 
         self.groupCluster.setLayout(form_layout)
 
-        layout = QHBoxLayout()
+        layout = QVBoxLayout()
         layout.addWidget(self.groupSegment)
         layout.addWidget(self.groupCluster)
 
@@ -3698,6 +3625,7 @@ class ClaspyGui(QMainWindow):
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
+    app.setStyle('Fusion')
     ex = ClaspyGui()
     # ex.showMaximized()
     ex.show()
