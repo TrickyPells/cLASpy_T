@@ -3482,15 +3482,7 @@ class ClaspyGui(QMainWindow):
                     self.process.readyReadStandardError.connect(self.handle_stderr)
                     self.process.stateChanged.connect(self.handle_state)
                     self.process.finished.connect(self.process_finished)
-
-                    # Set program according OS
-                    if self.platform == 'Linux':
-                        self.process.setProgram(self.pythonPath)
-                    elif self.platform == 'Windows':
-                        self.process.setProgram(self.pythonPath)
-                    else:
-                        raise OSError('Operating System unknown!')
-
+                    self.process.setProgram(self.pythonPath)
                     self.process.setArguments(command)
                     self.process.start()
                     self.processPID = self.process.processId()
@@ -3522,15 +3514,7 @@ class ClaspyGui(QMainWindow):
                     self.process.readyReadStandardError.connect(self.handle_stderr)
                     self.process.stateChanged.connect(self.handle_state)
                     self.process.finished.connect(self.process_finished)
-
-                    # Set program according OS
-                    if self.platform == 'Linux':
-                        self.process.setProgram(self.pythonPath)
-                    elif self.platform == 'Windows':
-                        self.process.setProgram(self.pythonPath)
-                    else:
-                        raise OSError('Operating System unknown!')
-
+                    self.process.setProgram(self.pythonPath)
                     self.process.setArguments(command)
                     self.process.start()
                     self.processPID = self.process.processId()
@@ -3574,15 +3558,7 @@ class ClaspyGui(QMainWindow):
                     self.process.readyReadStandardError.connect(self.handle_stderr)
                     self.process.stateChanged.connect(self.handle_state)
                     self.process.finished.connect(self.process_finished)
-
-                    # Set program according OS
-                    if self.platform == 'Linux':
-                        self.process.setProgram(self.pythonPath)
-                    elif self.platform == 'Windows':
-                        self.process.setProgram(self.pythonPath)
-                    else:
-                        raise OSError('Operating System unknown!')
-
+                    self.process.setProgram(self.pythonPath)
                     self.process.setArguments(command)
                     self.process.start()
                     self.processPID = self.process.processId()
