@@ -387,7 +387,7 @@ class ClaspyGui(QMainWindow):
         self.setStatusBar(self.statusBar)
 
         # Geometry
-        self.setGeometry(10, 10, 1024, 768)
+        self.setGeometry(0, 0, 1024, 768)
 
     # Menu and Options
     def menu_file_trigger(self, action):
@@ -1816,6 +1816,7 @@ class ClaspyGui(QMainWindow):
         self.groupModelFeatures = QGroupBox('Features')
         self.listModelFeatures = QListWidget()
         self.listModelFeatures.setSelectionMode(QAbstractItemView.NoSelection)
+        self.listModelFeatures.setMinimumHeight(250)
         self.pushModelFeatures = QPushButton('Match Features')
         self.pushModelFeatures.clicked.connect(self.check_model_features)
 
@@ -1853,6 +1854,7 @@ class ClaspyGui(QMainWindow):
         self.labelModelScaler.clear()
         self.labelModelPCA.clear()
         self.scrollModelParam.setWidget(QLabel(''))
+        self.scrollModelParam.setMinimumHeight(250)
         self.listModelFeatures.clear()
 
         # Clear feature selection from input file
@@ -2016,9 +2018,9 @@ class ClaspyGui(QMainWindow):
 
         # random_state
         self.KMspinRandomState = QSpinBox()
-        self.KMspinRandomState.setMinimum(-1)
+        self.KMspinRandomState.setMinimum(0)
         self.KMspinRandomState.setMaximum(2147483647)  # 2^31 - 1
-        self.KMspinRandomState.setValue(-1)
+        self.KMspinRandomState.setValue(0)
         self.KMspinRandomState.setToolTip("Controls the random generation of centroids.")
         self.KMpushRandomSeed = QPushButton("New Seed")
         self.KMpushRandomSeed.clicked.connect(lambda: new_seed(self.KMspinRandomState))
@@ -3418,7 +3420,7 @@ class ClaspyGui(QMainWindow):
                     grid_parameters = str(self.train_config['param_grid'])
 
                     # Create command list to run cLASpy_T
-                    command = ["/C", self.pythonPath, "cLASpy_T.py", "train",
+                    command = ["cLASpy_T.py", "train",
                                "-a", self.algo,
                                "-i", self.lineLocalFile.text(),
                                "-o", self.lineLocalFolder.text(),
@@ -3450,7 +3452,7 @@ class ClaspyGui(QMainWindow):
                     parameters = str(parameters_dict).replace(' ', '')
 
                     # Create command list to run cLASpy_T
-                    command = ["/C", self.pythonPath, "cLASpy_T.py", "train",
+                    command = ["cLASpy_T.py", "train",
                                "-a", self.algo,
                                "-i", self.lineLocalFile.text(),
                                "-o", self.lineLocalFolder.text(),
@@ -3480,7 +3482,15 @@ class ClaspyGui(QMainWindow):
                     self.process.readyReadStandardError.connect(self.handle_stderr)
                     self.process.stateChanged.connect(self.handle_state)
                     self.process.finished.connect(self.process_finished)
-                    self.process.setProgram("cmd.exe")
+
+                    # Set program according OS
+                    if self.platform == 'Linux':
+                        self.process.setProgram(self.pythonPath)
+                    elif self.platform == 'Windows':
+                        self.process.setProgram(self.pythonPath)
+                    else:
+                        raise OSError('Operating System unknown!')
+
                     self.process.setArguments(command)
                     self.process.start()
                     self.processPID = self.process.processId()
@@ -3500,7 +3510,7 @@ class ClaspyGui(QMainWindow):
             self.update_config()
 
             # Create command list to run cLASpy_T
-            command = ["/C", self.pythonPath, "cLASpy_T.py", "predict",
+            command = ["cLASpy_T.py", "predict",
                        "-i", self.lineLocalFile.text(),
                        "-o", self.lineLocalFolder.text(),
                        "-m", self.lineModelFile.text()]
@@ -3512,7 +3522,15 @@ class ClaspyGui(QMainWindow):
                     self.process.readyReadStandardError.connect(self.handle_stderr)
                     self.process.stateChanged.connect(self.handle_state)
                     self.process.finished.connect(self.process_finished)
-                    self.process.setProgram("cmd.exe")
+
+                    # Set program according OS
+                    if self.platform == 'Linux':
+                        self.process.setProgram(self.pythonPath)
+                    elif self.platform == 'Windows':
+                        self.process.setProgram(self.pythonPath)
+                    else:
+                        raise OSError('Operating System unknown!')
+
                     self.process.setArguments(command)
                     self.process.start()
                     self.processPID = self.process.processId()
@@ -3543,7 +3561,7 @@ class ClaspyGui(QMainWindow):
                 parameters = str(parameters_dict).replace(' ', '')
 
                 # Create command list to run cLASpy_T
-                command = ["/C", self.pythonPath, "cLASpy_T.py", "segment",
+                command = ["cLASpy_T.py", "segment",
                            "-i", self.lineLocalFile.text(),
                            "-o", self.lineLocalFolder.text(),
                            "-f", features,
@@ -3556,7 +3574,15 @@ class ClaspyGui(QMainWindow):
                     self.process.readyReadStandardError.connect(self.handle_stderr)
                     self.process.stateChanged.connect(self.handle_state)
                     self.process.finished.connect(self.process_finished)
-                    self.process.setProgram("cmd.exe")
+
+                    # Set program according OS
+                    if self.platform == 'Linux':
+                        self.process.setProgram(self.pythonPath)
+                    elif self.platform == 'Windows':
+                        self.process.setProgram(self.pythonPath)
+                    else:
+                        raise OSError('Operating System unknown!')
+
                     self.process.setArguments(command)
                     self.process.start()
                     self.processPID = self.process.processId()
