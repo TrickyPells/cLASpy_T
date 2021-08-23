@@ -317,9 +317,7 @@ class ClaspyGui(QMainWindow):
 
         # Call the Welcome window
         if self.WelcomeAgain:
-            self.welcome_window()
-        else:
-            self.welcome_window = QWidget()  # Create a gost of welcome_window
+            self.display_welcome_window()
 
         # Left part of GUI
         self.parameter_part()
@@ -373,27 +371,32 @@ class ClaspyGui(QMainWindow):
 
         # File Menu
         menu_file = bar.addMenu("File")
-
+        # Open action
         open_action = QAction("Open", self)
         open_action.setShortcut("Ctrl+O")
         menu_file.addAction(open_action)
-
+        # Save action
         save_action = QAction("Save", self)
         save_action.setShortcut("Ctrl+S")
         menu_file.addAction(save_action)
-
+        # Quit action
         quit_action = QAction("Quit", self)
         menu_file.addAction(quit_action)
-
         menu_file.triggered[QAction].connect(self.menu_file_trigger)
 
         # Edit Menu
         menu_edit = bar.addMenu("Edit")
-
+        # Option action
         options_action = QAction("Options", self)
         menu_edit.addAction(options_action)
-
         menu_edit.triggered[QAction].connect(self.menu_edit_trigger)
+
+        # Help Menu
+        menu_help = bar.addMenu("Help")
+        # About action
+        about_action = QAction("About", self)
+        menu_help.addAction(about_action)
+        menu_help.triggered[QAction].connect(self.menu_help_trigger)
 
         # Status Bar
         self.statusBar = QStatusBar()
@@ -403,7 +406,7 @@ class ClaspyGui(QMainWindow):
         self.setGeometry(0, 0, 1024, 768)
 
     # Welcome window
-    def welcome_window(self):
+    def display_welcome_window(self, welcome=True):
         """
         Display the Welcome Window with cLASpy_T logo, institution and licence.
         """
@@ -417,13 +420,15 @@ class ClaspyGui(QMainWindow):
         label_pythia.setPixmap(pixmap_pythia)
 
         # cLASpy_T versions
-        label_welcometo = QLabel('Welcome to')
+        if welcome:
+            label_welcometo = QLabel('Welcome to')
+        else:
+            label_welcometo = QLabel('About')
         label_welcometo.setFont(QFont('Arial', 16))
         label_welcometo.setAlignment(Qt.AlignCenter)
         label_softname = QLabel('cLASpy_T')
         label_softname.setFont(QFont('Arial', 20, QFont.Bold))
         label_softname.setAlignment(Qt.AlignCenter)
-        # label_webpage = QLabel("<a href='https://github.com/TrickyPells/cLASpy_T'>Github page</a>")
         label_webpage = QLabel('github.com/TrickyPells/cLASpy_T')
         label_webpage.setAlignment(Qt.AlignCenter)
         label_version = QLabel('Core version: ' + str(self.cLASpy_T_version) +
@@ -475,7 +480,8 @@ class ClaspyGui(QMainWindow):
         vlayout_softpart.addLayout(hlayout_institutions)
         vlayout_softpart.addWidget(label_createdby)
         vlayout_softpart.addWidget(label_author1)
-        vlayout_softpart.addWidget(self.checkWelcomeWin)
+        if welcome:
+            vlayout_softpart.addWidget(self.checkWelcomeWin)
 
         vlayout_softpart.setAlignment(Qt.AlignVCenter)
 
@@ -486,7 +492,10 @@ class ClaspyGui(QMainWindow):
         self.welcome_window.setLayout(hbox)
 
         # Set the apparence of window
-        self.welcome_window.setWindowTitle("Welcome to cLASpy_T")
+        if welcome:
+            self.welcome_window.setWindowTitle("Welcome to cLASpy_T")
+        else:
+            self.welcome_window.setWindowTitle("About cLASpy_T")
         self.welcome_window.setWindowIcon(QIcon('Ressources/pythie_alpha_512px.png'))
         self.welcome_window.setGeometry(128, 128, 256, 256)
         self.welcome_window.setWindowFlag(Qt.WindowStaysOnTopHint)
@@ -518,6 +527,10 @@ class ClaspyGui(QMainWindow):
     def menu_edit_trigger(self, action):
         if action.text() == "Options":
             self.options()
+
+    def menu_help_trigger(self, action):
+        if action.text() == "About":
+            self.display_welcome_window(welcome=False)
 
     def options(self):
         self.dialogOptions = QDialog()
@@ -3744,11 +3757,13 @@ class ClaspyGui(QMainWindow):
         """
         Close the GUI
         """
-        self.welcome_window.close()
+        if self.WelcomeAgain:
+            self.welcome_window.close()
         self.close()
 
     def closeEvent(self, event):
-        self.welcome_window.close()
+        if self.WelcomeAgain:
+            self.welcome_window.close()
         self.close()
         event.accept()
 
