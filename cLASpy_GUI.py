@@ -30,12 +30,16 @@
 
 import sys
 import re
+
+import PyQt5.QtBluetooth
 import psutil
 import joblib
 
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
+
+import common
 from common import *
 
 
@@ -279,11 +283,12 @@ class ClaspyGui(QMainWindow):
     def __init__(self, parent=None):
         super(ClaspyGui, self).__init__(parent)
         self.setWindowTitle("cLASpy_T")
+        self.setWindowIcon(QIcon('Ressources/pythie_alpha_64px.png'))
         self.mainWidget = QWidget()
 
         # Variable Initialization
         self.platform = get_platform()
-        self.cLASpy_T_version = cLASpy_T_version
+        self.cLASpy_T_version = common.cLASpy_T_version
         self.cLASpy_GUI_version = '0.1.1'
         self.cLASpy_train_version = self.cLASpy_GUI_version + '_train'
         self.cLASpy_predi_version = self.cLASpy_GUI_version + '_predi'
@@ -305,8 +310,14 @@ class ClaspyGui(QMainWindow):
             with open("claspy_options.json", 'r') as options_file:
                 self.options_dict = json.load(options_file)
                 self.pythonPath = self.options_dict['python_path']
+                self.WelcomeAgain = self.options_dict['welcome_window']
         except FileNotFoundError:
             self.pythonPath = ''
+            self.WelcomeAgain = True
+
+        # Call the Welcome window
+        if self.WelcomeAgain:
+            self.display_welcome_window()
 
         # Left part of GUI
         self.parameter_part()
@@ -360,27 +371,32 @@ class ClaspyGui(QMainWindow):
 
         # File Menu
         menu_file = bar.addMenu("File")
-
+        # Open action
         open_action = QAction("Open", self)
         open_action.setShortcut("Ctrl+O")
         menu_file.addAction(open_action)
-
+        # Save action
         save_action = QAction("Save", self)
         save_action.setShortcut("Ctrl+S")
         menu_file.addAction(save_action)
-
+        # Quit action
         quit_action = QAction("Quit", self)
         menu_file.addAction(quit_action)
-
         menu_file.triggered[QAction].connect(self.menu_file_trigger)
 
         # Edit Menu
         menu_edit = bar.addMenu("Edit")
-
+        # Option action
         options_action = QAction("Options", self)
         menu_edit.addAction(options_action)
-
         menu_edit.triggered[QAction].connect(self.menu_edit_trigger)
+
+        # Help Menu
+        menu_help = bar.addMenu("Help")
+        # About action
+        about_action = QAction("About", self)
+        menu_help.addAction(about_action)
+        menu_help.triggered[QAction].connect(self.menu_help_trigger)
 
         # Status Bar
         self.statusBar = QStatusBar()
@@ -388,6 +404,113 @@ class ClaspyGui(QMainWindow):
 
         # Geometry
         self.setGeometry(0, 0, 1024, 768)
+
+    # Welcome window
+    def display_welcome_window(self, welcome=True):
+        """
+        Display the Welcome Window with cLASpy_T logo, institution and licence.
+        """
+        # Create window with QWidget() object
+        self.welcome_window = QWidget()
+
+        # Logo of cLASpy_T Part
+        label_pythia = QLabel()
+        pixmap_pythia = QPixmap('Ressources/WelcomeWindowLow.png')
+        pixmap_pythia.scaled(256, 256, Qt.KeepAspectRatio, Qt.FastTransformation)
+        label_pythia.setPixmap(pixmap_pythia)
+
+        # cLASpy_T versions
+        if welcome:
+            label_welcometo = QLabel('Welcome to')
+        else:
+            label_welcometo = QLabel('About')
+        label_welcometo.setFont(QFont('Arial', 16))
+        label_welcometo.setAlignment(Qt.AlignCenter)
+        label_softname = QLabel('cLASpy_T')
+        label_softname.setFont(QFont('Arial', 20, QFont.Bold))
+        label_softname.setAlignment(Qt.AlignCenter)
+        label_webpage = QLabel('github.com/TrickyPells/cLASpy_T')
+        label_webpage.setAlignment(Qt.AlignCenter)
+        label_version = QLabel('Core version: ' + str(self.cLASpy_T_version) +
+                               ' | GUI version: ' + str(self.cLASpy_GUI_version))
+        label_version.setAlignment(Qt.AlignCenter)
+
+        # Institution Logos
+        pixmap_cnrs = QPixmap('Ressources/cnrs.png')
+        pixmap_cnrs.scaled(64, 64, Qt.KeepAspectRatio, Qt.FastTransformation)
+        label_cnrs = QLabel()
+        label_cnrs.setPixmap(pixmap_cnrs)
+        pixmap_m2c = QPixmap('Ressources/m2c.png')
+        pixmap_m2c.scaledToHeight(64)
+        label_m2c = QLabel()
+        label_m2c.setPixmap(pixmap_m2c)
+        # pixmap_rsg = QPixmap('Ressources/rsg.png')
+        label_rsg = QLabel('Remote\nSensing\nGroup')
+        label_rsg.setFont(QFont('Arial', 10, QFont.Bold))
+        label_rsg.setAlignment(Qt.AlignCenter)
+
+        hlayout_institutions = QHBoxLayout()
+        hlayout_institutions.addWidget(label_cnrs)
+        hlayout_institutions.addWidget(label_rsg)
+        hlayout_institutions.addWidget(label_m2c)
+
+        # Authors
+        label_createdby = QLabel('Created by:')
+        label_createdby.setAlignment(Qt.AlignCenter)
+        label_author1 = QLabel('Xavier PELLERIN (xavier.peller1@gmail.com)\n'
+                               'and\n'
+                               'Laurent FROIDEVAL (email laurent.froideval)\n'
+                               'Christophe CONESSA (email christophe.conessa)')
+        label_author1.setAlignment(Qt.AlignCenter)
+
+        # CheckBox Welcome Window
+        self.checkWelcomeWin = QCheckBox("Do not show this window again !")
+        if self.WelcomeAgain:
+            self.checkWelcomeWin.setChecked(False)
+        else:
+            self.checkWelcomeWin.setChecked(True)
+        self.checkWelcomeWin.toggled.connect(lambda: self.welcome_again(self.checkWelcomeWin))
+
+        # Layout of the Authors, Insitutions and Licence part
+        vlayout_softpart = QVBoxLayout()
+        vlayout_softpart.addWidget(label_welcometo)
+        vlayout_softpart.addWidget(label_softname)
+        vlayout_softpart.addWidget(label_webpage)
+        vlayout_softpart.addWidget(label_version)
+        vlayout_softpart.addLayout(hlayout_institutions)
+        vlayout_softpart.addWidget(label_createdby)
+        vlayout_softpart.addWidget(label_author1)
+        if welcome:
+            vlayout_softpart.addWidget(self.checkWelcomeWin)
+
+        vlayout_softpart.setAlignment(Qt.AlignVCenter)
+
+        # Create layout of the window
+        hbox = QHBoxLayout()
+        hbox.addWidget(label_pythia)
+        hbox.addLayout(vlayout_softpart)
+        self.welcome_window.setLayout(hbox)
+
+        # Set the apparence of window
+        if welcome:
+            self.welcome_window.setWindowTitle("Welcome to cLASpy_T")
+        else:
+            self.welcome_window.setWindowTitle("About cLASpy_T")
+        self.welcome_window.setWindowIcon(QIcon('Ressources/pythie_alpha_512px.png'))
+        self.welcome_window.setGeometry(128, 128, 256, 256)
+        self.welcome_window.setWindowFlag(Qt.WindowStaysOnTopHint)
+
+        self.welcome_window.show()
+
+    def welcome_again(self, checkbox):
+        if checkbox.isChecked():
+            self.WelcomeAgain = False
+        else:
+            self.WelcomeAgain = True
+
+        self.options_dict['welcome_window'] = self.WelcomeAgain
+        with open("claspy_options.json", 'w') as options_file:
+            json.dump(self.options_dict, options_file, indent=4)
 
     # Menu and Options
     def menu_file_trigger(self, action):
@@ -404,6 +527,10 @@ class ClaspyGui(QMainWindow):
     def menu_edit_trigger(self, action):
         if action.text() == "Options":
             self.options()
+
+    def menu_help_trigger(self, action):
+        if action.text() == "About":
+            self.display_welcome_window(welcome=False)
 
     def options(self):
         self.dialogOptions = QDialog()
@@ -427,6 +554,14 @@ class ClaspyGui(QMainWindow):
         self.hLayoutPython.addWidget(self.linePython)
         self.hLayoutPython.addWidget(self.toolButtonPython)
 
+        # CheckBox Welcome Window
+        check_welcome_window = QCheckBox('Do not show the welcome window again !')
+        if self.WelcomeAgain:
+            check_welcome_window.setChecked(False)
+        else:
+            check_welcome_window.setChecked(True)
+        check_welcome_window.toggled.connect(lambda:self.welcome_again(check_welcome_window))
+
         # Button box for Options
         self.buttonOptionsBox = QDialogButtonBox(QDialogButtonBox.Apply | QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
         self.buttonOptionsBox.button(QDialogButtonBox.Apply).clicked.connect(self.save_options)
@@ -435,6 +570,7 @@ class ClaspyGui(QMainWindow):
 
         self.formLayoutOptions = QFormLayout(self.dialogOptions)
         self.formLayoutOptions.addRow(self.labelPython, self.hLayoutPython)
+        self.formLayoutOptions.addRow(QLabel('Welcome window: '), check_welcome_window)
         self.formLayoutOptions.addRow(self.buttonOptionsBox)
 
         self.dialogOptions.setWindowTitle("Options")
@@ -452,14 +588,13 @@ class ClaspyGui(QMainWindow):
             self.linePython.setText(os.path.normpath(python_exe[0]))
 
     def save_options(self):
-        if self.linePython.text() != '':
-            self.pythonPath = self.linePython.text()
-            self.options_dict['python_path'] = self.pythonPath
-            with open("claspy_options.json", 'w') as options_file:
-                json.dump(self.options_dict, options_file, indent=4)
-                self.statusBar.showMessage("Python path: {}".format(self.pythonPath), 3000)
-        else:
-            warning_box("Python path not set !\nGive the python.exe of your virtual environment.", "Python path not set")
+        self.pythonPath = self.linePython.text()
+        self.options_dict['python_path'] = self.pythonPath
+        self.statusBar.showMessage("Python path: {}".format(self.pythonPath), 3000)
+
+        self.options_dict['welcome_window'] = self.WelcomeAgain
+        with open("claspy_options.json", 'w') as options_file:
+            json.dump(self.options_dict, options_file, indent=4)
 
     def save_close_options(self):
         # call save_otpion()
@@ -3622,13 +3757,25 @@ class ClaspyGui(QMainWindow):
         """
         Close the GUI
         """
+        if self.WelcomeAgain:
+            self.welcome_window.close()
         self.close()
+
+    def closeEvent(self, event):
+        if self.WelcomeAgain:
+            self.welcome_window.close()
+        self.close()
+        event.accept()
 
 
 if __name__ == '__main__':
+    # Set the application
     app = QApplication(sys.argv)
     app.setStyle('Fusion')
+
+    # Execute the Main window
     ex = ClaspyGui()
     # ex.showMaximized()
     ex.show()
+
     sys.exit(app.exec_())
