@@ -497,9 +497,8 @@ class ClaspyGui(QMainWindow):
         else:
             self.welcome_window.setWindowTitle("About cLASpy_T")
         self.welcome_window.setWindowIcon(QIcon('Ressources/pythie_alpha_512px.png'))
-        self.welcome_window.setGeometry(128, 128, 256, 256)
+        self.welcome_window.setGeometry(128, 128, 512, 384)
         self.welcome_window.setWindowFlag(Qt.WindowStaysOnTopHint)
-
         self.welcome_window.show()
 
     def welcome_again(self, checkbox):
@@ -3613,6 +3612,7 @@ class ClaspyGui(QMainWindow):
                 # Run training process
                 if self.process is None:
                     self.process = QProcess()
+                    #self.process.setProcessChannelMode(QProcess.ForwardedChannels)
                     self.process.readyReadStandardOutput.connect(self.handle_stdout)
                     self.process.readyReadStandardError.connect(self.handle_stderr)
                     self.process.stateChanged.connect(self.handle_state)
@@ -3766,7 +3766,6 @@ class ClaspyGui(QMainWindow):
             self.welcome_window.close()
         self.close()
         event.accept()
-
 
 if __name__ == '__main__':
     # Set the application
