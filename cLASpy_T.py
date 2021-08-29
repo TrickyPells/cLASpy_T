@@ -126,7 +126,7 @@ parser_train.add_argument("-o", "--output",
                           type=str, metavar='')
 
 parser_train.add_argument("-f", "--features",
-                          help="select the features to used to train the model.\n"
+                          help="select the features used to train the model.\n"
                                "    Give a list of feature names. Whitespaces"
                                "    will be replaced by underscore '_'."
                                "    Example:\n"
