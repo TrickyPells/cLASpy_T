@@ -35,6 +35,13 @@ from predict import *
 from training import *
 
 # -------------------------
+# ------ VARIABLES --------
+# -------------------------
+
+# Define version of cLASpy_T
+cLASpy_T_version = '0.1.0'
+
+# -------------------------
 # ---- ARGUMENT_PARSER ----
 # -------------------------
 
