@@ -89,6 +89,10 @@ point_format[10] = point_format[6] + rgb + nir + wavepacket
 
 
 class ClaspyTrainer:
+    """
+    ClaspyTrainer is basic class of cLASpy_T.
+    Used to create object to train model according the selected algorithm.
+    """
     def __init__(self, input_data, output_data=None, algo=None, algorithm=None,
                  parameters=None, features=None, grid_search=False, grid_param=None,
                  pca=None, n_jobs=-1, random_state=0, samples=None, scaler='Standard',
@@ -521,8 +525,9 @@ class ClaspyTrainer:
 
         self.conf_matrix = np.insert(self.conf_matrix, n_rows_cols, precisions, axis=0)
 
-        # Save the new confusion matrix
+        # Return the new confusion matrix
         self.conf_matrix = pd.DataFrame(self.conf_matrix).round(decimals=3)
+        return self.conf_matrix
 
     def save_feature_importance(self):
         """
@@ -559,7 +564,7 @@ class ClaspyTrainer:
 
         return feature_imp_dict
 
-    def introduction(self, prompt=True):
+    def introduction(self, verbose=True):
         """
         Return the introduction in a string
         """
@@ -583,10 +588,10 @@ class ClaspyTrainer:
         except (TypeError, FileExistsError):
             self.introduction += " Folder already exists.\n"
 
-        if prompt:
+        if verbose:
             return self.introduction
 
-    def point_cloud_info(self, prompt=True):
+    def point_cloud_info(self, verbose=True):
         """
         Load data into dataframe and return the point cloud info
         """
@@ -616,13 +621,14 @@ class ClaspyTrainer:
             frame = pd.DataFrame()
             for dim in las.point_format.specs:
                 frame[dim.name] = las.get_reader().get_dimension(dim.name)
+            las.close()
         else:
             point_cloud_info += "Unknown Extension file!\n"
 
-        if prompt:
+        if verbose:
             return point_cloud_info
 
-    def format_dataset(self, prompt=True):
+    def format_dataset(self, verbose=True):
         """
         Format dataset as XY & Z & target Dataframe, remove raw_classification from file
         and return point cloud informations and 'Done' when finished
@@ -699,10 +705,10 @@ class ClaspyTrainer:
         str_nbr_pts = self.format_nbr_pts()
         self.report_filename = str(self.folder_path + '/train_' + self.algo + str_nbr_pts + str(self.timestamp))
 
-        if prompt:
+        if verbose:
             return format_data_str
 
-    def split_dataset(self, prompt=True):
+    def split_dataset(self, verbose=True):
         """
         Split the data and target in data_train, data_test, target_train and target_test.
         self.data_values: the np.ndarray with the data features.
@@ -742,10 +748,10 @@ class ClaspyTrainer:
         split_dataset_str += "\tSize of train|test datasets: {:,} pts | {:,} pts\n".\
             format(self.train_size, self.test_size).replace(',', ' ')
 
-        if prompt:
+        if verbose:
             return split_dataset_str
 
-    def scale_dataset(self, prompt=True):
+    def set_scaler_pca(self, verbose=True):
         """
         Set the scaler according to different methods: 'Standard', 'Robust', 'MinMax'.
         self.scaler: Set method to scale dataset.
@@ -778,13 +784,13 @@ class ClaspyTrainer:
         else:
             self.pipeline = Pipeline([("scaler", self.scaler), ("classifier", self.classifier)])
 
-        if prompt:
+        if verbose:
             return scale_dataset_str
 
-    def train_model(self, prompt=True):
+    def train_model(self, verbose=True):
         """
         Perform training with GridSearch CV or simple CrossValidation.
-        :param prompt: Set it True to return report as string
+        :param verbose: Set it True to return report as string
         """
         # String Train model
         train_model_str = "\n"
@@ -821,10 +827,10 @@ class ClaspyTrainer:
         else:
             self.feat_importance = self.data.columns.values.tolist()
 
-        if prompt:
+        if verbose:
             return train_model_str
 
-    def confusion_matrix(self, prompt=True):
+    def confusion_matrix(self, verbose=True):
         """
         Compute precision matrix and other statistics.
         :return: Report as str
@@ -832,18 +838,23 @@ class ClaspyTrainer:
         # String report of the confusion matrix
         confusion_str = "\n"
 
-        # Make prediction over test set with the model
-        self.target_test_pred = self.model.predict(self.data_test)
-        self.conf_matrix = confusion_matrix(self.target_test, self.target_test_pred)
-        self.add_precision_recall()  # add statistics to confusion matrix report
-        self.test_report = classification_report(self.target_test, self.target_test_pred, zero_division=0)
+        if isinstance(self, ClaspyPredicter):
+            self.conf_matrix = confusion_matrix(self.target.values, self.y_proba.transpose()[0])
+            self.conf_matrix = self.add_precision_recall()  # add statistics to confusion matrix report
+            self.test_report = classification_report(self.target.values, self.y_proba.transpose()[0], zero_division=0)
+        else:
+            # Make prediction over test first
+            self.target_test_pred = self.model.predict(self.data_test)
+            self.conf_matrix = confusion_matrix(self.target_test, self.target_test_pred)
+            self.conf_matrix = self.add_precision_recall()  # add statistics to confusion matrix report
+            self.test_report = classification_report(self.target_test, self.target_test_pred, zero_division=0)
 
         confusion_str += self.test_report
 
-        if prompt:
+        if verbose:
             return confusion_str
 
-    def save_model(self, prompt=True):
+    def save_model(self, verbose=True):
         """
         Save algorithm name, used features and model
         """
@@ -863,13 +874,13 @@ class ClaspyTrainer:
         save_model_str += "Model path: {}/\n".format('/'.join(model_filename.split('/')[:-1]))
         save_model_str += "Model file: {}".format(model_filename.split('/')[-1])
 
-        if prompt:
+        if verbose:
             return save_model_str
 
-    def classification_report(self, prompt=True):
+    def classification_report(self, verbose=True):
         """
         Write the report of training or predictions in .TXT file.
-        :param prompt: Return report string if True
+        :param verbose: Return report string if True
         self.report_filename: Entire path and filename without extension.
         self.mode: 'training', 'predict' or 'segment' modes.
         self.algorithm: Algorithm used for training or predictions.
@@ -956,6 +967,156 @@ class ClaspyTrainer:
             else:
                 report.write('\n\nPredictions done in {}'.format(elapsed_time))
 
-        if prompt:
+        if verbose:
             return "\nTraining done in {}\n".format(elapsed_time)
+
+
+class ClaspyPredicter(ClaspyTrainer):
+    """
+    ClaspyPredicter create object to predict classes according the selected model.
+    """
+    def __init__(self, input_data, model, output_data=None, n_jobs=-1, samples=None):
+        """Initialize the ClaspyPredicter"""
+        ClaspyTrainer.__init__(self, input_data=input_data,
+                               output_data=output_data, n_jobs=n_jobs, samples=samples)
+
+        # Set specific variables for ClaspyPredicter
+        self.mode = 'predict'
+        self.model_to_load = model
+
+    def load_model(self, verbose=True):
+        """
+        Load model from file.model
+        :param verbose: Set to True to get return string
+        :return load_model_str: verbose return
+        """
+        # Set vrebose return
+        load_model_str = "\n"
+
+        # Load model
+        if isinstance(self.model_to_load, str):
+            self.model = joblib.load(self.model_to_load)
+        else:
+            raise TypeError("'model' to import must be a string of the path!")
+
+        # Retrieve algorithm name, features names and model
+        self.algorithm = self.model['algorithm']
+        self.features = self.model['feature_names']
+        self.model = self.model['model']
+
+        # Check if model created by GridSearchCV or Pipeline
+        if isinstance(self.model, GridSearchCV):
+            self.model = self.model.best_estimator_
+        elif isinstance(self.model, Pipeline):
+            pass
+        else:
+            raise IOError('Loading model failed!\n'
+                          'Model to load must be GridSearchCV or Pipeline!')
+
+        # Fill scaler and pca (if any)
+        self.scaler = self.model.named_steps['scaler']
+        try:
+            self.pca = self.model.named_steps['pca']
+        except KeyError:
+            self.pca = None
+            load_model_str += "\tAny PCA data to load from model.\n"
+
+        if verbose:
+            return load_model_str
+
+    def scale_dataset(self):
+        """Scale dataset according the scaler and PCA retrieved"""
+        # Transform data according scaler
+        self.data = self.scaler.transform(self.data)
+        self.data = pd.DataFrame.from_records(self.data, columns=self.data.columns.values.tolist())
+
+        # Transform data if PCA exist
+        if self.pca is not None:
+            self.data = self.pca.transform(self.data)
+            self.data = pd.DataFrame.from_records(self.data, columns=self.pca.components_)
+            self.pca_compo = np.array2string(self.pca.components_)
+        else:
+            self.pca_compo = None
+
+    def predict(self, verbose=True):
+        """Make predictions on the scaled data"""
+        # Set string for predictions
+        predict_str = "\n"
+
+        # Make prediction
+        self.y_proba = self.model.named_steps['classifier'].predict_proba(self.data)
+
+        # Get the best probability and the corresponding class
+        y_best_proba = np.amax(self.y_proba, axis=1)
+        y_best_class = np.argmax(self.y_proba, axis=1)
+
+        # Add best proba and bet class to probability per class
+        self.y_proba = np.insert(self.y_proba, 0, y_best_proba, axis=1)
+        self.y_proba = np.insert(self.y_proba, 0, y_best_class, axis=1)
+
+        # If target is present, get the confusion matrix
+        if self.target is not None:
+            predict_str += "Target field find -> Create confusion matrix\n"
+            predict_str += self.confusion_matrix(verbose=True)
+        else:
+            self.conf_matrix = None
+            self.test_report = None
+
+        if verbose:
+            return predict_str
+
+    def save_predictions(self, verbose=True):
+        """Save the classified point cloud"""
+        # String for saving point coud
+        save_pt_cloud_str = "\n"
+        save_pt_cloud_str += self.report_filename
+
+        # Set header for the predictions
+        if len(self.y_proba.shape) > 1 and self.y_proba.shape[1] > 2:
+            # Get number of class in prediction array (number of column - 2)
+            numb_class = self.y_proba.shape[1] - 2
+            pred_header = ['Prediction', 'BestProba'] + ['ProbaClass_' + str(cla) for cla in range(0, numb_class)]
+        else:
+            pred_header = ['Prediction']
+
+        predictions = pd.DataFrame(self.y_proba, columns=pred_header, dtype='float32').round(decimals=4)
+
+        if self.root_ext[1] == '.csv':
+            # Join predictions to self.frame (input_data)
+            self.frame = self.frame.join(predictions)
+            self.frame.to_csv(self.report_filename + '.csv', sep=',', header=True, index=False)
+        elif self.root_ext[1] == '.las':
+            # Reopen original las file
+            las = laspy.file.File(self.data_path, mode='r')
+
+            # Create new output las file
+            output_las = laspy.file.File(self.report_filename + '.las', mode="w", header=las.header)
+            output_las.define_new_dimension(name='Prediction', data_type=5,
+                                            description='Prediction done by the model')
+
+            # Create new dimension
+            dimensions = predictions.columns.values.tolist()
+            if predictions.shape[1] > 1:
+                dimensions.remove('Prediction')
+                for dim in dimensions:
+                    output_las.define_new_dimension(name=dim, data_type=9,
+                                                    description='Probability for this class')
+
+            # Fill output_las with original dimensions from self.las
+            for dim in las.point_format:
+                data = las.reader.get_dimension(dim.name)
+                output_las.writer.set_dimension(dim.name, data)
+            las.close()
+
+            # Fill output_las with new data
+            output_las.Prediction = predictions['Prediction']
+            if predictions.shape[1] > 1:
+                for dim in dimensions:
+                    output_las.writer.set_dmension(dim, predictions[dim].values)
+            output_las.close()
+
+        if verbose:
+            return save_pt_cloud_str
+
+
 
