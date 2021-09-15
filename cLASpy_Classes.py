@@ -138,7 +138,7 @@ class ClaspyTrainer:
         """
         # Get fullname of algorithm according algo
         if self.algo == 'rf':
-           return 'RandomForestClassifier'
+            return 'RandomForestClassifier'
         elif self.algo == 'gb':
             return 'GradientBoostingClassifier'
         elif self.algo == 'ann':
@@ -629,15 +629,15 @@ class ClaspyTrainer:
                     self.frame = self.frame.rename(columns={"//X": "X"})
         elif self.data_type == '.las':
             las = laspy.file.File(self.data_path, mode='r')
-            point_cloud_info += "LAS Version: {}\n".format(las.reader.version)
+            point_cloud_info += "LAS Version: {}\n".format(las.header.version)
             point_cloud_info += "LAS point format: {}\n".format(las.header.data_format_id)
             self.nbr_points = las.header.records_count
             point_cloud_info += "Number of points: {:,}\n".format(self.nbr_points)
 
             # Get the data by dimensions
-            frame = pd.DataFrame()
+            self.frame = pd.DataFrame()
             for dim in las.point_format.specs:
-                frame[dim.name] = las.get_reader().get_dimension(dim.name)
+                self.frame[dim.name] = las.get_reader().get_dimension(dim.name)
             las.close()
         else:
             point_cloud_info += "Unknown Extension file!\n"
@@ -931,12 +931,13 @@ class ClaspyTrainer:
             report.write('\n\nScaling method:\n{}'.format(self.scaler))
 
             # Write features depending if it's list or dict
-            if isinstance(self.feat_importance, list):
-                report.write("\n\nFeatures:\n" + "\n".join(self.feat_importance))
-            if isinstance(self.feat_importance, dict):
-                report.write("\n\nFeatures,\tImportances:\n")
-                for key in self.feat_importance:
-                    report.write("{},\t{:.5f}\n".format(str(key), self.feat_importance[key]))
+            if self.feat_importance:
+                if isinstance(self.feat_importance, list):
+                    report.write("\n\nFeatures:\n" + "\n".join(self.feat_importance))
+                if isinstance(self.feat_importance, dict):
+                    report.write("\n\nFeatures,\tImportances:\n")
+                    for key in self.feat_importance:
+                        report.write("{},\t{:.5f}\n".format(str(key), self.feat_importance[key]))
 
             # Write the train and test size
             if self.mode == 'training':
@@ -958,14 +959,15 @@ class ClaspyTrainer:
             #     report.write(pca_compo)
 
             # Write the GridSearchCV results
-            if self.grid_search:
-                report.write('\n\n\nResults of the GridSearchCV:\n')
-                report.write(self.results.to_string(index=False))
+            if self.results:
+                if self.grid_search:
+                    report.write('\n\n\nResults of the GridSearchCV:\n')
+                    report.write(self.results.to_string(index=False))
 
             # Write the Cross validation results
-            else:
-                report.write('\n\n\nResults of the Cross-Validation:\n')
-                report.write(pd.DataFrame(self.results).to_string(index=False, header=False))
+                else:
+                    report.write('\n\n\nResults of the Cross-Validation:\n')
+                    report.write(pd.DataFrame(self.results).to_string(index=False, header=False))
 
             # Write applied parameters
             report.write('\n\n\nParameters:\n' + '\n'.join(applied_parameters))
@@ -987,7 +989,12 @@ class ClaspyTrainer:
                 report.write('\n\nPredictions done in {}'.format(self.elapsed_time))
 
         if verbose:
-            return "\nTraining done in {}\n".format(self.elapsed_time)
+            if self.mode == 'training':
+                return "\nTraining done in {}\n".format(self.elapsed_time)
+            elif self.mode == 'predict':
+                return "\nPredictions done in {}\n".format(self.elapsed_time)
+            elif self.mode == 'segment':
+                return "\nSegmentation done in {}\n".format(self.elapsed_time)
 
 
 class ClaspyPredicter(ClaspyTrainer):
@@ -1002,6 +1009,8 @@ class ClaspyPredicter(ClaspyTrainer):
         # Set specific variables for ClaspyPredicter
         self.mode = 'predict'
         self.model_to_load = model
+        self.feat_importance = None
+        self.results = None
 
     def load_model(self, verbose=True):
         """
@@ -1020,6 +1029,7 @@ class ClaspyPredicter(ClaspyTrainer):
 
         # Retrieve algorithm name, features names and model
         self.algorithm = self.model['algorithm']
+        self.algo = self.shortname_algo()
         self.features = self.model['feature_names']
         self.model = self.model['model']
 
@@ -1047,7 +1057,7 @@ class ClaspyPredicter(ClaspyTrainer):
         """Scale dataset according the scaler and PCA retrieved"""
         # Transform data according scaler
         self.data = self.scaler.transform(self.data)
-        self.data = pd.DataFrame.from_records(self.data, columns=self.data.columns.values.tolist())
+        self.data = pd.DataFrame.from_records(self.data, columns=self.features)
 
         # Transform data if PCA exist
         if self.pca is not None:
@@ -1131,7 +1141,7 @@ class ClaspyPredicter(ClaspyTrainer):
             output_las.Prediction = predictions['Prediction']
             if predictions.shape[1] > 1:
                 for dim in dimensions:
-                    output_las.writer.set_dmension(dim, predictions[dim].values)
+                    output_las.writer.set_dimension(dim, predictions[dim].values)
             output_las.close()
 
         if verbose:

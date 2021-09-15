@@ -406,9 +406,9 @@ def train(arguments):
     :param arguments: parser arguments
     """
     # cLASpy_T starts
-    print("\n# # # # # # # # # #  cLASpy_T  # # # # # # # # # #"
-          "\n - - - - - - - - -  TRAIN MODE  - - - - - - - - -"
-          "\n * * * * *  Point Cloud Classification  * * * * *\n")
+    print("\n# # # # # # # # # #  cLASpy_T  # # # # # # # # # # # #"
+          "\n - - - - - - - -    TRAIN MODE    - - - - - - - - - -"
+          "\n * * * *    Point Cloud Classification    * * * * * *\n")
 
     # Config file exists ?
     if arguments.config:
@@ -485,9 +485,9 @@ def predict(arguments):
     :param arguments: parser arguments
     """
     # cLASpy_T starts
-    print("\n# # # # # # # # # #  cLASpy_T  # # # # # # # # # #"
-          "\n - - - - - - - - - PREDICT MODE - - - - - - - - -"
-          "\n * * * * *  Point Cloud Classification  * * * * *\n")
+    print("\n# # # # # # # # # #  cLASpy_T  # # # # # # # # # # # #"
+          "\n - - - - - - - -   PREDICT MODE   - - - - - - - - - -"
+          "\n * * * *    Point Cloud Classification    * * * * * *\n")
 
     # Config file exists ?
     if arguments.config:
@@ -495,8 +495,7 @@ def predict(arguments):
 
     predicter = ClaspyPredicter(model=arguments.model,
                                 input_data=arguments.input_data,
-                                output_data=arguments.output,
-                                n_jobs=arguments.n_jobs)
+                                output_data=arguments.output)
 
     # Load model
     print("\nStep 1/6: Loading model...")
@@ -539,14 +538,15 @@ def segment(arguments):
     :param arguments: parser arguments
     """
     # cLASpy_T starts
-    print("\n# # # # # # # # # #  cLASpy_T  # # # # # # # # # #"
-          "\n - - - - - - - - - SEGMENT MODE - - - - - - - - -"
-          "\n * * * * *  Point Cloud Classification  * * * * *\n")
+    print("\n# # # # # # # # # #  cLASpy_T  # # # # # # # # # # # #"
+          "\n - - - - - - - -   SEGMENT MODE   - - - - - - - - - -"
+          "\n * * * *    Point Cloud Classification    * * * * * *\n")
 
     # Config file exists ?
     if arguments.config:
         arguments_from_config()  # Get the arguments from the config file
 
+    pass
 
 if args.func == 'train':
     train(args)
