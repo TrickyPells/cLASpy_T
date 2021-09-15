@@ -14,7 +14,7 @@
 #  ########\/_/####\_\/######\_____\/######\/___________/###########  #
 #  ---------- REMOTE -------- SENSING --------- GROUP --------------  #
 #  #################################################################  #
-#       'training.py' from cLASpy_T library to train model            #
+#             'cLASpy_Classes.py' from cLASpy_T library               #
 #                    By Xavier PELLERIN LE BAS                        #
 #                          August 2021                                #
 #         REMOTE SENSING GROUP  -- https://rsg.m2c.cnrs.fr/ --        #
@@ -584,8 +584,7 @@ class ClaspyTrainer:
         """
         Return the introduction in a string
         """
-        introduction = str("\n######## POINT CLOUD CLASSIFICATION #########\n"
-                                "Algorithm used: {}\n".format(self.algorithm))
+        introduction = str("\nAlgorithm used: {}\n".format(self.algorithm))
         if self.data_type == '.csv':
             introduction += "Path to CSV file: {}\n".format(self.data_path)
         elif self.data_type == '.las':
@@ -997,8 +996,8 @@ class ClaspyPredicter(ClaspyTrainer):
     """
     def __init__(self, input_data, model, output_data=None, n_jobs=-1, samples=None):
         """Initialize the ClaspyPredicter"""
-        ClaspyTrainer.__init__(self, input_data=input_data,
-                               output_data=output_data, n_jobs=n_jobs, samples=samples)
+        ClaspyTrainer.__init__(self, input_data=input_data, output_data=output_data,
+                               n_jobs=n_jobs, samples=samples)
 
         # Set specific variables for ClaspyPredicter
         self.mode = 'predict'

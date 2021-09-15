@@ -15,7 +15,7 @@
 #  ---------- REMOTE -------- SENSING --------- GROUP --------------  #
 #  #################################################################  #
 #               'cLASpy_T.py' from cLASpy_T program                   #
-#                By Xavier PELLERIN LE BAS and                        #
+#                    By Xavier PELLERIN LE BAS                        #
 #                         November 2019                               #
 #         REMOTE SENSING GROUP  -- https://rsg.m2c.cnrs.fr/ --        #
 #        M2C laboratory (FRANCE)  -- https://m2c.cnrs.fr/ --          #
@@ -35,8 +35,7 @@ import json
 import argparse
 import textwrap
 from cLASpy_Classes import ClaspyTrainer, ClaspyPredicter, ClaspySegmenter
-# from predict import *
-# from training import *
+
 
 # -------------------------
 # ------ VARIABLES --------
@@ -309,7 +308,6 @@ parser_segment.set_defaults(func='segment')  # Use segment function
 
 # parse the args and call whatever function was selected
 args = parser.parse_args()
-#args.func(args)
 
 
 def shortname_algo(algorithm):
@@ -407,6 +405,11 @@ def train(arguments):
     Perform training according the passed arguments.
     :param arguments: parser arguments
     """
+    # cLASpy_T starts
+    print("\n# # # # # # # # # #  cLASpy_T  # # # # # # # # # #"
+          "\n - - - - - - - - -  TRAIN MODE  - - - - - - - - -"
+          "\n * * * * *  Point Cloud Classification  * * * * *\n")
+
     # Config file exists ?
     if arguments.config:
         arguments_from_config()  # Get the arguments from the config file
@@ -435,7 +438,7 @@ def train(arguments):
     intro = trainer.introduction(verbose=True)
     print(intro)
 
-    # Formatting data
+    # Format dataset
     print("\nStep 1/7: Formatting data as pandas.DataFrame...")
     step1 = trainer.format_dataset(verbose=True)
     print(step1)
@@ -477,11 +480,72 @@ def train(arguments):
 
 
 def predict(arguments):
-    pass
+    """
+    Perform prediction according the passed arguments.
+    :param arguments: parser arguments
+    """
+    # cLASpy_T starts
+    print("\n# # # # # # # # # #  cLASpy_T  # # # # # # # # # #"
+          "\n - - - - - - - - - PREDICT MODE - - - - - - - - -"
+          "\n * * * * *  Point Cloud Classification  * * * * *\n")
+
+    # Config file exists ?
+    if arguments.config:
+        arguments_from_config()  # Get the arguments from the config file
+
+    predicter = ClaspyPredicter(model=arguments.model,
+                                input_data=arguments.input_data,
+                                output_data=arguments.output,
+                                n_jobs=arguments.n_jobs)
+
+    # Load model
+    print("\nStep 1/6: Loading model...")
+    step1 = predicter.load_model(verbose=True)
+    print(step1)
+
+    # Introduction
+    intro = predicter.introduction(verbose=True)
+    print(intro)
+
+    # Format dataset
+    print("\nStep 2/6: Formatting data as pandas.DataFrame...")
+    step2 = predicter.format_dataset(verbose=True)
+    print(step2)
+
+    # Scale the dataset as 'Standard', 'Robust' or 'MinMaxScaler'
+    print("\nStep 3/6: Scaling data...")
+    predicter.scale_dataset()
+
+    # Predic target of input data
+    print("\nStep 4/6: Making predictions for entire dataset...")
+    step4 = predicter.predict(verbose=True)
+    print(step4)
+
+    # Save classification result as point cloud file with all data
+    print("\nStep 5/6: Saving classified point cloud:")
+    step5 = predicter.save_predictions(verbose=True)
+    print(step5)
+
+    # Create and save prediction report
+    print("\nStep 6/6: Creating classification report:")
+    print(predicter.report_filename + '.txt')
+    step6 = predicter.classification_report(verbose=True)
+    print(step6)
 
 
 def segment(arguments):
-    pass
+    """
+    Perform segmentation according the passed arguments.
+    :param arguments: parser arguments
+    """
+    # cLASpy_T starts
+    print("\n# # # # # # # # # #  cLASpy_T  # # # # # # # # # #"
+          "\n - - - - - - - - - SEGMENT MODE - - - - - - - - -"
+          "\n * * * * *  Point Cloud Classification  * * * * *\n")
+
+    # Config file exists ?
+    if arguments.config:
+        arguments_from_config()  # Get the arguments from the config file
 
 
 if args.func == 'train':
@@ -492,3 +556,4 @@ elif args.func == 'segment':
     segment(args)
 else:
     raise KeyError("No valid function selected!")
+
