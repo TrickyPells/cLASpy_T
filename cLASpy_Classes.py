@@ -40,6 +40,7 @@ import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split, StratifiedShuffleSplit, cross_validate, GridSearchCV
 from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
 from sklearn.neural_network import MLPClassifier
+from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler, RobustScaler, MinMaxScaler
 from sklearn.decomposition import PCA
 from sklearn.pipeline import Pipeline
@@ -111,31 +112,12 @@ class ClaspyTrainer:
         self.folder_path = output_data
 
         # Algorithm
-        if algo is None and algorithm is not None:
-            self.algorithm = algorithm
-            self.algo = self.shortname_algo()
-        elif algo is not None and algorithm is None:
-            self.algo = algo
-            self.algorithm = self.fullname_algo()
-        else:
-            raise ValueError("Choose a valid machine learning algorithm!")
-
+        self.algo = algo
+        self.algorithm = algorithm
         self.parameters = parameters
         self.features = features
-        if isinstance(pca, int):
-            self.pca = pca
-        elif pca is None:
-            self.pca = None
-        else:
-            raise TypeError("PCA must be a integer or None!")
-
-        if isinstance(samples, int) or isinstance(samples, float):
-            self.samples = samples
-        elif samples is None:
-            self.samples = None
-        else:
-            raise TypeError("Samples must be a number (integer, float) or None!")
-
+        self.pca = pca
+        self.samples = samples
         self.scaler_method = scaler
         self.scoring = scoring
         self.train_ratio = train_ratio
@@ -145,15 +127,7 @@ class ClaspyTrainer:
         # Grid Search CV
         self.grid_search = grid_search
         self.grid_parameters = grid_param
-
-        # feature importance
-        if self.grid_search or self.algorithm == 'MLPClassifier':
-            self.png_features = False
-        else:
-            self.png_features = png_features
-
-        # Set the classifier (self.classifier)
-        self.set_classifier()
+        self.png_features = png_features
 
         # Set some varaible members to None
         self.model_to_load = None
@@ -231,6 +205,34 @@ class ClaspyTrainer:
         """
         Set the classifier according to the selected algorithm.
         """
+        # Algorithm
+        if self.algo is None and self.algorithm is not None:
+            self.algo = self.shortname_algo()
+        elif self.algo is not None and self.algorithm is None:
+            self.algorithm = self.fullname_algo()
+        else:
+            raise ValueError("Choose a valid machine learning algorithm!")
+
+        # PCA
+        if isinstance(self.pca, int) or self.pca is None:
+            pass
+        else:
+            raise TypeError("PCA must be a integer or None!")
+
+        # Samples
+        if isinstance(self.samples, int) or isinstance(self.samples, float):
+            pass
+        elif self.samples is None:
+            pass
+        else:
+            raise TypeError("Samples must be a number (integer, float) or None!")
+
+        # feature importance
+        if self.grid_search or self.algorithm == 'MLPClassifier':
+            self.png_features = False
+        else:
+            self.png_features = self.png_features
+
         # Check parameters exists
         if self.parameters is not None:
             if isinstance(self.parameters, str):
@@ -324,10 +326,11 @@ class ClaspyTrainer:
 
         return check_grid_param_str
 
-    def get_selected_features(self, data_features):
+    def get_selected_features(self, data_features, verbose=True):
         """
         self.features: the wanted features (selected by user).
         :param data_features: all features in input_data except ('x', 'y', 'z' and 'target').
+        :param verbose: Set verbose as True or False.
         :return: the final selected features and string report
         """
         # Initialization
@@ -355,7 +358,8 @@ class ClaspyTrainer:
         else:
             raise TypeError("Selected features must be a list of string!")
 
-        return selected_feat_str
+        if verbose:
+            return selected_feat_str
 
     def set_random_forest(self):
         """
@@ -408,7 +412,7 @@ class ClaspyTrainer:
                                             max_iter=10000,
                                             random_state=0)
 
-    def training_gridsearch(self):
+    def training_gridsearch(self, verbose=True):
         """
         Train model with GridSearchCV meta-estimator according the chosen learning algorithm.
         self.pipeline: set the algorithm to train the model.
@@ -420,6 +424,12 @@ class ClaspyTrainer:
         self.scoring: set the scorer according scikit-learn documentation.
         :return: Report of the training.
         """
+        # Set verbose
+        if verbose:
+            verb = 1
+        else:
+            verb = 0
+
         # String of gridsearch
         gridsearch_str = "\n"
 
@@ -436,7 +446,7 @@ class ClaspyTrainer:
                                   n_jobs=self.n_jobs,
                                   cv=cross_val,
                                   scoring=self.scoring,
-                                  verbose=1,
+                                  verbose=verb,
                                   error_score=np.nan)
 
         # Training the model to find the best parameters
@@ -448,7 +458,7 @@ class ClaspyTrainer:
 
         return gridsearch_str
 
-    def training_nogridsearch(self):
+    def training_nogridsearch(self, verbose=True):
         """
         Train model with cross-validation according the chosen classifier.
         self.pipeline: set the algorithm to train the model.
@@ -459,6 +469,12 @@ class ClaspyTrainer:
         self.scoring: set the scorer according scikit-learn documentation.
         :return: Report of the training.
         """
+        # Set verbose
+        if verbose:
+            verb = 2
+        else:
+            verb = 0
+
         # String of CrossValidation
         crossval_str = "\n"
 
@@ -475,7 +491,7 @@ class ClaspyTrainer:
                                       cv=cross_val,
                                       n_jobs=self.n_jobs,
                                       scoring=self.scoring,
-                                      verbose=2,
+                                      verbose=verb,
                                       return_estimator=True)
 
         crossval_str += "\n\tTraining model scores with cross-validation:\n\t{}\n".format(self.results["test_score"])
@@ -568,28 +584,30 @@ class ClaspyTrainer:
         """
         Return the introduction in a string
         """
-        self.introduction = str("\n######## POINT CLOUD CLASSIFICATION #########\n"
+        introduction = str("\n######## POINT CLOUD CLASSIFICATION #########\n"
                                 "Algorithm used: {}\n".format(self.algorithm))
         if self.data_type == '.csv':
-            self.introduction += "Path to CSV file: {}\n".format(self.data_path)
+            introduction += "Path to CSV file: {}\n".format(self.data_path)
         elif self.data_type == '.las':
-            self.introduction += "Path to LAS file: {}\n".format(self.data_path)
+            introduction += "Path to LAS file: {}\n".format(self.data_path)
         else:
             self.introduction += "Unknown Extension file !\n"
 
         # Create a folder to store models, reports and predictions
-        self.introduction += "\nCreate a new folder to store the result files..."
+        introduction += "\nCreate a new folder to store the result files..."
         if self.folder_path is None:
             self.folder_path = self.root_ext[0]  # remove extension to give the folder path
 
         try:
             os.makedirs(self.folder_path)  # Using file path to create new folders recursively
-            self.introduction += " Done.\n"
+            introduction += " Done.\n"
         except (TypeError, FileExistsError):
-            self.introduction += " Folder already exists.\n"
+            introduction += " Folder already exists.\n"
+
+        introduction += self.point_cloud_info(verbose=True)
 
         if verbose:
-            return self.introduction
+            return introduction
 
     def point_cloud_info(self, verbose=True):
         """
@@ -679,7 +697,9 @@ class ClaspyTrainer:
                 las = laspy.file.File(self.data_path, mode='r')
                 standard_dimensions = point_format[las.header.data_format_id]
                 for field in standard_dimensions:  # remove standard LAS dimensions
-                    selected_features.remove(field)
+                    if field in selected_features:
+                        selected_features.remove(field)
+            self.features = selected_features
 
         elif isinstance(self.features, str):
             self.features = yaml.safe_load(self.features)
@@ -740,8 +760,8 @@ class ClaspyTrainer:
                              stratify=self.target)
 
         # Convert target_train and target_test column-vectors as 1d array
-        self.target_train = self.target_train.reshape(self.train_size)
-        self.target_test = self.target_test.reshape(self.test_size)
+        #self.target_train = self.target_train.reshape(self.train_size)
+        #self.target_test = self.target_test.reshape(self.test_size)
 
         split_dataset_str += "\tNumber of used points: {:,} pts\n".\
             format(self.train_size + self.test_size).replace(',', ' ')
@@ -812,13 +832,13 @@ class ClaspyTrainer:
             train_model_str += self.check_grid_parameters()  # return the string report of checking
 
             # Get model
-            train_model_str += self.training_gridsearch()
+            train_model_str += self.training_gridsearch(verbose=verbose)
 
         else:
             train_model_str += "Random state for the StratifiedShuffleSplit: {}".format(self.random_state)
 
             # Get model
-            train_model_str += self.training_nogridsearch()
+            train_model_str += self.training_nogridsearch(verbose=False)
 
         # Importance of each feature in RF and GB
         if self.png_features:
@@ -902,7 +922,7 @@ class ClaspyTrainer:
                               for param in self.model.get_params()]
 
         # Compute elapsed time
-        elapsed_time = datetime.now() - self.start_time
+        self.elapsed_time = datetime.now() - self.start_time
 
         # Write the header of the report file
         with open(self.report_filename + '.txt', 'w', encoding='utf-8') as report:
@@ -963,12 +983,12 @@ class ClaspyTrainer:
 
             # Write elapsed time
             if self.mode == 'training':
-                report.write('\n\nModel trained in {}'.format(elapsed_time))
+                report.write('\n\nModel trained in {}'.format(self.elapsed_time))
             else:
-                report.write('\n\nPredictions done in {}'.format(elapsed_time))
+                report.write('\n\nPredictions done in {}'.format(self.elapsed_time))
 
         if verbose:
-            return "\nTraining done in {}\n".format(elapsed_time)
+            return "\nTraining done in {}\n".format(self.elapsed_time)
 
 
 class ClaspyPredicter(ClaspyTrainer):
@@ -1117,6 +1137,92 @@ class ClaspyPredicter(ClaspyTrainer):
 
         if verbose:
             return save_pt_cloud_str
+
+
+class ClaspySegmenter(ClaspyTrainer):
+    """
+    ClaspySegmenter create object to segment data into clusters according the selected algorithm.
+    """
+    def __init__(self, input_data, output_data=None, parameters=None, features=None,
+                 pca=None, n_jobs=-1, random_state=0, samples=None, scaler='Standard'):
+        """Initialize the ClaspySegmenter"""
+        ClaspyTrainer.__init__(self, input_data=input_data, output_data=output_data,
+                               parameters=parameters, features=features, pca=pca, n_jobs=n_jobs,
+                               random_state=random_state, samples=samples, scaler=scaler)
+
+        # Set specific varaibles for ClaspySegmenter
+        self.mode = 'segment'
+
+        # Algorithm
+        self.algo = 'kmeans'
+        self.algorithm = 'KMeans'
+
+    def set_classifier(self):
+        """
+        Set the classifier according to the selected algorithm.
+        """
+        # PCA
+        if isinstance(self.pca, int) or self.pca is None:
+            pass
+        else:
+            raise TypeError("PCA must be a integer or None!")
+
+        # Samples
+        if isinstance(self.samples, int) or isinstance(self.samples, float):
+            pass
+        elif self.samples is None:
+            pass
+        else:
+            raise TypeError("Samples must be a number (integer, float) or None!")
+
+        # Check parameters exists
+        if self.parameters is not None:
+            if isinstance(self.parameters, str):
+                self.parameters = yaml.safe_load(self.parameters)
+            else:
+                self.parameters = self.parameters
+
+        # Set the chosen learning classifier
+        if self.algorithm == 'KMeans':
+            self.set_kmeans_cluster()
+        else:
+            raise ValueError("No valid classifier!")
+
+    def check_parameters(self):
+        """
+        Check if the given parameters match with the given classifier
+        and set the classifier with the well defined parameters.
+        self.parameters: Parameters to check in dict.
+        """
+        # Get the type of classifier
+        if self.algorithm == 'KMeans':
+            double_float = ['tol']
+        else:
+            double_float = list()
+
+        # Check if the parameters are valid for the given classifier
+        for key in self.parameters.keys():  # To change str in float
+            if key in double_float:
+                self.parameters[key] = float(self.parameters[key])
+            try:
+                temp_dict = {key: self.parameters[key]}
+                self.classifier.set_params(**temp_dict)
+            except ValueError:
+                print("ValueError: Invalid parameter '{}' for {}, "
+                      "it was skipped!".format(str(key), self.algorithm))
+
+    def set_kmeans_cluster(self):
+        """
+        Set the clustering algorithm as KMeans.
+        :return: classifier: the desired classifier with the required parameters
+        """
+        # Set the classifier
+        if isinstance(self.parameters, dict):
+            self.classifier = KMeans()
+            self.check_parameters()  # Check and set parameters
+        else:
+            self.classifier = KMeans()
+
 
 
 
