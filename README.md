@@ -76,7 +76,7 @@ You should see returns of the program in the command prompt. At the end, a folde
 
 If you run into any issue, feel free to discuss it on the Github page : https://github.com/TrickyPells/cLASpy_T
 
-##**Usage**
+## **Usage**
 cLASpy_T is divided into 3 main modules: 'train', 'predict' and 'segment'.
 
 * **train** module performs training according the chosen machine learning algorithm and the provided data file. The data file must contain fields of features that describe each point and the target field of label as integer.
