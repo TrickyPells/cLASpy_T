@@ -30,7 +30,7 @@
 
 import sys
 import re
-
+import sklearn
 import PyQt5.QtBluetooth
 import psutil
 import joblib
@@ -415,21 +415,41 @@ class ClaspyGui(QMainWindow):
 
         # Logo of cLASpy_T Part
         label_pythia = QLabel()
-        pixmap_pythia = QPixmap('Ressources/WelcomeWindowLow.png')
+        pixmap_pythia = QPixmap('Ressources/cLASpy_T_Logo_Low.png')
         pixmap_pythia.scaled(256, 256, Qt.KeepAspectRatio, Qt.FastTransformation)
         label_pythia.setPixmap(pixmap_pythia)
+        label_pythia.setAlignment(Qt.AlignCenter)
 
-        # cLASpy_T versions
+        # Scikit_learn logo
+        label_skl_logo = QLabel()
+        pixmap_skl_logo = QPixmap('Ressources/scikit-learn-logo-small.png')
+        pixmap_skl_logo.scaled(64, 64, Qt.KeepAspectRatio, Qt.FastTransformation)
+        label_skl_logo.setPixmap(pixmap_skl_logo)
+        label_skl_logo.setAlignment(Qt.AlignCenter)
+
+        # Based on Scikit-Learn
+        label_with_skl = QLabel('with')
+        label_with_skl.setFont(QFont('Arial', 12, QFont.Bold))
+        label_with_skl.setAlignment(Qt.AlignCenter)
+
+        # Vertical layout of logo part
+        vlayout_logopart = QVBoxLayout()
+        vlayout_logopart.addWidget(label_pythia)
+        vlayout_logopart.addWidget(label_with_skl)
+        vlayout_logopart.addWidget(label_skl_logo)
+
+        # Software credit part
         if welcome:
             label_welcometo = QLabel('Welcome to')
         else:
             label_welcometo = QLabel('About')
+
         label_welcometo.setFont(QFont('Arial', 16))
         label_welcometo.setAlignment(Qt.AlignCenter)
         label_softname = QLabel('cLASpy_T')
         label_softname.setFont(QFont('Arial', 20, QFont.Bold))
         label_softname.setAlignment(Qt.AlignCenter)
-        label_webpage = QLabel('github.com/TrickyPells/cLASpy_T')
+        label_webpage = QLabel('https://github.com/TrickyPells/cLASpy_T')
         label_webpage.setAlignment(Qt.AlignCenter)
         label_version = QLabel('Core version: ' + str(self.cLASpy_T_version) +
                                ' | GUI version: ' + str(self.cLASpy_GUI_version))
@@ -457,10 +477,10 @@ class ClaspyGui(QMainWindow):
         # Authors
         label_createdby = QLabel('Created by:')
         label_createdby.setAlignment(Qt.AlignCenter)
-        label_author1 = QLabel('Xavier PELLERIN (xavier.peller1@gmail.com)\n'
+        label_author1 = QLabel('Xavier PELLERIN - xavier.peller1@gmail.com\n'
                                'and\n'
-                               'Laurent FROIDEVAL (email laurent.froideval)\n'
-                               'Christophe CONESSA (email christophe.conessa)')
+                               'Laurent FROIDEVAL - laurent.froideval@unicaen.fr\n'
+                               'Christophe CONESSA - christophe.conessa@unicaen.fr')
         label_author1.setAlignment(Qt.AlignCenter)
 
         # CheckBox Welcome Window
@@ -471,7 +491,13 @@ class ClaspyGui(QMainWindow):
             self.checkWelcomeWin.setChecked(True)
         self.checkWelcomeWin.toggled.connect(lambda: self.welcome_again(self.checkWelcomeWin))
 
-        # Layout of the Authors, Insitutions and Licence part
+        # Base on the API of scikit-learn
+        label_api_based = QLabel('Based on the API of scikit-learn')
+        label_api_based.setAlignment(Qt.AlignCenter)
+        label_skl_version = QLabel('https://scikit-learn.org | version: ' + str(sklearn.__version__))
+        label_skl_version.setAlignment(Qt.AlignCenter)
+
+        # Layout of the software credit part
         vlayout_softpart = QVBoxLayout()
         vlayout_softpart.addWidget(label_welcometo)
         vlayout_softpart.addWidget(label_softname)
@@ -480,6 +506,8 @@ class ClaspyGui(QMainWindow):
         vlayout_softpart.addLayout(hlayout_institutions)
         vlayout_softpart.addWidget(label_createdby)
         vlayout_softpart.addWidget(label_author1)
+        vlayout_softpart.addWidget(label_api_based)
+        vlayout_softpart.addWidget(label_skl_version)
         if welcome:
             vlayout_softpart.addWidget(self.checkWelcomeWin)
 
@@ -487,7 +515,7 @@ class ClaspyGui(QMainWindow):
 
         # Create layout of the window
         hbox = QHBoxLayout()
-        hbox.addWidget(label_pythia)
+        hbox.addLayout(vlayout_logopart)
         hbox.addLayout(vlayout_softpart)
         self.welcome_window.setLayout(hbox)
 
@@ -497,7 +525,7 @@ class ClaspyGui(QMainWindow):
         else:
             self.welcome_window.setWindowTitle("About cLASpy_T")
         self.welcome_window.setWindowIcon(QIcon('Ressources/pythie_alpha_512px.png'))
-        self.welcome_window.setGeometry(128, 128, 512, 384)
+        self.welcome_window.setGeometry(128, 128, 256, 256)
         self.welcome_window.setWindowFlag(Qt.WindowStaysOnTopHint)
         self.welcome_window.show()
 
@@ -3755,17 +3783,21 @@ class ClaspyGui(QMainWindow):
 
     def reject(self):
         """
-        Close the GUI
+        Close the GUI with 'Close' button
         """
-        if self.WelcomeAgain:
+        if self.welcome_window:
             self.welcome_window.close()
         self.close()
 
     def closeEvent(self, event):
-        if self.WelcomeAgain:
+        """
+        Close the GUI with cross button
+        """
+        if self.welcome_window:
             self.welcome_window.close()
         self.close()
         event.accept()
+
 
 if __name__ == '__main__':
     # Set the application
