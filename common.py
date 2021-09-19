@@ -368,8 +368,9 @@ def format_dataset(data_path, mode='training', features=None):
         if file_type == 'LAS':
             las = laspy.file.File(data_path, mode='r')
             standard_dimensions = point_format[las.header.data_format_id]
-            for field in standard_dimensions:  # remove standard LAS dimensions
-                selected_features.remove(field)
+            for field in standard_dimensions:
+                if field in selected_features:  # remove standard LAS dimensions
+                    selected_features.remove(field)
 
     elif isinstance(features, str):
         features = yaml.safe_load(features)

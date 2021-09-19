@@ -341,7 +341,7 @@ def segment(args):
 
     # Save clustering result as point cloud file with all data
     print("\nStep 3/4: Saving segmented point cloud as CSV file:")
-    predic_filename = str(report_filename + '.csv')
+    predic_filename = report_filename
     print(predic_filename)
     save_predictions(y_pred, predic_filename, data_path)
     scaler = None
