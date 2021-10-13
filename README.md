@@ -76,7 +76,7 @@ You should see returns of the program in the command prompt. At the end, a folde
 
 If you run into any issue, feel free to discuss it on the Github page : https://github.com/TrickyPells/cLASpy_T
 
-##**Usage**
+## **Usage**
 cLASpy_T is divided into 3 main modules: 'train', 'predict' and 'segment'.
 
 * **train** module performs training according the chosen machine learning algorithm and the provided data file. The data file must contain fields of features that describe each point and the target field of label as integer.
@@ -117,7 +117,7 @@ X,Y,Z,Target,Intensity,Red,Green,Blue,Roughness (5),Omnivariance (5),Sphericity 
 * Target field named **'target'** (not case-sensitive), contains the labels as integer.
 * Fields of the data features that describe each point.
 
-If X, Y and/or Z fields are provided, **they are excluded for training**, but re-used to write the output file.
+If X, Y and/or Z fields provided, **they are excluded for training**, but re-used to write the output file.
 
 To use **'Intensity'** field from LAS file, rename it as, for example, **'Original_Intensity'** or **'Amplitude'**.
 
