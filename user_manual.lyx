@@ -431,7 +431,7 @@ name "subsec:Create-a-Virtual"
 
 \begin_layout Standard
 Python uses many packages, depending of your usages.
- To prevent a dirty installation and package incompatibilities, it's could
+ To prevent a dirty installation and package incompatibilities, it could
  be a great idea to use virtual environments.
  Here, you will create a specific virtual environment for 
 \emph on
