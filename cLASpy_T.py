@@ -42,7 +42,7 @@ from cLASpy_Classes import ClaspyTrainer, ClaspyPredicter, ClaspySegmenter
 # -------------------------
 
 # Define version of cLASpy_T
-cLASpy_T_version = '0.1.0'
+cLASpy_T_version = '0.2.0'  # 0.2.0 : Version of cLASpy_T with classes
 
 # -------------------------
 # ---- ARGUMENT_PARSER ----

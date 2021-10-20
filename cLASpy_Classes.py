@@ -722,7 +722,7 @@ class ClaspyTrainer:
         # Set filename for output result files
         self.number_of_points()
         str_nbr_pts = self.format_nbr_pts()
-        self.report_filename = str(self.folder_path + '/train_' + self.algo + str_nbr_pts + str(self.timestamp))
+        self.report_filename = str(self.folder_path + '/' + self.mode[0:5] + '_' + self.algo + str_nbr_pts + str(self.timestamp))
 
         if verbose:
             return format_data_str
