@@ -442,7 +442,7 @@ class ClaspyTrainer:
         # Set the GridSearchCV
         gridsearch_str += "\tSearching best parameters...\n"
         self.model = GridSearchCV(self.pipeline,
-                                  param_grid=self.grid_parameters,
+                                  param_grid=self.pipe_params,
                                   n_jobs=self.n_jobs,
                                   cv=cross_val,
                                   scoring=self.scoring,
@@ -917,8 +917,12 @@ class ClaspyTrainer:
         :return: elapsed_time
         """
         # Get the model parameters to print in the report
-        applied_parameters = ["{}: {}".format(param, self.model.get_params()[param])
-                              for param in self.model.get_params()]
+        if self.mode == 'segment':
+            applied_parameters = ["{}: {}".format(param, self.classifier.get_params()[param])
+                                  for param in self.classifier.get_params()]
+        else:
+            applied_parameters = ["{}: {}".format(param, self.model.get_params()[param])
+                                  for param in self.model.get_params()]
 
         # Compute elapsed time
         self.elapsed_time = datetime.now() - self.start_time
@@ -959,7 +963,7 @@ class ClaspyTrainer:
             #     report.write(pca_compo)
 
             # Write the GridSearchCV results
-            if self.results:
+            if self.results is not None:
                 if self.grid_search:
                     report.write('\n\n\nResults of the GridSearchCV:\n')
                     report.write(self.results.to_string(index=False))
@@ -1096,7 +1100,7 @@ class ClaspyPredicter(ClaspyTrainer):
 
     def save_predictions(self, verbose=True):
         """Save the classified point cloud"""
-        # String for saving point coud
+        # String for saving point cloud
         save_pt_cloud_str = "\n"
         save_pt_cloud_str += self.report_filename
 
@@ -1165,6 +1169,10 @@ class ClaspySegmenter(ClaspyTrainer):
         # Algorithm
         self.algo = 'kmeans'
         self.algorithm = 'KMeans'
+        self.conf_matrix = None
+        self.test_report = None
+        self.feat_importance = None
+        self.results = None
 
     def set_classifier(self):
         """
@@ -1193,7 +1201,7 @@ class ClaspySegmenter(ClaspyTrainer):
 
         # Set the chosen learning classifier
         if self.algorithm == 'KMeans':
-            self.set_kmeans_cluster()
+            self.set_kmeans()
         else:
             raise ValueError("No valid classifier!")
 
@@ -1220,7 +1228,7 @@ class ClaspySegmenter(ClaspyTrainer):
                 print("ValueError: Invalid parameter '{}' for {}, "
                       "it was skipped!".format(str(key), self.algorithm))
 
-    def set_kmeans_cluster(self):
+    def set_kmeans(self):
         """
         Set the clustering algorithm as KMeans.
         :return: classifier: the desired classifier with the required parameters
@@ -1232,6 +1240,50 @@ class ClaspySegmenter(ClaspyTrainer):
         else:
             self.classifier = KMeans()
 
+    def segment(self, verbose=True):
+        """Segment scaled data"""
+        # Set string for segmentation
+        segment_str = "\n"
 
+        # Do segmentation
+        self.y_cluster = self.classifier.fit_predict(self.data)
 
+        if verbose:
+            return segment_str
+
+    def save_clusters(self, verbose=True):
+        """Save the segmented point cloud"""
+        # String for saving point cloud
+        save_pt_cloud_str = "\n"
+        save_pt_cloud_str += self.report_filename
+
+        # Set header for the predictions
+        cluster_header = ['Cluster']
+        clusters = pd.DataFrame(self.y_cluster, columns=cluster_header, dtype='float32').round(decimals=4)
+
+        if self.root_ext[1] == '.csv':
+            # Join predictions to self.frame (input_data)
+            self.frame = self.frame.join(clusters)
+            self.frame.to_csv(self.report_filename + '.csv', sep=',', header=True, index=False)
+        elif self.root_ext[1] == '.las':
+            # Reopen original las file
+            las = laspy.file.File(self.data_path, mode='r')
+
+            # Create new output las file
+            output_las = laspy.file.File(self.report_filename + '.las', mode="w", header=las.header)
+            output_las.define_new_dimension(name='Cluster', data_type=5,
+                                            description='K-Means clustering segmentation')
+
+            # Fill output_las with original dimensions from self.las
+            for dim in las.point_format:
+                data = las.reader.get_dimension(dim.name)
+                output_las.writer.set_dimension(dim.name, data)
+            las.close()
+
+            # Fill output_las with new data
+            output_las.writer.set_dimension('Cluster', clusters['Cluster'].values)
+            output_las.close()
+
+        if verbose:
+            return save_pt_cloud_str
 

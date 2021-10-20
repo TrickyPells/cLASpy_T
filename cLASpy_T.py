@@ -546,7 +546,44 @@ def segment(arguments):
     if arguments.config:
         arguments_from_config()  # Get the arguments from the config file
 
-    pass
+    segmenter = ClaspySegmenter(input_data=arguments.input_data,
+                                output_data=arguments.output,
+                                parameters=arguments.parameters,
+                                features=arguments.features)
+
+    # Set the classifier according parameters
+    segmenter.set_classifier()
+
+    # Introduction
+    intro = segmenter.introduction(verbose=True)
+    print(intro)
+
+    # Format dataset
+    print("\nStep 1/5: Formatting data as pandas.DataFrame...")
+    step1 = segmenter.format_dataset(verbose=True)
+    print(step1)
+
+    # Scale the dataset as 'Standard', 'Robust' or 'MinMaxScaler'
+    print("\nStep 2/5: Scaling data...")
+    step2 = segmenter.set_scaler_pca(verbose=True)
+    print(step2)
+
+    # Split data into training and testing sets
+    print("\nStep 3/5: Clustering the dataset...")
+    step3 = segmenter.segment(verbose=True)
+    print(step3)
+
+    # Save algorithm, model, scaler, pca and feature_names
+    print("\nStep 4/5: Saving segmented point cloud in file...")
+    step4 = segmenter.save_clusters(verbose=True)
+    print(step4)
+
+    # Create and save prediction report
+    print("\nStep 5/5: Creating classification report:")
+    print(segmenter.report_filename + '.txt')
+    step5 = segmenter.classification_report(verbose=True)
+    print(step5)
+
 
 if args.func == 'train':
     train(args)
