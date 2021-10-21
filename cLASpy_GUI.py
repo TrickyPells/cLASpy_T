@@ -31,17 +31,14 @@
 import sys
 import re
 
-import PyQt5.QtBluetooth
+import json
 import psutil
-import joblib
 
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 
-import common
-from common import *
-
+from cLASpy_Classes import *
 
 # -------------------------
 # ------ FUNCTIONS --------
@@ -288,7 +285,7 @@ class ClaspyGui(QMainWindow):
 
         # Variable Initialization
         self.platform = get_platform()
-        self.cLASpy_T_version = common.cLASpy_T_version
+        self.cLASpy_Core_version = cLASpy_Core_version
         self.cLASpy_GUI_version = '0.1.1'
         self.cLASpy_train_version = self.cLASpy_GUI_version + '_train'
         self.cLASpy_predi_version = self.cLASpy_GUI_version + '_predi'
@@ -2347,33 +2344,33 @@ class ClaspyGui(QMainWindow):
 
     def number_selected_features(self):
         self.max_feat_count = 0
-        self.selected_count = 0
+        self.sel_feat_count = 0
 
         # Coordinate Features
         if self.checkAdvancedFeat.isChecked():
             if self.checkX.isEnabled():
                 self.max_feat_count += 1
                 if self.checkX.isChecked():
-                    self.selected_count += 1
+                    self.sel_feat_count += 1
             if self.checkY.isEnabled():
                 self.max_feat_count += 1
                 if self.checkY.isChecked():
-                    self.selected_count += 1
+                    self.sel_feat_count += 1
             if self.checkZ.isEnabled():
                 self.max_feat_count += 1
                 if self.checkZ.isChecked():
-                    self.selected_count += 1
+                    self.sel_feat_count += 1
 
         if self.listStandardLAS is not None and self.groupStandardLAS.isEnabled():
             self.max_feat_count += self.listStandardLAS.count()
-            self.selected_count += len(self.listStandardLAS.selectedItems())
+            self.sel_feat_count += len(self.listStandardLAS.selectedItems())
 
         if self.listExtraFeatures is not None:
             self.max_feat_count += self.listExtraFeatures.count()
-            self.selected_count += len(self.listExtraFeatures.selectedItems())
+            self.sel_feat_count += len(self.listExtraFeatures.selectedItems())
 
         self.labelNbrSelFeatures.setText("Number of selected features: {} / {}".format(
-            self.selected_count, self.max_feat_count))
+            self.sel_feat_count, self.max_feat_count))
 
     def reset_selection_features(self):
         """
@@ -3320,12 +3317,16 @@ class ClaspyGui(QMainWindow):
         # Save classifier parameters with GridSearchCV or not
         if self.train_config['grid_search']:
             self.train_config['param_grid'] = param_dict
+            self.param_grid = param_dict
+            self.parameters = None
             try:
                 self.train_config.pop('parameters')  # Remove 'parameters'
             except KeyError:
                 pass
         else:
             self.train_config['parameters'] = param_dict
+            self.parameters = param_dict
+            self.param_grid = None
             try:
                 self.train_config.pop('param_grid')  # Remove 'param_grid'
             except KeyError:
@@ -3390,25 +3391,18 @@ class ClaspyGui(QMainWindow):
 
         # random_state
         param_dict['random_state'] = self.KMspinRandomState.value()
-
         # n_clusters
         param_dict['n_clusters'] = self.KMspinNClusters.value()
-
         # init
         param_dict['init'] = self.KMcomboInit.currentText()
-
         # n_init
         param_dict['n_init'] = self.KMspinNInit.value()
-
         # max_iter
         param_dict['max_iter'] = self.KMspinMaxIter.value()
-
         # tol
         param_dict['tol'] = self.KMspinTol.value()
-
         # algorithm
         param_dict['algorithm'] = self.KMcomboAlgorithm.currentText()
-
         # Save all parameters
         self.segment_config['parameters'] = param_dict
 
@@ -3436,7 +3430,10 @@ class ClaspyGui(QMainWindow):
         self.update_config()
 
         # Check if features are selected
-        if self.selected_count > 0:
+        if self.sel_feat_count <= 0:
+            warning_box("No feature field selected !\nPlease, select the features you need !",
+                        "Missing features")
+        else:
             # Save the JSON file
             self.statusBar.showMessage("Saving JSON config file...", 3000)
             json_file = QFileDialog.getSaveFileName(None, 'Save JSON config file',
@@ -3447,9 +3444,6 @@ class ClaspyGui(QMainWindow):
                     json.dump(self.train_config, config_file, indent=4)
                     self.statusBar.showMessage("Config file for training saved: {}".format(json_file[0]),
                                                5000)
-        else:
-            warning_box("No feature field selected !\nPlease, select the features you need !",
-                        "Missing features")
 
     def save_predict_config(self):
         """
@@ -3475,7 +3469,10 @@ class ClaspyGui(QMainWindow):
         self.update_config()
 
         # Check if features are selected
-        if self.selected_count > 0:
+        if self.sel_feat_count <= 0:
+            warning_box("No feature field selected !\nPlease, select the features you need !",
+                        "No selected features")
+        else:
             # Save the JSON file
             self.statusBar.showMessage("Saving JSON config file...", 3000)
             json_file = QFileDialog.getSaveFileName(None, 'Save JSON config file',
@@ -3486,14 +3483,11 @@ class ClaspyGui(QMainWindow):
                     json.dump(self.segment_config, config_file, indent=4)
                     self.statusBar.showMessage("Config file saved: {}".format(json_file[0]),
                                                5000)
-        else:
-            warning_box("No feature field selected !\nPlease, select the features you need !",
-                        "No selected features")
 
     # Command and Run
     def command_part(self):
         """
-        Give the command part of the GUI.
+        Set the command part of the GUI.
         """
         self.plainTextCommand = QPlainTextEdit()
         self.plainTextCommand.setReadOnly(True)
@@ -3539,172 +3533,139 @@ class ClaspyGui(QMainWindow):
                 text_file.write(cmd_output)
 
     def run_train(self):
+        # Switch buttons
+        self.buttonRunTrain.setEnabled(False)
+        self.buttonStop.setEnable(True)
+
         self.update_config()
 
-        # Check pythonPath is set
-        if self.pythonPath != '':
-
-            # Check if some features are selected  and hidden_layer_sizes exist
-            if self.selected_count > 0:
-                features = str(self.train_config['feature_names']).replace(' ', '')
-
-                # Train with GridSearchCV or not
-                if self.train_config['grid_search']:
-                    # Setting up grid_parameters
-                    grid_parameters = str(self.train_config['param_grid'])
-
-                    # Create command list to run cLASpy_T
-                    command = ["cLASpy_T.py", "train",
-                               "-a", self.algo,
-                               "-i", self.lineLocalFile.text(),
-                               "-o", self.lineLocalFolder.text(),
-                               "-f", features,
-                               "-g", "-k", grid_parameters,
-                               "--scaler", self.comboScaler.currentText(),
-                               "--scoring", self.comboScorer.currentText(),
-                               "-n", str(self.spinNJobCV.value()),
-                               "-s", str(self.train_config['samples']),
-                               "--train_r", str(self.train_config['training_ratio'])]
-
-                    if self.spinPCA.value() != 0:
-                        command.append("--pca")
-                        command.append(str(self.spinPCA.value()))
-
-                    if self.train_config['random_state'] is not None:
-                        command.append("--random_state")
-                        command.append(str(self.train_config['random_state']))
-
-                else:
-                    # Setting up parameters, remove parameters set as None
-                    parameters_dict = self.train_config['parameters']
-                    keys_to_remove = list()  # Create list of keys to remove, because dictionary must keep the same length
-                    for key in parameters_dict:
-                        if parameters_dict[key] is None:
-                            keys_to_remove.append(key)
-                    for key in keys_to_remove:
-                        parameters_dict.pop(key)
-                    parameters = str(parameters_dict).replace(' ', '')
-
-                    # Create command list to run cLASpy_T
-                    command = ["cLASpy_T.py", "train",
-                               "-a", self.algo,
-                               "-i", self.lineLocalFile.text(),
-                               "-o", self.lineLocalFolder.text(),
-                               "-f", features,
-                               "-p", parameters,
-                               "--scaler", self.comboScaler.currentText(),
-                               "--scoring", self.comboScorer.currentText(),
-                               "-n", str(self.spinNJobCV.value()),
-                               "-s", str(self.train_config['samples']),
-                               "--train_r", str(self.train_config['training_ratio'])]
-
-                    if self.spinPCA.value() != 0:
-                        command.append("--pca")
-                        command.append(str(self.spinPCA.value()))
-
-                    if self.train_config['random_state'] is not None:
-                        command.append("--random_state")
-                        command.append(str(self.train_config['random_state']))
-
-                    if self.train_config['png_features']:
-                        command.append('--png_features')
-
-                # Run training process
-                if self.process is None:
-                    self.process = QProcess()
-                    #self.process.setProcessChannelMode(QProcess.ForwardedChannels)
-                    self.process.readyReadStandardOutput.connect(self.handle_stdout)
-                    self.process.readyReadStandardError.connect(self.handle_stderr)
-                    self.process.stateChanged.connect(self.handle_state)
-                    self.process.finished.connect(self.process_finished)
-                    self.process.setProgram(self.pythonPath)
-                    self.process.setArguments(command)
-                    self.process.start()
-                    self.processPID = self.process.processId()
-                    self.buttonStop.setEnabled(True)
-                    self.buttonRunTrain.setEnabled(False)
-
-            else:
-                warning_box("No feature field selected!\nPlease select the features you need!",
-                            "No features selected")
-
+        # Check if some features are selected and hidden_layer_sizes exist
+        if self.sel_feat_count <= 0:
+            warning_box("No feature field selected!\nPlease select the features you need!",
+                        "No features selected")
         else:
-            warning_box("Set python path through Edit > Options", "Python path not set")
+            # Create ClaspyTrainer object and perform training
+            trainer = ClaspyTrainer(input_data=self.lineLocalFile.text(),
+                                    output_data=self.lineLocalFolder.text(),
+                                    algo=self.algo,
+                                    algorithm=None,
+                                    parameters=self.parameters,
+                                    features=self.selectedFeatures,
+                                    grid_search=self.checkGridSearchCV.isChecked(),
+                                    grid_param=self.param_grid,
+                                    pca=self.spinPCA.value(),
+                                    n_jobs=self.spinNJobCV.value(),
+                                    random_state=self.spinRandomState.value(),
+                                    samples=self.spinSampleSize.value(),
+                                    scaler=self.comboScaler.currentText(),
+                                    scoring=self.comboScorer.currentText(),
+                                    train_ratio=self.spinTrainRatio.value(),
+                                    png_features=self.RFcheckImportance.isChecked())
+
+            # Set the classifier according parameters
+            trainer.set_classifier()
+
+            # Introduction
+            self.plainTextCommand.appendPlainText(
+                "\n# # # # # # # # # #  cLASpy_T  # # # # # # # # # # # #"
+                "\n - - - - - - -   TRAIN MODE on GUI   - - - - - - - - -"
+                "\n * * * *    Point Cloud Classification    * * * * * *\n")
+            intro = trainer.introduction(verbose=True)
+            self.plainTextCommand.appendPlainText(intro)
+
+            # Format dataset
+            self.plainTextCommand.appendPlainText("\nStep 1/7: Formatting data as pandas.DataFrame...")
+            step1 = trainer.format_dataset(verbose=True)
+            self.plainTextCommand.appendPlainText(step1)
+
+            # Split data into training and testing sets
+            self.plainTextCommand.appendPlainText("\nStep 2/7: Splitting data in train and test sets...")
+            step2 = trainer.split_dataset(verbose=True)
+            self.plainTextCommand.appendPlainText(step2)
+
+            # Scale the dataset as 'Standard', 'Robust' or 'MinMaxScaler'
+            self.plainTextCommand.appendPlainText("\nStep 3/7: Scaling data...")
+            step3 = trainer.set_scaler_pca(verbose=True)
+            self.plainTextCommand.appendPlainText(step3)
+
+            # Train model
+            if trainer.grid_search:  # Training with GridSearchCV
+                self.plainTextCommand.appendPlainText('\nStep 4/7: Training model with GridSearchCV...\n')
+            else:  # Training with Cross Validation
+                self.plainTextCommand.appendPlainText("\nStep 4/7: Training model with cross validation...\n")
+
+            step4 = trainer.train_model(verbose=True)  # Perform both training
+            self.plainTextCommand.appendPlainText(step4)
+
+            # Create confusion matrix
+            self.plainTextCommand.appendPlainText("\nStep 5/7: Creating confusion matrix...")
+            step5 = trainer.confusion_matrix(verbose=True)
+            self.plainTextCommand.appendPlainText(step5)
+
+            # Save algorithm, model, scaler, pca and feature_names
+            self.plainTextCommand.appendPlainText("\nStep 6/7: Saving model and scaler in file:")
+            step6 = trainer.save_model(verbose=True)
+            self.plainTextCommand.appendPlainText(step6)
+
+            # Create and save prediction report
+            self.plainTextCommand.appendPlainText("\nStep 7/7: Creating classification report:")
+            self.plainTextCommand.appendPlainText(trainer.report_filename + '.txt')
+            step7 = trainer.classification_report(verbose=True)
+            self.plainTextCommand.appendPlainText(step7)
 
     def run_predict(self):
-        self.check_model_features()  # Check if model and input file features match
+        # Switch buttons
+        self.buttonRunPredict.setEnabled(False)
+        self.buttonStop.setEnabled(True)
+
+        # Check if model and input file features match
+        self.check_model_features()
         if self.predict_features:
             self.update_config()
 
-            # Create command list to run cLASpy_T
-            command = ["cLASpy_T.py", "predict",
-                       "-i", self.lineLocalFile.text(),
-                       "-o", self.lineLocalFolder.text(),
-                       "-m", self.lineModelFile.text()]
 
-            if self.pythonPath != '':
-                if self.process is None:
-                    self.process = QProcess()
-                    self.process.readyReadStandardOutput.connect(self.handle_stdout)
-                    self.process.readyReadStandardError.connect(self.handle_stderr)
-                    self.process.stateChanged.connect(self.handle_state)
-                    self.process.finished.connect(self.process_finished)
-                    self.process.setProgram(self.pythonPath)
-                    self.process.setArguments(command)
-                    self.process.start()
-                    self.processPID = self.process.processId()
-                    self.buttonStop.setEnabled(True)
-                    self.buttonRunPredict.setEnabled(False)
-            else:
-                self.plainTextCommand.appendPlainText("Set python path through Edit > Options")
 
     def run_segment(self):
         self.update_config()
 
-        # Check pythonPath is set
-        if self.pythonPath != '':
-
-            # Check if some features are selected
-            if self.selected_count > 0:
-                features = str(self.segment_config['feature_names']).replace(' ', '')
-
-                # Setting up parameters, remove parameters set as None
-                parameters_dict = self.segment_config['parameters']
-                # Create list of keys to remove, because dictionary must keep the same length
-                keys_to_remove = list()
-                for key in parameters_dict:
-                    if parameters_dict[key] is None:
-                        keys_to_remove.append(key)
-                for key in keys_to_remove:
-                    parameters_dict.pop(key)
-                parameters = str(parameters_dict).replace(' ', '')
-
-                # Create command list to run cLASpy_T
-                command = ["cLASpy_T.py", "segment",
-                           "-i", self.lineLocalFile.text(),
-                           "-o", self.lineLocalFolder.text(),
-                           "-f", features,
-                           "-p", parameters]
-
-                # Run semgentation process
-                if self.process is None:
-                    self.process = QProcess()
-                    self.process.readyReadStandardOutput.connect(self.handle_stdout)
-                    self.process.readyReadStandardError.connect(self.handle_stderr)
-                    self.process.stateChanged.connect(self.handle_state)
-                    self.process.finished.connect(self.process_finished)
-                    self.process.setProgram(self.pythonPath)
-                    self.process.setArguments(command)
-                    self.process.start()
-                    self.processPID = self.process.processId()
-                    self.buttonStop.setEnabled(True)
-                    self.buttonRunSegment.setEnabled(False)
-
-            else:
-                warning_box("No feature field selected!\nPlease select the features you need!",
-                            "No features selected")
+        # Check if some features are selected
+        if self.sel_feat_count <= 0:
+            warning_box("No feature field selected!\nPlease select the features you need!",
+                        "No features selected")
         else:
-            warning_box("Set python path through Edit > Options", "Python path not set")
+            features = str(self.segment_config['feature_names']).replace(' ', '')
+
+            # Setting up parameters, remove parameters set as None
+            parameters_dict = self.segment_config['parameters']
+            # Create list of keys to remove, because dictionary must keep the same length
+            keys_to_remove = list()
+            for key in parameters_dict:
+                if parameters_dict[key] is None:
+                    keys_to_remove.append(key)
+            for key in keys_to_remove:
+                parameters_dict.pop(key)
+            parameters = str(parameters_dict).replace(' ', '')
+
+            # Create command list to run cLASpy_T
+            command = ["cLASpy_T.py", "segment",
+                       "-i", self.lineLocalFile.text(),
+                       "-o", self.lineLocalFolder.text(),
+                       "-f", features,
+                       "-p", parameters]
+
+            # Run semgentation process
+            if self.process is None:
+                self.process = QProcess()
+                self.process.readyReadStandardOutput.connect(self.handle_stdout)
+                self.process.readyReadStandardError.connect(self.handle_stderr)
+                self.process.stateChanged.connect(self.handle_state)
+                self.process.finished.connect(self.process_finished)
+                self.process.setProgram(self.pythonPath)
+                self.process.setArguments(command)
+                self.process.start()
+                self.processPID = self.process.processId()
+                self.buttonStop.setEnabled(True)
+                self.buttonRunSegment.setEnabled(False)
 
     def handle_stdout(self):
         data = self.process.readAllStandardOutput()
@@ -3725,7 +3686,7 @@ class ClaspyGui(QMainWindow):
                   QProcess.Running: "Running"}
 
         state_name = states[state]
-        self.statusBar.showMessage("cLASpy_T is {}".format(state_name), 3000)
+        self.statusBar.showMessage("cLASpy_T is {}".format(state_name), 5000)
 
     def process_finished(self):
         self.statusBar.showMessage("cLASpy_T finished !", 5000)
@@ -3766,6 +3727,7 @@ class ClaspyGui(QMainWindow):
             self.welcome_window.close()
         self.close()
         event.accept()
+
 
 if __name__ == '__main__':
     # Set the application
