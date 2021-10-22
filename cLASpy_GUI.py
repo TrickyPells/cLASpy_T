@@ -30,18 +30,16 @@
 
 import sys
 import re
-
-import PyQt5.QtBluetooth
+import json
+import time
 import psutil
-import joblib
+import subprocess
 
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 
-import common
-from common import *
-
+from cLASpy_Classes import *
 
 # -------------------------
 # ------ FUNCTIONS --------
@@ -288,7 +286,7 @@ class ClaspyGui(QMainWindow):
 
         # Variable Initialization
         self.platform = get_platform()
-        self.cLASpy_T_version = common.cLASpy_T_version
+        self.cLASpy_Core_version = cLASpy_Core_version
         self.cLASpy_GUI_version = '0.1.1'
         self.cLASpy_train_version = self.cLASpy_GUI_version + '_train'
         self.cLASpy_predi_version = self.cLASpy_GUI_version + '_predi'
@@ -431,7 +429,7 @@ class ClaspyGui(QMainWindow):
         label_softname.setAlignment(Qt.AlignCenter)
         label_webpage = QLabel('github.com/TrickyPells/cLASpy_T')
         label_webpage.setAlignment(Qt.AlignCenter)
-        label_version = QLabel('Core version: ' + str(self.cLASpy_T_version) +
+        label_version = QLabel('Core version: ' + str(self.cLASpy_Core_version) +
                                ' | GUI version: ' + str(self.cLASpy_GUI_version))
         label_version.setAlignment(Qt.AlignCenter)
 
@@ -2347,33 +2345,33 @@ class ClaspyGui(QMainWindow):
 
     def number_selected_features(self):
         self.max_feat_count = 0
-        self.selected_count = 0
+        self.sel_feat_count = 0
 
         # Coordinate Features
         if self.checkAdvancedFeat.isChecked():
             if self.checkX.isEnabled():
                 self.max_feat_count += 1
                 if self.checkX.isChecked():
-                    self.selected_count += 1
+                    self.sel_feat_count += 1
             if self.checkY.isEnabled():
                 self.max_feat_count += 1
                 if self.checkY.isChecked():
-                    self.selected_count += 1
+                    self.sel_feat_count += 1
             if self.checkZ.isEnabled():
                 self.max_feat_count += 1
                 if self.checkZ.isChecked():
-                    self.selected_count += 1
+                    self.sel_feat_count += 1
 
         if self.listStandardLAS is not None and self.groupStandardLAS.isEnabled():
             self.max_feat_count += self.listStandardLAS.count()
-            self.selected_count += len(self.listStandardLAS.selectedItems())
+            self.sel_feat_count += len(self.listStandardLAS.selectedItems())
 
         if self.listExtraFeatures is not None:
             self.max_feat_count += self.listExtraFeatures.count()
-            self.selected_count += len(self.listExtraFeatures.selectedItems())
+            self.sel_feat_count += len(self.listExtraFeatures.selectedItems())
 
         self.labelNbrSelFeatures.setText("Number of selected features: {} / {}".format(
-            self.selected_count, self.max_feat_count))
+            self.sel_feat_count, self.max_feat_count))
 
     def reset_selection_features(self):
         """
@@ -3436,7 +3434,7 @@ class ClaspyGui(QMainWindow):
         self.update_config()
 
         # Check if features are selected
-        if self.selected_count > 0:
+        if self.sel_feat_count > 0:
             # Save the JSON file
             self.statusBar.showMessage("Saving JSON config file...", 3000)
             json_file = QFileDialog.getSaveFileName(None, 'Save JSON config file',
@@ -3475,7 +3473,7 @@ class ClaspyGui(QMainWindow):
         self.update_config()
 
         # Check if features are selected
-        if self.selected_count > 0:
+        if self.sel_feat_count > 0:
             # Save the JSON file
             self.statusBar.showMessage("Saving JSON config file...", 3000)
             json_file = QFileDialog.getSaveFileName(None, 'Save JSON config file',
@@ -3541,95 +3539,100 @@ class ClaspyGui(QMainWindow):
     def run_train(self):
         self.update_config()
 
-        # Check pythonPath is set
-        if self.pythonPath != '':
+        # Check if some features are selected  and hidden_layer_sizes exist
+        if self.sel_feat_count <=0:
+            warning_box("No feature field selected!\nPlease select the features you need!",
+                        "No features selected")
+        else:
+            features = str(self.train_config['feature_names']).replace(' ', '')
 
-            # Check if some features are selected  and hidden_layer_sizes exist
-            if self.selected_count > 0:
-                features = str(self.train_config['feature_names']).replace(' ', '')
+            # Train with GridSearchCV or not
+            if self.train_config['grid_search']:
+                # Setting up grid_parameters
+                grid_parameters = str(self.train_config['param_grid'])
 
-                # Train with GridSearchCV or not
-                if self.train_config['grid_search']:
-                    # Setting up grid_parameters
-                    grid_parameters = str(self.train_config['param_grid'])
+                # Create command list to run cLASpy_T
+                command = ["cLASpy_T.py", "train",
+                           "-a", self.algo,
+                           "-i", self.lineLocalFile.text(),
+                           "-o", self.lineLocalFolder.text(),
+                           "-f", features,
+                           "-g", "-k", grid_parameters,
+                           "--scaler", self.comboScaler.currentText(),
+                           "--scoring", self.comboScorer.currentText(),
+                           "-n", str(self.spinNJobCV.value()),
+                           "-s", str(self.train_config['samples']),
+                           "--train_r", str(self.train_config['training_ratio'])]
 
-                    # Create command list to run cLASpy_T
-                    command = ["cLASpy_T.py", "train",
-                               "-a", self.algo,
-                               "-i", self.lineLocalFile.text(),
-                               "-o", self.lineLocalFolder.text(),
-                               "-f", features,
-                               "-g", "-k", grid_parameters,
-                               "--scaler", self.comboScaler.currentText(),
-                               "--scoring", self.comboScorer.currentText(),
-                               "-n", str(self.spinNJobCV.value()),
-                               "-s", str(self.train_config['samples']),
-                               "--train_r", str(self.train_config['training_ratio'])]
+                if self.spinPCA.value() != 0:
+                    command.append("--pca")
+                    command.append(str(self.spinPCA.value()))
 
-                    if self.spinPCA.value() != 0:
-                        command.append("--pca")
-                        command.append(str(self.spinPCA.value()))
-
-                    if self.train_config['random_state'] is not None:
-                        command.append("--random_state")
-                        command.append(str(self.train_config['random_state']))
-
-                else:
-                    # Setting up parameters, remove parameters set as None
-                    parameters_dict = self.train_config['parameters']
-                    keys_to_remove = list()  # Create list of keys to remove, because dictionary must keep the same length
-                    for key in parameters_dict:
-                        if parameters_dict[key] is None:
-                            keys_to_remove.append(key)
-                    for key in keys_to_remove:
-                        parameters_dict.pop(key)
-                    parameters = str(parameters_dict).replace(' ', '')
-
-                    # Create command list to run cLASpy_T
-                    command = ["cLASpy_T.py", "train",
-                               "-a", self.algo,
-                               "-i", self.lineLocalFile.text(),
-                               "-o", self.lineLocalFolder.text(),
-                               "-f", features,
-                               "-p", parameters,
-                               "--scaler", self.comboScaler.currentText(),
-                               "--scoring", self.comboScorer.currentText(),
-                               "-n", str(self.spinNJobCV.value()),
-                               "-s", str(self.train_config['samples']),
-                               "--train_r", str(self.train_config['training_ratio'])]
-
-                    if self.spinPCA.value() != 0:
-                        command.append("--pca")
-                        command.append(str(self.spinPCA.value()))
-
-                    if self.train_config['random_state'] is not None:
-                        command.append("--random_state")
-                        command.append(str(self.train_config['random_state']))
-
-                    if self.train_config['png_features']:
-                        command.append('--png_features')
-
-                # Run training process
-                if self.process is None:
-                    self.process = QProcess()
-                    #self.process.setProcessChannelMode(QProcess.ForwardedChannels)
-                    self.process.readyReadStandardOutput.connect(self.handle_stdout)
-                    self.process.readyReadStandardError.connect(self.handle_stderr)
-                    self.process.stateChanged.connect(self.handle_state)
-                    self.process.finished.connect(self.process_finished)
-                    self.process.setProgram(self.pythonPath)
-                    self.process.setArguments(command)
-                    self.process.start()
-                    self.processPID = self.process.processId()
-                    self.buttonStop.setEnabled(True)
-                    self.buttonRunTrain.setEnabled(False)
+                if self.train_config['random_state'] is not None:
+                    command.append("--random_state")
+                    command.append(str(self.train_config['random_state']))
 
             else:
-                warning_box("No feature field selected!\nPlease select the features you need!",
-                            "No features selected")
+                # Setting up parameters, remove parameters set as None
+                parameters_dict = self.train_config['parameters']
+                keys_to_remove = list()  # Create list of keys to remove, because dictionary must keep the same length
+                for key in parameters_dict:
+                    if parameters_dict[key] is None:
+                        keys_to_remove.append(key)
+                for key in keys_to_remove:
+                    parameters_dict.pop(key)
+                parameters = str(parameters_dict).replace(' ', '')
 
-        else:
-            warning_box("Set python path through Edit > Options", "Python path not set")
+                # Create command list to run cLASpy_T
+                command = ["cLASpy_T.py", "train",
+                           "-a", self.algo,
+                           "-i", self.lineLocalFile.text(),
+                           "-o", self.lineLocalFolder.text(),
+                           "-f", features,
+                           "-p", parameters,
+                           "--scaler", self.comboScaler.currentText(),
+                           "--scoring", self.comboScorer.currentText(),
+                           "-n", str(self.spinNJobCV.value()),
+                           "-s", str(self.train_config['samples']),
+                           "--train_r", str(self.train_config['training_ratio'])]
+
+                if self.spinPCA.value() != 0:
+                    command.append("--pca")
+                    command.append(str(self.spinPCA.value()))
+
+                if self.train_config['random_state'] is not None:
+                    command.append("--random_state")
+                    command.append(str(self.train_config['random_state']))
+
+                if self.train_config['png_features']:
+                    command.append('--png_features')
+
+            # Run training process
+            if self.process is None:
+                self.buttonStop.setEnabled(True)
+                self.buttonRunTrain.setEnabled(False)
+                # proc = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+                # print('Run start')
+                # while proc.poll() is None:
+                #     print('Running')
+                #     data = proc.stdout.read(1024).decode(encoding='utf-8')
+                #     if len(data) == 0:
+                #         break
+                #     self.plainTextCommand.appendPlainText(data)
+                #
+                # self.buttonRunTrain.setEnabled(True)
+                # self.buttonStop.setEnabled(False)
+                self.process = QProcess()
+                self.process.setProcessChannelMode(QProcess.ForwardedChannels)
+                self.process.readyReadStandardOutput.connect(self.handle_stdout)
+                self.process.readyReadStandardError.connect(self.handle_stderr)
+                self.process.stateChanged.connect(self.handle_state)
+                self.process.finished.connect(self.process_finished)
+                self.process.setProgram(sys.executable)
+                self.process.setArguments(command)
+                self.process.start()
+                self.processPID = self.process.processId()
+
 
     def run_predict(self):
         self.check_model_features()  # Check if model and input file features match
@@ -3665,7 +3668,7 @@ class ClaspyGui(QMainWindow):
         if self.pythonPath != '':
 
             # Check if some features are selected
-            if self.selected_count > 0:
+            if self.sel_feat_count > 0:
                 features = str(self.segment_config['feature_names']).replace(' ', '')
 
                 # Setting up parameters, remove parameters set as None
@@ -3707,12 +3710,13 @@ class ClaspyGui(QMainWindow):
             warning_box("Set python path through Edit > Options", "Python path not set")
 
     def handle_stdout(self):
-        data = self.process.readAllStandardOutput()
-        stdout = bytes(data).decode('utf8')
-        progress = percent_parser(stdout)
-        if progress:
-            self.progressBar.setValue(progress)
-        self.plainTextCommand.appendPlainText(stdout)
+        pass
+        # data = self.process.readAllStandardOutput()
+        # stdout = bytes(data).decode('utf8')
+        # progress = percent_parser(stdout)
+        # if progress:
+        #     self.progressBar.setValue(progress)
+        # self.plainTextCommand.appendPlainText(stdout)
 
     def handle_stderr(self):
         data = self.process.readAllStandardError()

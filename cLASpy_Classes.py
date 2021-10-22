@@ -49,6 +49,8 @@ from sklearn.metrics import confusion_matrix, classification_report
 # -------------------------
 # ------ VARIABLES --------
 # -------------------------
+# Version of cLASpy_Core
+cLASpy_Core_version = '0.2.0'  # 0.2.0 version with classes
 
 # Define point_format dict for LAS files
 point_format = dict()
