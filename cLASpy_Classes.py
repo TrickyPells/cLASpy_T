@@ -50,9 +50,6 @@ from sklearn.metrics import confusion_matrix, classification_report
 # ------ VARIABLES --------
 # -------------------------
 
-# Version of the Core
-cLASpy_Core_version = '0.2.0'  # 0.2.0 : Version of cLASpy_Core with classes
-
 # Define point_format dict for LAS files
 point_format = dict()
 
@@ -240,10 +237,8 @@ class ClaspyTrainer:
         if self.parameters is not None:
             if isinstance(self.parameters, str):
                 self.parameters = yaml.safe_load(self.parameters)
-            elif isinstance(self.parameters, dict):
-                pass
             else:
-                raise TypeError("Classifier parameters must be a dictionary or a string describing a dictionary!")
+                self.parameters = self.parameters
 
         # Set the chosen learning classifier
         if self.algorithm == 'RandomForestClassifier':
@@ -797,14 +792,14 @@ class ClaspyTrainer:
 
         # Create Pipeline for GridSearchCV or simple CrossValidation
         if self.pca is not None:
-            if isinstance(self.pca, int) and self.pca != 0:
+            if isinstance(self.pca, int):
                 self.pca = PCA(n_components=self.pca)
                 self.pipeline = Pipeline([("scaler", self.scaler),
                                           ("pca", self.pca),
                                           ("classifier", self.classifier)])
             else:
                 self.pipeline = Pipeline([("scaler", self.scaler), ("classifier", self.classifier)])
-                scale_dataset_str += 'PCA type must be int > 0. PCA not set!'
+                scale_dataset_str += 'PCA must None or int type. PCA will not be set!'
         else:
             self.pipeline = Pipeline([("scaler", self.scaler), ("classifier", self.classifier)])
 

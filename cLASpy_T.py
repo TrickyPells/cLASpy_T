@@ -28,11 +28,14 @@
 # --- DEPENDENCIES ---
 # --------------------
 
+import os
+import yaml
+import joblib
 import json
 import argparse
 import textwrap
+from cLASpy_Classes import ClaspyTrainer, ClaspyPredicter, ClaspySegmenter
 
-from cLASpy_Classes import *
 
 # -------------------------
 # ------ VARIABLES --------
