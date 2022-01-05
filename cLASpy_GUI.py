@@ -29,12 +29,14 @@
 # --------------------
 
 import sys
+import io
 import re
 import json
 import time
 import psutil
 import subprocess
 
+from contextlib import redirect_stdout
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
@@ -307,10 +309,10 @@ class ClaspyGui(QMainWindow):
         try:
             with open("claspy_options.json", 'r') as options_file:
                 self.options_dict = json.load(options_file)
-                self.pythonPath = self.options_dict['python_path']
+                # self.pythonPath = self.options_dict['python_path']
                 self.WelcomeAgain = self.options_dict['welcome_window']
         except FileNotFoundError:
-            self.pythonPath = ''
+            # self.pythonPath = ''
             self.WelcomeAgain = True
 
         # Call the Welcome window
@@ -327,8 +329,39 @@ class ClaspyGui(QMainWindow):
         self.groupStandardLAS.setEnabled(False)
         self.groupStandardLAS.setVisible(False)
 
-        # Right part of GUI
-        self.command_part()
+        # Right part of GUI -----
+        # self.command_part()
+        self.plainTextCommand = QPlainTextEdit()
+        self.plainTextCommand.setReadOnly(True)
+        self.plainTextCommand.setStyleSheet(
+            """QPlainTextEdit {background-color: #333;
+                               color: #EEEEEE;}""")
+
+        # Save button
+        self.buttonSaveCommand = QPushButton("Save Command Output")
+        self.buttonSaveCommand.clicked.connect(self.save_output_command)
+
+        # Clear button
+        self.buttonClear = QPushButton("Clear")
+        self.buttonClear.clicked.connect(self.plainTextCommand.clear)
+
+        self.hLayoutSaveClear = QHBoxLayout()
+        self.hLayoutSaveClear.addWidget(self.buttonSaveCommand)
+        self.hLayoutSaveClear.addWidget(self.buttonClear)
+
+        # Progress bar
+        self.progressBar = QProgressBar()
+        self.progressBar.setMaximum(100)
+
+        # Fill layout of right part
+        self.vLayoutRight = QVBoxLayout()
+        self.vLayoutRight.addWidget(self.plainTextCommand)
+        self.vLayoutRight.addLayout(self.hLayoutSaveClear)
+        self.vLayoutRight.addWidget(self.progressBar)
+
+        self.groupCommand = QGroupBox("Command Output")
+        self.groupCommand.setLayout(self.vLayoutRight)
+        # ------ End of command part
 
         # Button box
         self.buttonBox = QDialogButtonBox(QDialogButtonBox.Close)
@@ -533,23 +566,23 @@ class ClaspyGui(QMainWindow):
         self.dialogOptions = QDialog()
 
         # Add lineEdit to set the python interpreter
-        self.labelPython = QLabel("Python path:")
-        self.linePython = QLineEdit()
-        self.linePython.setMinimumWidth(200)
-        if self.platform == 'Windows':
-            self.linePython.setPlaceholderText("Give 'python.exe' path")
-        else:
-            self.linePython.setPlaceholderText("Give python path")
-        if self.pythonPath != '':
-            self.linePython.setText(self.pythonPath)
+        # self.labelPython = QLabel("Python path:")
+        # self.linePython = QLineEdit()
+        # self.linePython.setMinimumWidth(200)
+        # if self.platform == 'Windows':
+        #     self.linePython.setPlaceholderText("Give 'python.exe' path")
+        # else:
+        #     self.linePython.setPlaceholderText("Give python path")
+        # if self.pythonPath != '':
+        #     self.linePython.setText(self.pythonPath)
 
-        self.toolButtonPython = QToolButton()
-        self.toolButtonPython.setText("Browse")
-        self.toolButtonPython.clicked.connect(self.find_python)
+        # self.toolButtonPython = QToolButton()
+        # self.toolButtonPython.setText("Browse")
+        # self.toolButtonPython.clicked.connect(self.find_python)
 
-        self.hLayoutPython = QHBoxLayout()
-        self.hLayoutPython.addWidget(self.linePython)
-        self.hLayoutPython.addWidget(self.toolButtonPython)
+        # self.hLayoutPython = QHBoxLayout()
+        # self.hLayoutPython.addWidget(self.linePython)
+        # self.hLayoutPython.addWidget(self.toolButtonPython)
 
         # CheckBox Welcome Window
         check_welcome_window = QCheckBox('Do not show the welcome window again !')
@@ -566,7 +599,7 @@ class ClaspyGui(QMainWindow):
         self.buttonOptionsBox.rejected.connect(self.dialogOptions.reject)
 
         self.formLayoutOptions = QFormLayout(self.dialogOptions)
-        self.formLayoutOptions.addRow(self.labelPython, self.hLayoutPython)
+        # self.formLayoutOptions.addRow(self.labelPython, self.hLayoutPython)
         self.formLayoutOptions.addRow(QLabel('Welcome window: '), check_welcome_window)
         self.formLayoutOptions.addRow(self.buttonOptionsBox)
 
@@ -574,20 +607,20 @@ class ClaspyGui(QMainWindow):
         self.setWindowModality(Qt.ApplicationModal)
         self.dialogOptions.exec_()
 
-    def find_python(self):
-        if self.platform == 'Windows':
-            python_exe = QFileDialog.getOpenFileName(self, 'Select \'python.exe\'',
-                                                     '', "Executables (*.exe);;")
-        else:
-            python_exe = QFileDialog.getOpenFileName(self, 'Select python interpreter')
-
-        if python_exe[0] != '':
-            self.linePython.setText(os.path.normpath(python_exe[0]))
+    # def find_python(self):
+    #     if self.platform == 'Windows':
+    #         python_exe = QFileDialog.getOpenFileName(self, 'Select \'python.exe\'',
+    #                                                  '', "Executables (*.exe);;")
+    #     else:
+    #         python_exe = QFileDialog.getOpenFileName(self, 'Select python interpreter')
+    #
+    #     if python_exe[0] != '':
+    #         self.linePython.setText(os.path.normpath(python_exe[0]))
 
     def save_options(self):
-        self.pythonPath = self.linePython.text()
-        self.options_dict['python_path'] = self.pythonPath
-        self.statusBar.showMessage("Python path: {}".format(self.pythonPath), 3000)
+        # self.pythonPath = self.linePython.text()
+        # self.options_dict['python_path'] = self.pythonPath
+        # self.statusBar.showMessage("Python path: {}".format(self.pythonPath), 3000)
 
         self.options_dict['welcome_window'] = self.WelcomeAgain
         with open("claspy_options.json", 'w') as options_file:
@@ -596,10 +629,11 @@ class ClaspyGui(QMainWindow):
     def save_close_options(self):
         # call save_otpion()
         self.save_options()
+        self.dialogOptions.close()
 
-        # and close dialog
-        if self.linePython.text() != '':
-            self.dialogOptions.close()
+        # # and close dialog
+        # if self.linePython.text() != '':
+        #     self.dialogOptions.close()
 
     # Parameter part
     def parameter_part(self):
@@ -3489,40 +3523,40 @@ class ClaspyGui(QMainWindow):
                         "No selected features")
 
     # Command and Run
-    def command_part(self):
-        """
-        Give the command part of the GUI.
-        """
-        self.plainTextCommand = QPlainTextEdit()
-        self.plainTextCommand.setReadOnly(True)
-        self.plainTextCommand.setStyleSheet(
-            """QPlainTextEdit {background-color: #333;
-                               color: #EEEEEE;}""")
-
-        # Save button
-        self.buttonSaveCommand = QPushButton("Save Command Output")
-        self.buttonSaveCommand.clicked.connect(self.save_output_command)
-
-        # Clear button
-        self.buttonClear = QPushButton("Clear")
-        self.buttonClear.clicked.connect(self.plainTextCommand.clear)
-
-        self.hLayoutSaveClear = QHBoxLayout()
-        self.hLayoutSaveClear.addWidget(self.buttonSaveCommand)
-        self.hLayoutSaveClear.addWidget(self.buttonClear)
-
-        # Progress bar
-        self.progressBar = QProgressBar()
-        self.progressBar.setMaximum(100)
-
-        # Fill layout of right part
-        self.vLayoutRight = QVBoxLayout()
-        self.vLayoutRight.addWidget(self.plainTextCommand)
-        self.vLayoutRight.addLayout(self.hLayoutSaveClear)
-        self.vLayoutRight.addWidget(self.progressBar)
-
-        self.groupCommand = QGroupBox("Command Output")
-        self.groupCommand.setLayout(self.vLayoutRight)
+    # def command_part(self):
+    #     """
+    #     Give the command part of the GUI.
+    #     """
+    #     self.plainTextCommand = QPlainTextEdit()
+    #     self.plainTextCommand.setReadOnly(True)
+    #     self.plainTextCommand.setStyleSheet(
+    #         """QPlainTextEdit {background-color: #333;
+    #                            color: #EEEEEE;}""")
+    #
+    #     # Save button
+    #     self.buttonSaveCommand = QPushButton("Save Command Output")
+    #     self.buttonSaveCommand.clicked.connect(self.save_output_command)
+    #
+    #     # Clear button
+    #     self.buttonClear = QPushButton("Clear")
+    #     self.buttonClear.clicked.connect(self.plainTextCommand.clear)
+    #
+    #     self.hLayoutSaveClear = QHBoxLayout()
+    #     self.hLayoutSaveClear.addWidget(self.buttonSaveCommand)
+    #     self.hLayoutSaveClear.addWidget(self.buttonClear)
+    #
+    #     # Progress bar
+    #     self.progressBar = QProgressBar()
+    #     self.progressBar.setMaximum(100)
+    #
+    #     # Fill layout of right part
+    #     self.vLayoutRight = QVBoxLayout()
+    #     self.vLayoutRight.addWidget(self.plainTextCommand)
+    #     self.vLayoutRight.addLayout(self.hLayoutSaveClear)
+    #     self.vLayoutRight.addWidget(self.progressBar)
+    #
+    #     self.groupCommand = QGroupBox("Command Output")
+    #     self.groupCommand.setLayout(self.vLayoutRight)
 
     def save_output_command(self):
         """
@@ -3609,6 +3643,7 @@ class ClaspyGui(QMainWindow):
 
             # Run training process
             if self.process is None:
+                self.plainTextCommand.appendPlainText("Start running!\n")
                 self.buttonStop.setEnabled(True)
                 self.buttonRunTrain.setEnabled(False)
                 # proc = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
@@ -3623,6 +3658,7 @@ class ClaspyGui(QMainWindow):
                 # self.buttonRunTrain.setEnabled(True)
                 # self.buttonStop.setEnabled(False)
                 self.process = QProcess()
+                # self.process.setProcessChannelMode(QProcess.MergedChannels)
                 self.process.setProcessChannelMode(QProcess.ForwardedChannels)
                 self.process.readyReadStandardOutput.connect(self.handle_stdout)
                 self.process.readyReadStandardError.connect(self.handle_stderr)
@@ -3713,10 +3749,10 @@ class ClaspyGui(QMainWindow):
         pass
         # data = self.process.readAllStandardOutput()
         # stdout = bytes(data).decode('utf8')
+        # self.plainTextCommand.appendPlainText(stdout)
         # progress = percent_parser(stdout)
         # if progress:
         #     self.progressBar.setValue(progress)
-        # self.plainTextCommand.appendPlainText(stdout)
 
     def handle_stderr(self):
         data = self.process.readAllStandardError()
