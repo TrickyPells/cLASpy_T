@@ -35,6 +35,7 @@ import json
 import time
 import psutil
 import subprocess
+import traceback
 
 from contextlib import redirect_stdout
 from PyQt5.QtCore import *
@@ -279,6 +280,67 @@ class QVLine(QFrame):
         self.setFrameShadow(QFrame.Sunken)
 
 
+class WorkerSignals(QObject):
+    """
+    Defines the signals available from a running worker thread.
+    Supported signals are:
+    finished
+        No data
+    error
+        tuple (exctype, value, traceback.format_exc() )
+    result
+        object data returned from processing, anything
+    progress
+        int indicating % progress
+    """
+    finished = pyqtSignal()
+    error = pyqtSignal(tuple)
+    result = pyqtSignal(object)
+    progress = pyqtSignal(int)
+
+
+class Worker(QRunnable):
+    """
+    Worker thread
+    Inherits from QRunnable to handler worker thread setup, signals and wrap-up.
+    :param callback: The function callback to run on this worker thread. Supplied args and
+                     kwargs will be passed through to the runner.
+    :type callback: function
+    :param args: Arguments to pass to the callback function
+    :param kwargs: Keywords to pass to the callback function
+    """
+
+    def __init__(self, fn, *args, **kwargs):
+        super(Worker, self).__init__()
+
+        # Store constructor arguments (re-used for processing)
+        self.fn = fn
+        self.args = args
+        self.kwargs = kwargs
+        self.signals = WorkerSignals()
+
+        # Add the callback to our kwargs
+        self.kwargs['progress_callback'] = self.signals.progress
+
+    @pyqtSlot()
+    def run(self):
+        """
+        Initialise the runner function with passed args, kwargs.
+        """
+
+        # Retrieve args/kwargs here; and fire processing using them
+        try:
+            result = self.fn(*self.args, **self.kwargs)
+        except:
+            traceback.print_exc()
+            exctype, value = sys.exc_info()[:2]
+            self.signals.error.emit((exctype, value, traceback.format_exc()))
+        else:
+            self.signals.result.emit(result)  # Return the result of the processing
+        finally:
+            self.signals.finished.emit()  # Done
+
+
 class ClaspyGui(QMainWindow):
     def __init__(self, parent=None):
         super(ClaspyGui, self).__init__(parent)
@@ -330,38 +392,40 @@ class ClaspyGui(QMainWindow):
         self.groupStandardLAS.setVisible(False)
 
         # Right part of GUI -----
-        # self.command_part()
-        self.plainTextCommand = QPlainTextEdit()
-        self.plainTextCommand.setReadOnly(True)
-        self.plainTextCommand.setStyleSheet(
-            """QPlainTextEdit {background-color: #333;
-                               color: #EEEEEE;}""")
+        self.command_part()
+        self.threadpool = QThreadPool()
 
-        # Save button
-        self.buttonSaveCommand = QPushButton("Save Command Output")
-        self.buttonSaveCommand.clicked.connect(self.save_output_command)
-
-        # Clear button
-        self.buttonClear = QPushButton("Clear")
-        self.buttonClear.clicked.connect(self.plainTextCommand.clear)
-
-        self.hLayoutSaveClear = QHBoxLayout()
-        self.hLayoutSaveClear.addWidget(self.buttonSaveCommand)
-        self.hLayoutSaveClear.addWidget(self.buttonClear)
-
-        # Progress bar
-        self.progressBar = QProgressBar()
-        self.progressBar.setMaximum(100)
-
-        # Fill layout of right part
-        self.vLayoutRight = QVBoxLayout()
-        self.vLayoutRight.addWidget(self.plainTextCommand)
-        self.vLayoutRight.addLayout(self.hLayoutSaveClear)
-        self.vLayoutRight.addWidget(self.progressBar)
-
-        self.groupCommand = QGroupBox("Command Output")
-        self.groupCommand.setLayout(self.vLayoutRight)
-        # ------ End of command part
+        # self.plainTextCommand = QPlainTextEdit()
+        # self.plainTextCommand.setReadOnly(True)
+        # self.plainTextCommand.setStyleSheet(
+        #     """QPlainTextEdit {background-color: #333;
+        #                        color: #EEEEEE;}""")
+        #
+        # # Save button
+        # self.buttonSaveCommand = QPushButton("Save Command Output")
+        # self.buttonSaveCommand.clicked.connect(self.save_output_command)
+        #
+        # # Clear button
+        # self.buttonClear = QPushButton("Clear")
+        # self.buttonClear.clicked.connect(self.plainTextCommand.clear)
+        #
+        # self.hLayoutSaveClear = QHBoxLayout()
+        # self.hLayoutSaveClear.addWidget(self.buttonSaveCommand)
+        # self.hLayoutSaveClear.addWidget(self.buttonClear)
+        #
+        # # Progress bar
+        # self.progressBar = QProgressBar()
+        # self.progressBar.setMaximum(100)
+        #
+        # # Fill layout of right part
+        # self.vLayoutRight = QVBoxLayout()
+        # self.vLayoutRight.addWidget(self.plainTextCommand)
+        # self.vLayoutRight.addLayout(self.hLayoutSaveClear)
+        # self.vLayoutRight.addWidget(self.progressBar)
+        #
+        # self.groupCommand = QGroupBox("Command Output")
+        # self.groupCommand.setLayout(self.vLayoutRight)
+        # # ------ End of command part
 
         # Button box
         self.buttonBox = QDialogButtonBox(QDialogButtonBox.Close)
@@ -3523,40 +3587,40 @@ class ClaspyGui(QMainWindow):
                         "No selected features")
 
     # Command and Run
-    # def command_part(self):
-    #     """
-    #     Give the command part of the GUI.
-    #     """
-    #     self.plainTextCommand = QPlainTextEdit()
-    #     self.plainTextCommand.setReadOnly(True)
-    #     self.plainTextCommand.setStyleSheet(
-    #         """QPlainTextEdit {background-color: #333;
-    #                            color: #EEEEEE;}""")
-    #
-    #     # Save button
-    #     self.buttonSaveCommand = QPushButton("Save Command Output")
-    #     self.buttonSaveCommand.clicked.connect(self.save_output_command)
-    #
-    #     # Clear button
-    #     self.buttonClear = QPushButton("Clear")
-    #     self.buttonClear.clicked.connect(self.plainTextCommand.clear)
-    #
-    #     self.hLayoutSaveClear = QHBoxLayout()
-    #     self.hLayoutSaveClear.addWidget(self.buttonSaveCommand)
-    #     self.hLayoutSaveClear.addWidget(self.buttonClear)
-    #
-    #     # Progress bar
-    #     self.progressBar = QProgressBar()
-    #     self.progressBar.setMaximum(100)
-    #
-    #     # Fill layout of right part
-    #     self.vLayoutRight = QVBoxLayout()
-    #     self.vLayoutRight.addWidget(self.plainTextCommand)
-    #     self.vLayoutRight.addLayout(self.hLayoutSaveClear)
-    #     self.vLayoutRight.addWidget(self.progressBar)
-    #
-    #     self.groupCommand = QGroupBox("Command Output")
-    #     self.groupCommand.setLayout(self.vLayoutRight)
+    def command_part(self):
+        """
+        Give the command part of the GUI.
+        """
+        self.plainTextCommand = QPlainTextEdit()
+        self.plainTextCommand.setReadOnly(True)
+        self.plainTextCommand.setStyleSheet(
+            """QPlainTextEdit {background-color: #333;
+                               color: #EEEEEE;}""")
+
+        # Save button
+        self.buttonSaveCommand = QPushButton("Save Command Output")
+        self.buttonSaveCommand.clicked.connect(self.save_output_command)
+
+        # Clear button
+        self.buttonClear = QPushButton("Clear")
+        self.buttonClear.clicked.connect(self.plainTextCommand.clear)
+
+        self.hLayoutSaveClear = QHBoxLayout()
+        self.hLayoutSaveClear.addWidget(self.buttonSaveCommand)
+        self.hLayoutSaveClear.addWidget(self.buttonClear)
+
+        # Progress bar
+        self.progressBar = QProgressBar()
+        self.progressBar.setMaximum(100)
+
+        # Fill layout of right part
+        self.vLayoutRight = QVBoxLayout()
+        self.vLayoutRight.addWidget(self.plainTextCommand)
+        self.vLayoutRight.addLayout(self.hLayoutSaveClear)
+        self.vLayoutRight.addWidget(self.progressBar)
+
+        self.groupCommand = QGroupBox("Command Output")
+        self.groupCommand.setLayout(self.vLayoutRight)
 
     def save_output_command(self):
         """
@@ -3570,105 +3634,151 @@ class ClaspyGui(QMainWindow):
             with open(cmd_output_file[0], 'w') as text_file:
                 text_file.write(cmd_output)
 
+    def message(self, s):
+        """
+        Print message 's' in the plainTextCommand (QPlainTextEdit())
+        :param s: the message to print into plainTextCommand
+        """
+        self.plainTextCommand.appendPlainText(s)
+
+    def print_output(self, s):
+        self.message(s)
+
+    def update_progress(self, n):
+        """Update progressBar according given percent as integer"""
+        self.progressBar.setValue(n)
+
     def run_train(self):
+        # Update training configuration
         self.update_config()
 
-        # Check if some features are selected  and hidden_layer_sizes exist
-        if self.sel_feat_count <=0:
+        # Check if some features are selected
+        if self.sel_feat_count <= 0:
             warning_box("No feature field selected!\nPlease select the features you need!",
                         "No features selected")
         else:
-            features = str(self.train_config['feature_names']).replace(' ', '')
+            # Pass the function to execute
+            worker = Worker(self.train)
+            worker.signals.result.connect(self.print_output)
+            worker.signals.finished.connect(self.thread_complete)
+            worker.signals.progress.connect(self.update_progress)
 
-            # Train with GridSearchCV or not
-            if self.train_config['grid_search']:
-                # Setting up grid_parameters
-                grid_parameters = str(self.train_config['param_grid'])
+            # Execute
+            self.threadpool.start(worker)
 
-                # Create command list to run cLASpy_T
-                command = ["cLASpy_T.py", "train",
-                           "-a", self.algo,
-                           "-i", self.lineLocalFile.text(),
-                           "-o", self.lineLocalFolder.text(),
-                           "-f", features,
-                           "-g", "-k", grid_parameters,
-                           "--scaler", self.comboScaler.currentText(),
-                           "--scoring", self.comboScorer.currentText(),
-                           "-n", str(self.spinNJobCV.value()),
-                           "-s", str(self.train_config['samples']),
-                           "--train_r", str(self.train_config['training_ratio'])]
+    def train(self, progress_callback):
+        # Remove space in features
+        features = str(self.train_config['feature_names']).replace(' ', '')
 
-                if self.spinPCA.value() != 0:
-                    command.append("--pca")
-                    command.append(str(self.spinPCA.value()))
+        self.message("\n# # # # # # # # # #  cLASpy_T  # # # # # # # # # # # #"
+                     "\n - - - - - - - - - - - -    TRAIN MODE   - - - - - - - - - - - - - -"
+                     "\n * * * * * * * *    Point Cloud Classification   * * * * * * * * *\n")
 
-                if self.train_config['random_state'] is not None:
-                    command.append("--random_state")
-                    command.append(str(self.train_config['random_state']))
+        # Train with GridSearchCV or not
+        if self.train_config['grid_search']:
+            # Setting up grid_parameters
+            grid_parameters = str(self.train_config['param_grid'])
 
-            else:
-                # Setting up parameters, remove parameters set as None
-                parameters_dict = self.train_config['parameters']
-                keys_to_remove = list()  # Create list of keys to remove, because dictionary must keep the same length
-                for key in parameters_dict:
-                    if parameters_dict[key] is None:
-                        keys_to_remove.append(key)
-                for key in keys_to_remove:
-                    parameters_dict.pop(key)
-                parameters = str(parameters_dict).replace(' ', '')
+            # Set the classifier
+            trainer = ClaspyTrainer(input_data=self.lineLocalFile.text(),
+                                    output_data=self.lineLocalFolder.text(),
+                                    algo=self.algo,
+                                    algorithm=None,
+                                    features=features,
+                                    grid_search=True,
+                                    grid_param=grid_parameters,
+                                    pca=self.spinPCA.value(),
+                                    n_jobs=self.spinNJobCV.value(),
+                                    random_state=self.train_config['random_state'],
+                                    samples=self.train_config['samples'],
+                                    scaler=self.comboScaler.currentText(),
+                                    scoring=self.comboScorer.currentText(),
+                                    train_ratio=self.train_config['training_ratio'])
 
-                # Create command list to run cLASpy_T
-                command = ["cLASpy_T.py", "train",
-                           "-a", self.algo,
-                           "-i", self.lineLocalFile.text(),
-                           "-o", self.lineLocalFolder.text(),
-                           "-f", features,
-                           "-p", parameters,
-                           "--scaler", self.comboScaler.currentText(),
-                           "--scoring", self.comboScorer.currentText(),
-                           "-n", str(self.spinNJobCV.value()),
-                           "-s", str(self.train_config['samples']),
-                           "--train_r", str(self.train_config['training_ratio'])]
+        else:
+            # Setting up parameters, remove parameters set as None
+            parameters_dict = self.train_config['parameters']
+            keys_to_remove = list()  # Create list of keys to remove, because dictionary must keep the same length
+            for key in parameters_dict:
+                if parameters_dict[key] is None:
+                    keys_to_remove.append(key)
+            for key in keys_to_remove:
+                parameters_dict.pop(key)
+            parameters = str(parameters_dict).replace(' ', '')
 
-                if self.spinPCA.value() != 0:
-                    command.append("--pca")
-                    command.append(str(self.spinPCA.value()))
+            # Set the classifier
+            trainer = ClaspyTrainer(input_data=self.lineLocalFile.text(),
+                                    output_data=self.lineLocalFolder.text(),
+                                    algo=self.algo,
+                                    algorithm=None,
+                                    parameters=parameters,
+                                    features=features,
+                                    pca=self.spinPCA.value(),
+                                    n_jobs=self.spinNJobCV.value(),
+                                    random_state=self.train_config['random_state'],
+                                    samples=self.train_config['samples'],
+                                    scaler=self.comboScaler.currentText(),
+                                    scoring=self.comboScorer.currentText(),
+                                    train_ratio=self.train_config['training_ratio'],
+                                    png_features=self.train_config['png_features'])
 
-                if self.train_config['random_state'] is not None:
-                    command.append("--random_state")
-                    command.append(str(self.train_config['random_state']))
+        # Set the classifier according parameters
+        trainer.set_classifier()
 
-                if self.train_config['png_features']:
-                    command.append('--png_features')
+        # Introduction
+        intro = trainer.introduction(verbose=True)
+        self.message(intro)
+        progress_callback.emit(int(0 * 100 / 7))
 
-            # Run training process
-            if self.process is None:
-                self.plainTextCommand.appendPlainText("Start running!\n")
-                self.buttonStop.setEnabled(True)
-                self.buttonRunTrain.setEnabled(False)
-                # proc = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-                # print('Run start')
-                # while proc.poll() is None:
-                #     print('Running')
-                #     data = proc.stdout.read(1024).decode(encoding='utf-8')
-                #     if len(data) == 0:
-                #         break
-                #     self.plainTextCommand.appendPlainText(data)
-                #
-                # self.buttonRunTrain.setEnabled(True)
-                # self.buttonStop.setEnabled(False)
-                self.process = QProcess()
-                # self.process.setProcessChannelMode(QProcess.MergedChannels)
-                self.process.setProcessChannelMode(QProcess.ForwardedChannels)
-                self.process.readyReadStandardOutput.connect(self.handle_stdout)
-                self.process.readyReadStandardError.connect(self.handle_stderr)
-                self.process.stateChanged.connect(self.handle_state)
-                self.process.finished.connect(self.process_finished)
-                self.process.setProgram(sys.executable)
-                self.process.setArguments(command)
-                self.process.start()
-                self.processPID = self.process.processId()
+        # Part 1/7 - Format dataset
+        self.message("\nStep 1/7: Formatting data as pandas.DataFrame...")
+        step1 = trainer.format_dataset(verbose=True)
+        self.message(step1)
+        progress_callback.emit(int(1 * 100 / 7))
 
+        # Part 2/7 - Split data into training and testing sets
+        self.message("\nStep 2/7: Splitting data in train and test sets...")
+        step2 = trainer.split_dataset(verbose=True)
+        self.message(step2)
+        progress_callback.emit(int(2 * 100 / 7))
+
+        # Part 3/7 - Scale dataset as 'Standard', 'Robust' or 'MinMaxScaler'
+        self.message("\nStep 3/7: Scaling data...")
+        step3 = trainer.set_scaler_pca(verbose=True)
+        self.message(step3)
+        progress_callback.emit(int(3 * 100 / 7))
+
+        # Part 4/7 - Train model
+        if trainer.grid_search:  # Training with GridSearchCV
+            self.message('\nStep 4/7: Training model with GridSearchCV...\n')
+        else:  # Training with Cross Validation
+            self.message("\nStep 4/7: Training model with cross validation...\n")
+
+        step4 = trainer.train_model(verbose=True)  # Perform both training
+        self.message(step4)
+        progress_callback.emit(int(4 * 100 / 7))
+
+        # Part 5/7 - Create confusion matrix
+        self.message("\nStep 5/7: Creating confusion matrix...")
+        step5 = trainer.confusion_matrix(verbose=True)
+        self.message(step5)
+        progress_callback.emit(int(5 * 100 / 7))
+
+        # Part 6/7 - Save algorithm, model, scaler, pca and feature_names
+        self.message("\nStep 6/7: Saving model and scaler in file:")
+        step6 = trainer.save_model(verbose=True)
+        self.message(step6)
+        progress_callback.emit(int(6 * 100 / 7))
+
+        # Part 7/7 - Create and save prediction report
+        self.message("\nStep 7/7: Creating classification report:")
+        self.message(trainer.report_filename + '.txt')
+        step7 = trainer.classification_report(verbose=True)
+        self.message(step7)
+        progress_callback.emit(int(7 * 100 / 7))
+
+        # Kill the remaining python interpreter (1+18)
+        return "Training done!"
 
     def run_predict(self):
         self.check_model_features()  # Check if model and input file features match
@@ -3687,7 +3797,7 @@ class ClaspyGui(QMainWindow):
                     self.process.readyReadStandardOutput.connect(self.handle_stdout)
                     self.process.readyReadStandardError.connect(self.handle_stderr)
                     self.process.stateChanged.connect(self.handle_state)
-                    self.process.finished.connect(self.process_finished)
+                    self.process.finished.connect(self.thread_complete)
                     self.process.setProgram(self.pythonPath)
                     self.process.setArguments(command)
                     self.process.start()
@@ -3731,7 +3841,7 @@ class ClaspyGui(QMainWindow):
                     self.process.readyReadStandardOutput.connect(self.handle_stdout)
                     self.process.readyReadStandardError.connect(self.handle_stderr)
                     self.process.stateChanged.connect(self.handle_state)
-                    self.process.finished.connect(self.process_finished)
+                    self.process.finished.connect(self.thread_complete)
                     self.process.setProgram(self.pythonPath)
                     self.process.setArguments(command)
                     self.process.start()
@@ -3746,13 +3856,12 @@ class ClaspyGui(QMainWindow):
             warning_box("Set python path through Edit > Options", "Python path not set")
 
     def handle_stdout(self):
-        pass
-        # data = self.process.readAllStandardOutput()
-        # stdout = bytes(data).decode('utf8')
-        # self.plainTextCommand.appendPlainText(stdout)
-        # progress = percent_parser(stdout)
-        # if progress:
-        #     self.progressBar.setValue(progress)
+        data = self.process.readAllStandardOutput()
+        stdout = bytes(data).decode('utf8')
+        self.plainTextCommand.appendPlainText(stdout)
+        progress = percent_parser(stdout)
+        if progress:
+            self.progressBar.setValue(progress)
 
     def handle_stderr(self):
         data = self.process.readAllStandardError()
@@ -3767,8 +3876,9 @@ class ClaspyGui(QMainWindow):
         state_name = states[state]
         self.statusBar.showMessage("cLASpy_T is {}".format(state_name), 3000)
 
-    def process_finished(self):
+    def thread_complete(self):
         self.statusBar.showMessage("cLASpy_T finished !", 5000)
+        self.threadpool.releaseThread()
         self.process = None
         self.progressBar.reset()
         self.enable_open_results()

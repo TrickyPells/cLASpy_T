@@ -99,7 +99,7 @@ class ClaspyTrainer:
     def __init__(self, input_data, output_data=None, algo=None, algorithm=None,
                  parameters=None, features=None, grid_search=False, grid_param=None,
                  pca=None, n_jobs=-1, random_state=0, samples=None, scaler='Standard',
-                 scoring='accuracy', train_ratio=0.5, png_features=True):
+                 scoring='accuracy', train_ratio=0.5, png_features=False):
         """Initialize cLASpy_Trainer object"""
 
         # Set variables
@@ -793,6 +793,9 @@ class ClaspyTrainer:
                                  "Replaced by 'StandardScaler' method.\n".format(str(self.scaler_method))
 
         # Create Pipeline for GridSearchCV or simple CrossValidation
+        if self.pca == 0:
+            self.pca = None
+
         if self.pca is not None:
             if isinstance(self.pca, int):
                 self.pca = PCA(n_components=self.pca)

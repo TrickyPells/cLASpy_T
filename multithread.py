@@ -200,7 +200,7 @@ class MainWindow(QMainWindow):
         self.threadpool.start(worker)
 
     def recurring_timer(self):
-        self.counter +=1
+        self.counter += 1
         self.l.setText("Counter: %d" % self.counter)
 
 
