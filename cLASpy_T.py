@@ -513,7 +513,8 @@ def predict(arguments):
 
     # Scale the dataset as 'Standard', 'Robust' or 'MinMaxScaler'
     print("\nStep 3/6: Scaling data...")
-    predicter.scale_dataset()
+    step3 = predicter.scale_dataset(verbose=True)
+    print(step3)
 
     # Predic target of input data
     print("\nStep 4/6: Making predictions for entire dataset...")

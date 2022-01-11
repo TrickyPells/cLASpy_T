@@ -99,7 +99,7 @@ class ClaspyTrainer:
     def __init__(self, input_data, output_data=None, algo=None, algorithm=None,
                  parameters=None, features=None, grid_search=False, grid_param=None,
                  pca=None, n_jobs=-1, random_state=0, samples=None, scaler='Standard',
-                 scoring='accuracy', train_ratio=0.5, png_features=True):
+                 scoring='accuracy', train_ratio=0.5, png_features=False):
         """Initialize cLASpy_Trainer object"""
 
         # Set variables
@@ -239,8 +239,10 @@ class ClaspyTrainer:
         if self.parameters is not None:
             if isinstance(self.parameters, str):
                 self.parameters = yaml.safe_load(self.parameters)
-            else:
+            elif isinstance(self.parameters, dict):
                 self.parameters = self.parameters
+            else:
+                raise TypeError("Algorithm parameters must be dict or string type!")
 
         # Set the chosen learning classifier
         if self.algorithm == 'RandomForestClassifier':
@@ -793,6 +795,9 @@ class ClaspyTrainer:
                                  "Replaced by 'StandardScaler' method.\n".format(str(self.scaler_method))
 
         # Create Pipeline for GridSearchCV or simple CrossValidation
+        if self.pca == 0:
+            self.pca = None
+
         if self.pca is not None:
             if isinstance(self.pca, int):
                 self.pca = PCA(n_components=self.pca)
@@ -1059,8 +1064,11 @@ class ClaspyPredicter(ClaspyTrainer):
         if verbose:
             return load_model_str
 
-    def scale_dataset(self):
+    def scale_dataset(self, verbose=True):
         """Scale dataset according the scaler and PCA retrieved"""
+        # Set string for scale_dataset$
+        scale_str = "\n"
+
         # Transform data according scaler
         self.data = self.scaler.transform(self.data)
         self.data = pd.DataFrame.from_records(self.data, columns=self.features)
@@ -1070,8 +1078,14 @@ class ClaspyPredicter(ClaspyTrainer):
             self.data = self.pca.transform(self.data)
             self.data = pd.DataFrame.from_records(self.data, columns=self.pca.components_)
             self.pca_compo = np.array2string(self.pca.components_)
+            scale_str += "Scale dataset with Scaler and PCA transforms\n"
         else:
             self.pca_compo = None
+            scale_str += "Scale dataset with Scaler transform\n"
+
+        # return verbose
+        if verbose:
+            return scale_str
 
     def predict(self, verbose=True):
         """Make predictions on the scaled data"""
