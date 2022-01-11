@@ -239,8 +239,10 @@ class ClaspyTrainer:
         if self.parameters is not None:
             if isinstance(self.parameters, str):
                 self.parameters = yaml.safe_load(self.parameters)
-            else:
+            elif isinstance(self.parameters, dict):
                 self.parameters = self.parameters
+            else:
+                raise TypeError("Algorithm parameters must be dict or string type!")
 
         # Set the chosen learning classifier
         if self.algorithm == 'RandomForestClassifier':
@@ -1062,8 +1064,11 @@ class ClaspyPredicter(ClaspyTrainer):
         if verbose:
             return load_model_str
 
-    def scale_dataset(self):
+    def scale_dataset(self, verbose=True):
         """Scale dataset according the scaler and PCA retrieved"""
+        # Set string for scale_dataset$
+        scale_str = "\n"
+
         # Transform data according scaler
         self.data = self.scaler.transform(self.data)
         self.data = pd.DataFrame.from_records(self.data, columns=self.features)
@@ -1073,8 +1078,14 @@ class ClaspyPredicter(ClaspyTrainer):
             self.data = self.pca.transform(self.data)
             self.data = pd.DataFrame.from_records(self.data, columns=self.pca.components_)
             self.pca_compo = np.array2string(self.pca.components_)
+            scale_str += "Scale dataset with Scaler and PCA transforms\n"
         else:
             self.pca_compo = None
+            scale_str += "Scale dataset with Scaler transform\n"
+
+        # return verbose
+        if verbose:
+            return scale_str
 
     def predict(self, verbose=True):
         """Make predictions on the scaled data"""
