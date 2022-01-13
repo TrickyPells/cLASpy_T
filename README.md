@@ -117,7 +117,7 @@ X,Y,Z,Target,Intensity,Red,Green,Blue,Roughness (5),Omnivariance (5),Sphericity 
 * Target field named **'target'** (not case-sensitive), contains the labels as integer.
 * Fields of the data features that describe each point.
 
-If X, Y and/or Z fields are provided, **they are excluded for training**, but re-used to write the output file.
+If X, Y and/or Z fields provided, **they are excluded for training**, but re-used to write the output file.
 
 To use **'Intensity'** field from LAS file, rename it as, for example, **'Original_Intensity'** or **'Amplitude'**.
 
