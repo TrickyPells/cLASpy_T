@@ -32,6 +32,7 @@ import sys
 import io
 import re
 import json
+import threading
 import time
 import psutil
 import subprocess
@@ -312,6 +313,7 @@ class Worker(QRunnable):
 
     def __init__(self, fn, *args, **kwargs):
         super(Worker, self).__init__()
+        self._stop_event = threading.Event()
 
         # Store constructor arguments (re-used for processing)
         self.fn = fn
@@ -339,6 +341,13 @@ class Worker(QRunnable):
             self.signals.result.emit(result)  # Return the result of the processing
         finally:
             self.signals.finished.emit()  # Done
+
+    def stop(self):
+        self._stop_event.set()
+        return "Stopping thread..."
+
+    def stopped(self):
+        return self._stop_event.is_set()
 
 
 class ClaspyGui(QMainWindow):
@@ -410,7 +419,7 @@ class ClaspyGui(QMainWindow):
         self.buttonRunSegment.clicked.connect(self.run_segment)
         self.buttonBox.addButton(self.buttonRunSegment, QDialogButtonBox.ActionRole)
         self.buttonStop = QPushButton("Stop")
-        self.buttonStop.clicked.connect(self.stop_process)
+        self.buttonStop.clicked.connect(self.stop_thread)
         self.buttonStop.setEnabled(False)
         self.buttonBox.addButton(self.buttonStop, QDialogButtonBox.ActionRole)
         self.buttonRunPredict.setVisible(False)
@@ -598,25 +607,6 @@ class ClaspyGui(QMainWindow):
     def options(self):
         self.dialogOptions = QDialog()
 
-        # Add lineEdit to set the python interpreter
-        # self.labelPython = QLabel("Python path:")
-        # self.linePython = QLineEdit()
-        # self.linePython.setMinimumWidth(200)
-        # if self.platform == 'Windows':
-        #     self.linePython.setPlaceholderText("Give 'python.exe' path")
-        # else:
-        #     self.linePython.setPlaceholderText("Give python path")
-        # if self.pythonPath != '':
-        #     self.linePython.setText(self.pythonPath)
-
-        # self.toolButtonPython = QToolButton()
-        # self.toolButtonPython.setText("Browse")
-        # self.toolButtonPython.clicked.connect(self.find_python)
-
-        # self.hLayoutPython = QHBoxLayout()
-        # self.hLayoutPython.addWidget(self.linePython)
-        # self.hLayoutPython.addWidget(self.toolButtonPython)
-
         # CheckBox Welcome Window
         check_welcome_window = QCheckBox('Do not show the welcome window again !')
         if self.WelcomeAgain:
@@ -640,21 +630,7 @@ class ClaspyGui(QMainWindow):
         self.setWindowModality(Qt.ApplicationModal)
         self.dialogOptions.exec_()
 
-    # def find_python(self):
-    #     if self.platform == 'Windows':
-    #         python_exe = QFileDialog.getOpenFileName(self, 'Select \'python.exe\'',
-    #                                                  '', "Executables (*.exe);;")
-    #     else:
-    #         python_exe = QFileDialog.getOpenFileName(self, 'Select python interpreter')
-    #
-    #     if python_exe[0] != '':
-    #         self.linePython.setText(os.path.normpath(python_exe[0]))
-
     def save_options(self):
-        # self.pythonPath = self.linePython.text()
-        # self.options_dict['python_path'] = self.pythonPath
-        # self.statusBar.showMessage("Python path: {}".format(self.pythonPath), 3000)
-
         self.options_dict['welcome_window'] = self.WelcomeAgain
         with open("claspy_options.json", 'w') as options_file:
             json.dump(self.options_dict, options_file, indent=4)
@@ -663,10 +639,6 @@ class ClaspyGui(QMainWindow):
         # call save_otpion()
         self.save_options()
         self.dialogOptions.close()
-
-        # # and close dialog
-        # if self.linePython.text() != '':
-        #     self.dialogOptions.close()
 
     # Parameter part
     def parameter_part(self):
@@ -3630,13 +3602,13 @@ class ClaspyGui(QMainWindow):
                         "No features selected")
         else:
             # Pass the function to execute
-            worker = Worker(self.train)
-            worker.signals.result.connect(self.message)
-            worker.signals.finished.connect(self.thread_complete)
-            worker.signals.progress.connect(self.update_progress)
+            self.worker = Worker(self.train)
+            self.worker.signals.result.connect(self.message)
+            self.worker.signals.finished.connect(self.thread_complete)
+            self.worker.signals.progress.connect(self.update_progress)
 
             # Execute
-            self.threadpool.start(worker)
+            self.threadpool.start(self.worker)
 
     def train(self, progress_callback):
         self.message("\n# # # # # # # # # #  CLASPY_T  # # # # # # # # # # # #"
@@ -3742,13 +3714,13 @@ class ClaspyGui(QMainWindow):
             self.update_config()
 
             # Pass the function to execute
-            worker = Worker(self.predict)
-            worker.signals.result.connect(self.message)
-            worker.signals.finished.connect(self.thread_complete)
-            worker.signals.progress.connect(self.update_progress)
+            self.worker = Worker(self.predict)
+            self.worker.signals.result.connect(self.message)
+            self.worker.signals.finished.connect(self.thread_complete)
+            self.worker.signals.progress.connect(self.update_progress)
 
             # Execute
-            self.threadpool.start(worker)
+            self.threadpool.start(self.worker)
 
     def predict(self, progress_callback):
         self.message("\n# # # # # # # # # #  CLASPY_T  # # # # # # # # # # # #"
@@ -3821,13 +3793,13 @@ class ClaspyGui(QMainWindow):
                         "No features selected")
         else:
             # Pass the function to execute
-            worker = Worker(self.segment)
-            worker.signals.result.connect(self.message)
-            worker.signals.finished.connect(self.thread_complete)
-            worker.signals.progress.connect(self.update_progress)
+            self.worker = Worker(self.segment)
+            self.worker.signals.result.connect(self.message)
+            self.worker.signals.finished.connect(self.thread_complete)
+            self.worker.signals.progress.connect(self.update_progress)
 
             # Execute
-            self.threadpool.start(worker)
+            self.threadpool.start(self.worker)
 
     def segment(self, progress_callback):
         self.message("\n# # # # # # # # # #  CLASPY_T  # # # # # # # # # # # #"
@@ -3882,19 +3854,6 @@ class ClaspyGui(QMainWindow):
         # End of the function
         return "Segmentation done!"
 
-    def handle_stdout(self):
-        data = self.process.readAllStandardOutput()
-        stdout = bytes(data).decode('utf8')
-        self.plainTextCommand.appendPlainText(stdout)
-        progress = percent_parser(stdout)
-        if progress:
-            self.progressBar.setValue(progress)
-
-    def handle_stderr(self):
-        data = self.process.readAllStandardError()
-        stderr = bytes(data).decode('utf8')
-        self.plainTextCommand.appendPlainText(stderr)
-
     def handle_state(self, state):
         states = {QProcess.NotRunning: "Not Running",
                   QProcess.Starting: "Starting",
@@ -3913,14 +3872,12 @@ class ClaspyGui(QMainWindow):
         self.buttonRunPredict.setEnabled(True)
         self.buttonRunSegment.setEnabled(True)
 
-    def stop_process(self):
-        parent_process = psutil.Process(self.processPID)
+    def stop_thread(self):
         try:
-            for child in parent_process.children(recursive=True):
-                child.kill()
-            parent_process.kill()
-        except:
-            self.statusBar.showMessage("ERROR: Process not killed!", 3000)
+            self.threadpool.releaseThread()
+        except:  # Must be improved (too generic)
+            self.statusBar.showMessage("Exception raised: Thread not stopped!", 3000)
+
         else:
             self.buttonRunTrain.setEnabled(True)
             self.buttonRunPredict.setEnabled(True)
