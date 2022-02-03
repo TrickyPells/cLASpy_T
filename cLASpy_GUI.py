@@ -281,50 +281,29 @@ class QVLine(QFrame):
         self.setFrameShadow(QFrame.Sunken)
 
 
-class WorkerSignals(QObject):
-    """
-    Defines the signals available from a running worker thread.
-    Supported signals are:
-    finished
-        No data
-    error
-        tuple (exctype, value, traceback.format_exc() )
-    result
-        object data returned from processing, anything
-    progress
-        int indicating % progress
-    """
-    finished = pyqtSignal()
-    error = pyqtSignal(tuple)
-    result = pyqtSignal(object)
-    progress = pyqtSignal(int)
-
-
-class Worker(QRunnable):
+class Worker(QObject):
     """
     Worker thread
-    Inherits from QRunnable to handler worker thread setup, signals and wrap-up.
-    :param callback: The function callback to run on this worker thread. Supplied args and
+    :param fn: The function callback to run on this worker thread. Supplied args and
                      kwargs will be passed through to the runner.
-    :type callback: function
     :param args: Arguments to pass to the callback function
     :param kwargs: Keywords to pass to the callback function
     """
+    finished = pyqtSignal()
+    error = pyqtSignal(tuple)
+    progress = pyqtSignal(int)
 
     def __init__(self, fn, *args, **kwargs):
         super(Worker, self).__init__()
-        self._stop_event = threading.Event()
 
         # Store constructor arguments (re-used for processing)
         self.fn = fn
         self.args = args
         self.kwargs = kwargs
-        self.signals = WorkerSignals()
 
         # Add the callback to our kwargs
-        self.kwargs['progress_callback'] = self.signals.progress
+        self.kwargs['progress_callback'] = self.progress
 
-    @pyqtSlot()
     def run(self):
         """
         Initialise the runner function with passed args, kwargs.
@@ -336,18 +315,9 @@ class Worker(QRunnable):
         except:
             traceback.print_exc()
             exctype, value = sys.exc_info()[:2]
-            self.signals.error.emit((exctype, value, traceback.format_exc()))
-        else:
-            self.signals.result.emit(result)  # Return the result of the processing
+            self.error.emit((exctype, value, traceback.format_exc()))
         finally:
-            self.signals.finished.emit()  # Done
-
-    def stop(self):
-        self._stop_event.set()
-        return "Stopping thread..."
-
-    def stopped(self):
-        return self._stop_event.is_set()
+            self.finished.emit()  # Done
 
 
 class ClaspyGui(QMainWindow):
@@ -401,8 +371,8 @@ class ClaspyGui(QMainWindow):
         self.groupStandardLAS.setVisible(False)
 
         # Right part of GUI -----
-        self.command_part()
-        self.threadpool = QThreadPool()
+        # self.command_part()
+        # self.threadpool = QThreadPool()
         # ------ End of command part
 
         # Button box
@@ -429,7 +399,7 @@ class ClaspyGui(QMainWindow):
         self.splitterMain = QSplitter(Qt.Horizontal)
         self.splitterMain.addWidget(self.groupParameters)
         self.splitterMain.addWidget(self.groupFeatures)
-        self.splitterMain.addWidget(self.groupCommand)
+        #self.splitterMain.addWidget(self.groupCommand)
         self.splitterMain.setSizes(([200, 100, 468]))
 
         self.vMainLayout = QVBoxLayout(self.mainWidget)
@@ -3527,72 +3497,8 @@ class ClaspyGui(QMainWindow):
             warning_box("No feature field selected !\nPlease, select the features you need !",
                         "No selected features")
 
-    # Command and Run
-    def command_part(self):
-        """
-        Give the command part of the GUI.
-        """
-        self.plainTextCommand = QPlainTextEdit()
-        self.plainTextCommand.setReadOnly(True)
-        self.plainTextCommand.setStyleSheet(
-            """QPlainTextEdit {background-color: #333;
-                               color: #EEEEEE;}""")
-
-        # Save button
-        self.buttonSaveCommand = QPushButton("Save Command Output")
-        self.buttonSaveCommand.clicked.connect(self.save_output_command)
-
-        # Clear button
-        self.buttonClear = QPushButton("Clear")
-        self.buttonClear.clicked.connect(self.plainTextCommand.clear)
-
-        self.hLayoutSaveClear = QHBoxLayout()
-        self.hLayoutSaveClear.addWidget(self.buttonSaveCommand)
-        self.hLayoutSaveClear.addWidget(self.buttonClear)
-
-        # Progress bar
-        self.progressBar = QProgressBar()
-        self.progressBar.setMaximum(100)
-
-        # Fill layout of right part
-        self.vLayoutRight = QVBoxLayout()
-        self.vLayoutRight.addWidget(self.plainTextCommand)
-        self.vLayoutRight.addLayout(self.hLayoutSaveClear)
-        self.vLayoutRight.addWidget(self.progressBar)
-
-        self.groupCommand = QGroupBox("Command Output")
-        self.groupCommand.setLayout(self.vLayoutRight)
-
-    def save_output_command(self):
-        """
-        Save the Output Command in a text file.
-        """
-        cmd_output = self.plainTextCommand.toPlainText()
-
-        cmd_output_file = QFileDialog.getSaveFileName(None, 'Save Command Output as TXT file',
-                                                      '', "TXT files (*.txt);;")
-        if cmd_output_file[0] != '':
-            with open(cmd_output_file[0], 'w') as text_file:
-                text_file.write(cmd_output)
-
-    def message(self, s):
-        """
-        Print message 's' in the plainTextCommand (QPlainTextEdit())
-        :param s: the message to print into plainTextCommand
-        """
-        self.plainTextCommand.appendPlainText(s)
-
-    def update_progress(self, n):
-        """Update progressBar according given percent as integer"""
-        self.progressBar.setValue(n)
-
+    # Run part
     def run_train(self):
-        # Update buttons
-        self.buttonRunTrain.setEnabled(False)
-        self.buttonRunPredict.setEnabled(False)
-        self.buttonRunSegment.setEnabled(False)
-        self.buttonStop.setEnabled(True)
-
         # Update training configuration
         self.update_config()
 
@@ -3602,13 +3508,20 @@ class ClaspyGui(QMainWindow):
                         "No features selected")
         else:
             # Pass the function to execute
-            self.worker = Worker(self.train)
-            self.worker.signals.result.connect(self.message)
-            self.worker.signals.finished.connect(self.thread_complete)
-            self.worker.signals.progress.connect(self.update_progress)
+            # Set the run application
+            run_app = QApplication(sys.argv)
+            run_app.setStyle('Fusion')
 
-            # Execute
-            self.threadpool.start(self.worker)
+            # Execute the Run Main window
+            run_ex = ClaspyRun()
+            run_ex.show()
+            sys.exit(run_app.exec_())
+
+            # Update buttons
+            # self.buttonRunTrain.setEnabled(False)
+            # self.buttonRunPredict.setEnabled(False)
+            # self.buttonRunSegment.setEnabled(False)
+            # self.buttonStop.setEnabled(True)
 
     def train(self, progress_callback):
         self.message("\n# # # # # # # # # #  CLASPY_T  # # # # # # # # # # # #"
@@ -3874,11 +3787,16 @@ class ClaspyGui(QMainWindow):
 
     def stop_thread(self):
         try:
-            self.threadpool.releaseThread()
+            self.thread.exit()
+            self.thread.wait()
+            # self.thread.quit()
+            # self.worker.deleteLater()
+            # self.thread.deleteLater()
         except:  # Must be improved (too generic)
             self.statusBar.showMessage("Exception raised: Thread not stopped!", 3000)
 
         else:
+            self.buttonStop.setEnabled(False)
             self.buttonRunTrain.setEnabled(True)
             self.buttonRunPredict.setEnabled(True)
             self.buttonRunSegment.setEnabled(True)
@@ -3899,7 +3817,6 @@ class ClaspyGui(QMainWindow):
             self.welcome_window.close()
         self.close()
         event.accept()
-
 
 if __name__ == '__main__':
     # Set the application
