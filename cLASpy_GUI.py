@@ -3514,10 +3514,26 @@ class ClaspyGui(QMainWindow):
                         "No features selected")
         else:
             # Save config file
-
+            temp_config = './temp_config.json'
+            with open(temp_config, 'w') as config_file:
+                json.dump(self.train_config, config_file, indent=4)
+                self.statusBar.showMessage("Temp config file created for training: {}".format(temp_config), 2000)
 
             # Run new process with the config file to train
+            command = ["cLASpy_Run.py", "train", str(temp_config)]
 
+            if self.process  is None:
+                self.process = QProcess()
+                self.process.setProcessChannelMode(QProcess.MergedChannels)
+                self.process.readyReadStandardError.connect(self.handle_stderr)
+                self.process.stateChanged.connect(self.handle_state)
+                self.process.finished.connect(self.process_finished)
+                self.process.setProgram(sys.executable)
+                self.process.setArguments(command)
+                self.process.start()
+                self.processPID = self.process.processId()
+                self.buttonStop.setEnabled(True)
+                self.buttonRunTrain.setEnabled(False)
 
     def run_predict(self):
         # Update buttons
@@ -3555,6 +3571,11 @@ class ClaspyGui(QMainWindow):
 
             # Run new process with config file to segment
 
+    def handle_stderr(self):
+        data = self.process.readAllStandardError()
+        stderr = bytes(data).decode('utf8')
+        self.statusBar.showMessage("{}".format(stderr), 5000)
+
     def handle_state(self, state):
         states = {QProcess.NotRunning: "Not Running",
                   QProcess.Starting: "Starting",
@@ -3563,7 +3584,7 @@ class ClaspyGui(QMainWindow):
         state_name = states[state]
         self.statusBar.showMessage("cLASpy_T is {}".format(state_name), 5000)
 
-    def process_complete(self):
+    def process_finished(self):
         self.statusBar.showMessage("cLASpy_T finished !", 5000)
         self.threadpool.releaseThread()
         self.progressBar.reset()

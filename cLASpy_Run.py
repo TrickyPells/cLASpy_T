@@ -14,7 +14,7 @@
 #  ########\/_/####\_\/######\_____\/######\/___________/###########  #
 #  ---------- REMOTE -------- SENSING --------- GROUP --------------  #
 #  #################################################################  #
-#        The run part of the GUI for the cLASpy_T library             #
+#           The run part of the GUI of cLASpy_T library               #
 #                    By Xavier PELLERIN LE BAS                        #
 #                         February 2022                               #
 #         REMOTE SENSING GROUP  -- https://rsg.m2c.cnrs.fr/ --        #
@@ -35,6 +35,8 @@ import json
 import threading
 import time
 import psutil
+import argparse
+import textwrap
 import subprocess
 import traceback
 
@@ -44,6 +46,59 @@ from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 
 from cLASpy_Classes import *
+
+# -------------------------
+# ---- ARGUMENT_PARSER ----
+# -------------------------
+
+# Create global parser
+parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter,
+                                 description=textwrap.dedent('''\
+                                 -------------------------------------------------------------------------------
+                                                             cLASpy_Run
+                                                     ------------------------'''))
+
+# Add subparsers
+subparsers = parser.add_subparsers(help="cLASpy_T modes:\n\n", metavar='')
+
+# Create sub-command for training
+parser_train = subparsers.add_parser('train', help="training mode",
+                                     formatter_class=argparse.RawTextHelpFormatter)
+
+parser_train.add_argument("-c", "--config",
+                          help="give the temporary configuration file with all parameters\n"
+                               "    and selected scalar fields.\n",
+                          type=str, metavar='')
+
+parser_train.set_defaults(func='train')  # Use training function
+
+# Create sub-command for predictions
+parser_predict = subparsers.add_parser('predict', help="prediction mode",
+                                       formatter_class=argparse.RawTextHelpFormatter)
+
+parser_predict.add_argument("-c", "--config",
+                            help="give the temporary configuration file with all parameters\n"
+                                 "    and selected scalar fields.\n",
+                            type=str, metavar='')
+
+
+parser_predict.set_defaults(func='predict')  # Use predict function
+
+# Create sub-command for segmentation
+parser_segment = subparsers.add_parser('segment', help="segmentation mode",
+                                       formatter_class=argparse.RawTextHelpFormatter)
+
+parser_segment.add_argument("-c", "--config",
+                            help="give the temporary configuration file with all parameters\n"
+                                 "    and selected scalar fields.\n",
+                            type=str, metavar='')
+
+
+parser_segment.set_defaults(func='segment')  # Use segment function
+
+# parse the args and call whatever function was selected
+args = parser.parse_args()
+
 
 # -------------------------
 # ------ FUNCTIONS --------
@@ -478,6 +533,12 @@ class ClaspyRun(QMainWindow):
             self.welcome_window.close()
         self.close()
         event.accept()
+
+
+
+
+
+
 
 
 if __name__ == '__main__':
