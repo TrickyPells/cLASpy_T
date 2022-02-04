@@ -57,7 +57,7 @@ from cLASpy_Classes import *
 class ClaspyRun(QMainWindow):
     def __init__(self, parent=None):
         super(ClaspyRun, self).__init__(parent)
-        self.setWindowTitle("cLASpy_T Run")
+        self.setWindowTitle("Run of cLASpy_T")
         self.setWindowIcon(QIcon('Ressources/pythie_alpha_64px.png'))
         self.mainWidget = QWidget()
 

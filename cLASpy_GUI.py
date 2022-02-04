@@ -2723,7 +2723,7 @@ class ClaspyGui(QMainWindow):
             elif algorithm == 'GradientBoostingClassifier':
                 self.algo = 'gb'
                 self.comboAlgorithms.setCurrentIndex(1)
-                self.RFcheckImportance.setChecked(config_dict['png_features'])
+                self.GBcheckImportance.setChecked(config_dict['png_features'])
 
                 # Get algo parameter dict
                 param_dict = config_dict['parameters']
@@ -3425,7 +3425,7 @@ class ClaspyGui(QMainWindow):
 
     def save_config(self):
         """
-        Save the configuration of training, predictions or semgentation according the current tab.
+        Save the configuration of training, predictions or segmentation according the current tab.
         """
         if self.tabModes.currentIndex() == 0:
             self.save_train_config()
@@ -3499,6 +3499,12 @@ class ClaspyGui(QMainWindow):
 
     # Run part
     def run_train(self):
+        # Update buttons
+        # self.buttonRunTrain.setEnabled(False)
+        # self.buttonRunPredict.setEnabled(False)
+        # self.buttonRunSegment.setEnabled(False)
+        # self.buttonStop.setEnabled(True)
+
         # Update training configuration
         self.update_config()
 
@@ -3507,111 +3513,11 @@ class ClaspyGui(QMainWindow):
             warning_box("No feature field selected!\nPlease select the features you need!",
                         "No features selected")
         else:
-            # Pass the function to execute
-            # Set the run application
-            run_app = QApplication(sys.argv)
-            run_app.setStyle('Fusion')
+            # Save config file
 
-            # Execute the Run Main window
-            run_ex = ClaspyRun()
-            run_ex.show()
-            sys.exit(run_app.exec_())
 
-            # Update buttons
-            # self.buttonRunTrain.setEnabled(False)
-            # self.buttonRunPredict.setEnabled(False)
-            # self.buttonRunSegment.setEnabled(False)
-            # self.buttonStop.setEnabled(True)
+            # Run new process with the config file to train
 
-    def train(self, progress_callback):
-        self.message("\n# # # # # # # # # #  CLASPY_T  # # # # # # # # # # # #"
-                     "\n"
-                     "\n * * * * * * * *    Point Cloud Classification   * * * * * * * * *\n"
-                     "\n - - - - - - - - - - - - - -   Training Mode   - - - - - - - - - - - - - - -")
-
-        # Train with GridSearchCV or not
-        if self.train_config['grid_search']:
-            algo_parameters = None
-            grid_parameters = self.train_config['param_grid']
-        else:
-            algo_parameters = self.train_config['parameters']
-            grid_parameters = None
-
-        # Set the classifier
-        trainer = ClaspyTrainer(input_data=self.lineLocalFile.text(),
-                                output_data=self.lineLocalFolder.text(),
-                                algo=self.algo,
-                                algorithm=None,
-                                parameters=algo_parameters,
-                                features=self.train_config['feature_names'],
-                                grid_search=self.train_config['grid_search'],
-                                grid_param=grid_parameters,
-                                pca=self.spinPCA.value(),
-                                n_jobs=self.spinNJobCV.value(),
-                                random_state=self.train_config['random_state'],
-                                samples=self.train_config['samples'],
-                                scaler=self.comboScaler.currentText(),
-                                scoring=self.comboScorer.currentText(),
-                                train_ratio=self.train_config['training_ratio'],
-                                png_features=self.train_config['png_features'])
-
-        # Set the classifier according parameters
-        trainer.set_classifier()
-
-        # Introduction
-        intro = trainer.introduction(verbose=True)
-        self.message(intro)
-        progress_callback.emit(int(0 * 100 / 7))
-
-        # Part 1/7 - Format dataset
-        self.message("\nStep 1/7: Formatting data as pandas.DataFrame...")
-        step1 = trainer.format_dataset(verbose=True)
-        self.message(step1)
-        progress_callback.emit(int(1 * 100 / 7))
-
-        # Part 2/7 - Split data into training and testing sets
-        self.message("\nStep 2/7: Splitting data in train and test sets...")
-        step2 = trainer.split_dataset(verbose=True)
-        self.message(step2)
-        progress_callback.emit(int(2 * 100 / 7))
-
-        # Part 3/7 - Scale dataset as 'Standard', 'Robust' or 'MinMaxScaler'
-        self.message("\nStep 3/7: Scaling data...")
-        step3 = trainer.set_scaler_pca(verbose=True)
-        self.message(step3)
-        progress_callback.emit(int(3 * 100 / 7))
-
-        # Part 4/7 - Train model
-        if trainer.grid_search:  # Training with GridSearchCV
-            self.message('\nStep 4/7: Training model with GridSearchCV...\n')
-        else:  # Training with Cross Validation
-            self.message("\nStep 4/7: Training model with cross validation...\n")
-
-        step4 = trainer.train_model(verbose=True)  # Perform both training
-        self.message(step4)
-        progress_callback.emit(int(4 * 100 / 7))
-
-        # Part 5/7 - Create confusion matrix
-        self.message("\nStep 5/7: Creating confusion matrix...")
-        step5 = trainer.confusion_matrix(verbose=True)
-        self.message(step5)
-        progress_callback.emit(int(5 * 100 / 7))
-
-        # Part 6/7 - Save algorithm, model, scaler, pca and feature_names
-        self.message("\nStep 6/7: Saving model and scaler in file:")
-        step6 = trainer.save_model(verbose=True)
-        self.message(step6)
-        progress_callback.emit(int(6 * 100 / 7))
-
-        # Part 7/7 - Create and save prediction report
-        self.message("\nStep 7/7: Creating classification report:")
-        self.message(trainer.report_filename + '.txt')
-        step7 = trainer.classification_report(verbose=True)
-        self.message(step7)
-        progress_callback.emit(int(7 * 100 / 7))
-
-        # Kill the remaining python interpreters (1+18)
-        return "Training done!"
 
     def run_predict(self):
         # Update buttons
@@ -3626,69 +3532,9 @@ class ClaspyGui(QMainWindow):
             # Update predict configuration
             self.update_config()
 
-            # Pass the function to execute
-            self.worker = Worker(self.predict)
-            self.worker.signals.result.connect(self.message)
-            self.worker.signals.finished.connect(self.thread_complete)
-            self.worker.signals.progress.connect(self.update_progress)
+            # Save config file
 
-            # Execute
-            self.threadpool.start(self.worker)
-
-    def predict(self, progress_callback):
-        self.message("\n# # # # # # # # # #  CLASPY_T  # # # # # # # # # # # #"
-                     "\n"
-                     "\n * * * * * * * *    Point Cloud Classification   * * * * * * * * *\n"
-                     "\n - - - - - - - - - - - - - -   Prediction Mode   - - - - - - - - - - - - - - -")
-
-        # Set the classifier for prediction
-        predicter = ClaspyPredicter(model=self.lineModelFile.text(),
-                                    input_data=self.lineLocalFile.text(),
-                                    output_data=self.lineLocalFolder.text())
-
-        # Load model
-        self.message("\nStep 1/6: Loading model...")
-        step1 = predicter.load_model(verbose=True)
-        self.message(step1)
-        progress_callback.emit(int(1 * 100 / 6))
-
-        # Introduction
-        intro = predicter.introduction(verbose=True)
-        self.message(intro)
-
-        # Format dataset
-        self.message("\nStep 2/6: Formatting data as pandas.Dataframe...")
-        step2 = predicter.format_dataset(verbose=True)
-        self.message(step2)
-        progress_callback.emit(int(2 * 100 / 6))
-
-        # Scale the dataset as 'Standard', 'Robust' or 'MinMaxScaler'
-        self.message("\nStep 3/6: Scaling data...")
-        step3 = predicter.scale_dataset(verbose=True)
-        self.message(step3)
-        progress_callback.emit(int(3 * 100 / 6))
-
-        # Predict target of input data
-        self.message("\nStep 4/6: Making predictions for entire dataset...")
-        step4 = predicter.predict(verbose=True)
-        self.message(step4)
-        progress_callback.emit(int(4 * 100 / 6))
-
-        # Save classification results as point cloud file with all data
-        self.message("\nStep 5/6: Saving classified point cloud:")
-        step5 = predicter.save_predictions(verbose=True)
-        self.message(step5)
-        progress_callback.emit(int(5 * 100 / 6))
-
-        # Create and save prediction report
-        self.message("\nStep 6/6: Creating classification report:")
-        self.message(predicter.report_filename + '.txt')
-        step6 = predicter.classification_report(verbose=True)
-        self.message(step6)
-        progress_callback.emit(int(6 * 100 / 6))
-
-        # End of the function
-        return "Predictions done!"
+            # Run new process with config file to predict
 
     def run_segment(self):
         # Update buttons
@@ -3705,67 +3551,9 @@ class ClaspyGui(QMainWindow):
             warning_box("No feature field selected!\nPlease select the features you need!",
                         "No features selected")
         else:
-            # Pass the function to execute
-            self.worker = Worker(self.segment)
-            self.worker.signals.result.connect(self.message)
-            self.worker.signals.finished.connect(self.thread_complete)
-            self.worker.signals.progress.connect(self.update_progress)
+            # Save config file
 
-            # Execute
-            self.threadpool.start(self.worker)
-
-    def segment(self, progress_callback):
-        self.message("\n# # # # # # # # # #  CLASPY_T  # # # # # # # # # # # #"
-                     "\n"
-                     "\n * * * * * * * *    Point Cloud Classification   * * * * * * * * *\n"
-                     "\n - - - - - - - - - - - - - -   Segmentation Mode   - - - - - - - - - - - - - - -")
-
-        # Set the classifier
-        segmenter = ClaspySegmenter(input_data=self.lineLocalFile.text(),
-                                    output_data=self.lineLocalFolder.text(),
-                                    parameters=self.segment_config['parameters'],
-                                    features=self.segment_config['feature_names'])
-
-        # Set the classifier according parameters
-        segmenter.set_classifier()
-
-        # Introduction
-        intro = segmenter.introduction(verbose=True)
-        self.message(intro)
-        progress_callback.emit(int(0 * 100 / 5))
-
-        # Format dataset
-        self.message("\nStep 1/5: Formatting data as pandas.DataFrame...")
-        step1 = segmenter.format_dataset(verbose=True)
-        self.message(step1)
-        progress_callback.emit(int(1 * 100 / 5))
-
-        # Scale the dataset as 'Standard', 'Robust' or 'MinMaxScaler'
-        self.message("\nStep 2/5: Scaling data...")
-        step2 = segmenter.set_scaler_pca(verbose=True)
-        self.message(step2)
-        progress_callback.emit(int(2 * 100 / 5))
-
-        # Split data into training and testing sets
-        self.message("\nStep 3/5: Clustering the dataset...")
-        step3 = segmenter.segment(verbose=True)
-        self.message(step3)
-        progress_callback.emit(int(3 * 100 / 5))
-
-        # Save algorithm, model, scaler, pca and feature_names
-        self.message("\nStep 4/5: Saving segmented point cloud in file...")
-        step4 = segmenter.save_clusters(verbose=True)
-        self.message(step4)
-        progress_callback.emit(int(4 * 100 / 5))
-
-        # Create and save prediction report
-        self.message("\nStep 5/5: Creating classification report:")
-        step5 = segmenter.classification_report(verbose=True)
-        self.message(step5)
-        progress_callback.emit(int(5 * 100 / 5))
-
-        # End of the function
-        return "Segmentation done!"
+            # Run new process with config file to segment
 
     def handle_state(self, state):
         states = {QProcess.NotRunning: "Not Running",
@@ -3773,9 +3561,9 @@ class ClaspyGui(QMainWindow):
                   QProcess.Running: "Running"}
 
         state_name = states[state]
-        self.statusBar.showMessage("cLASpy_T is {}".format(state_name), 3000)
+        self.statusBar.showMessage("cLASpy_T is {}".format(state_name), 5000)
 
-    def thread_complete(self):
+    def process_complete(self):
         self.statusBar.showMessage("cLASpy_T finished !", 5000)
         self.threadpool.releaseThread()
         self.progressBar.reset()
@@ -3785,16 +3573,14 @@ class ClaspyGui(QMainWindow):
         self.buttonRunPredict.setEnabled(True)
         self.buttonRunSegment.setEnabled(True)
 
-    def stop_thread(self):
+    def stop_process(self):
+        parent_process = psutil.Process(self.processPID)
         try:
-            self.thread.exit()
-            self.thread.wait()
-            # self.thread.quit()
-            # self.worker.deleteLater()
-            # self.thread.deleteLater()
-        except:  # Must be improved (too generic)
-            self.statusBar.showMessage("Exception raised: Thread not stopped!", 3000)
-
+            for child in parent_process.children(recursive=True):
+                child.kill()
+            parent_process.kill()
+        except:
+            self.statusBar.showMessage("ERROR: Process not killed!", 3000)
         else:
             self.buttonStop.setEnabled(False)
             self.buttonRunTrain.setEnabled(True)
