@@ -104,6 +104,34 @@ args = parser.parse_args()
 # ------ FUNCTIONS --------
 # -------------------------
 
+def run_train(config_file):
+    """
+    Run the Claspy_Run GUI and perform training according the passed config file.
+    :param config_file: parser arguments
+    """
+    # Set the application
+    app = QApplication(sys.argv)
+    app.setStyle('Fusion')
+
+    # Execute the Main window
+    ex = ClaspyRun()
+    ex.show()
+    sys.exit(app.exec_())
+
+
+def run_predict(config_file):
+    """
+    Run the Claspy_Run GUI and perform predictions according the passed config file.
+    :param config_file: parser arguments
+    """
+
+
+def run_segment(config_file):
+    """
+    Run the Claspy_Run GUI and perform segmentation according the passed config file.
+    :param config_file: parser arguments
+    """
+
 # -------------------------
 # ------- CLASSES ---------
 # -------------------------
@@ -535,19 +563,11 @@ class ClaspyRun(QMainWindow):
         event.accept()
 
 
-
-
-
-
-
-
-if __name__ == '__main__':
-    # Set the application
-    app = QApplication(sys.argv)
-    app.setStyle('Fusion')
-
-    # Execute the Main window
-    ex = ClaspyRun()
-    ex.show()
-
-    sys.exit(app.exec_())
+if args.func == 'train':
+    run_train(args)
+elif args.func == 'predict':
+    run_predict(args)
+elif args.func == 'segment':
+    run_segment(args)
+else:
+    raise KeyError("No valid function selected!")

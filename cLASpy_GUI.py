@@ -3568,7 +3568,7 @@ class ClaspyGui(QMainWindow):
                         "No features selected")
         else:
             # Save config file
-
+            pass
             # Run new process with config file to segment
 
     def handle_stderr(self):
