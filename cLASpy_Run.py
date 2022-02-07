@@ -55,47 +55,14 @@ from cLASpy_GUI import warning_box, error_box
 # Create global parser
 parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter,
                                  description=textwrap.dedent('''\
-                                 ------------------------------------------------------------------------
-                                                            cLASpy_Run
-                                                     ------------------------'''))
+                                 ----------------------------------------------------------
+                                                    cLASpy_Run
+                                             ------------------------'''))
 
-# Add subparsers
-subparsers = parser.add_subparsers(help="cLASpy_T modes:\n\n")
-
-# Create sub-command for training
-parser_train = subparsers.add_parser('train', help="training mode",
-                                     formatter_class=argparse.RawTextHelpFormatter)
-
-parser_train.add_argument("settings",
-                          help="give the temporary configuration file with\n"
-                               "all parameters and selected scalar fields",
-                          type=str)
-
-parser_train.set_defaults(func='train')  # Use training function
-
-# Create sub-command for predictions
-parser_predict = subparsers.add_parser('predict', help="prediction mode",
-                                       formatter_class=argparse.RawTextHelpFormatter)
-
-parser_predict.add_argument("settings",
-                            help="give the temporary configuration file with\n"
-                                 "all parameters and selected scalar fields",
-                            type=str)
-
-
-parser_predict.set_defaults(func='predict')  # Use predict function
-
-# Create sub-command for segmentation
-parser_segment = subparsers.add_parser('segment', help="segmentation mode",
-                                       formatter_class=argparse.RawTextHelpFormatter)
-
-parser_segment.add_argument("settings",
-                            help="give the temporary configuration file with\n"
-                                 "all parameters and selected scalar fields",
-                            type=str)
-
-
-parser_segment.set_defaults(func='segment')  # Use segment function
+parser.add_argument("config",
+                    help="give the temporary configuration file with\n"
+                         "all parameters and selected scalar fields",
+                    type=str)
 
 # parse the args and call whatever function was selected
 args = parser.parse_args()
@@ -105,56 +72,21 @@ args = parser.parse_args()
 # ------ FUNCTIONS --------
 # -------------------------
 
-def percent_parser(output):
+def run(arguments):
     """
-    Search regular expression to know the progress of a process.
-    :param output: The output string from process.
-    :return: integer converted in percent.
-    """
-    progress_regex = re.compile("Step (\d)/(\d):")
-    finish_regex = re.compile(" done in ")
-
-    match_progress = progress_regex.search(output)
-    if match_progress:
-        num_progress = int(match_progress.group(1))
-        denom_progress = int(match_progress.group(2))
-
-        progress = int(((num_progress - 1) / denom_progress) * 100)
-        return progress
-
-    match_finish = finish_regex.search(output)
-    if match_finish:
-        progress = 100
-        return progress
-
-
-def run_train(config_file=None):
-    """
-    Run the Claspy_Run GUI and perform training according the passed config file.
-    :param config_file: parser arguments
+    Run the Claspy_Run GUI and perform training, predictions or segmentation
+    according the passed config file.
+    :param arguments: parser arguments
     """
     # Set the application
     app = QApplication(sys.argv)
     app.setStyle('Fusion')
 
     # Execute the Main window
-    ex = ClaspyRun()
+    ex = ClaspyRun(arguments=args)
     ex.show()
+    ex.run_train()
     sys.exit(app.exec_())
-
-
-def run_predict(config_file):
-    """
-    Run the Claspy_Run GUI and perform predictions according the passed config file.
-    :param config_file: parser arguments
-    """
-
-
-def run_segment(config_file):
-    """
-    Run the Claspy_Run GUI and perform segmentation according the passed config file.
-    :param config_file: parser arguments
-    """
 
 # -------------------------
 # ------- CLASSES ---------
@@ -201,11 +133,11 @@ class Worker(QObject):
 
 
 class ClaspyRun(QMainWindow):
-    def __init__(self, settings, parent=None):
+    def __init__(self, arguments, parent=None):
         super(ClaspyRun, self).__init__(parent)
 
         # Store settings arguments
-        self.settings = settings
+        self.arguments = arguments
 
         # -------------- Window --------------
         self.setWindowTitle("Run of cLASpy_T")
@@ -250,15 +182,10 @@ class ClaspyRun(QMainWindow):
         self.process = None
 
         # ----------- Button box -------------
-        self.buttonBox = QDialogButtonBox(QDialogButtonBox.Close)
-        self.buttonBox.rejected.connect(self.reject)
-
-        self.buttonRunTrain = QPushButton("Run")
-        self.buttonRunTrain.clicked.connect(self.run_train)
-        self.buttonBox.addButton(self.buttonRunTrain, QDialogButtonBox.ActionRole)
+        self.buttonBox = QDialogButtonBox()
         self.buttonStop = QPushButton("Stop")
         self.buttonStop.clicked.connect(self.reject)
-        self.buttonStop.setEnabled(False)
+        self.buttonStop.setEnabled(True)
         self.buttonBox.addButton(self.buttonStop, QDialogButtonBox.ActionRole)
 
         # ------------- Main layout ------------------
@@ -325,25 +252,14 @@ class ClaspyRun(QMainWindow):
             # Execute
             self.thread.start()
 
-            # Update buttons
-            self.buttonRunTrain.setEnabled(False)
-            self.buttonRunPredict.setEnabled(False)
-            self.buttonRunSegment.setEnabled(False)
-            self.buttonStop.setEnabled(True)
-
     def train(self, progress_callback):
         self.message("\n# # # # # # # # # #  CLASPY_T  # # # # # # # # # # # #"
                      "\n"
                      "\n * * * * * * * *    Point Cloud Classification   * * * * * * * * *\n"
                      "\n - - - - - - - - - - - - - -   Training Mode   - - - - - - - - - - - - - - -")
 
-        # Train with GridSearchCV or not
-        if self.train_config['grid_search']:
-            algo_parameters = None
-            grid_parameters = self.train_config['param_grid']
-        else:
-            algo_parameters = self.train_config['parameters']
-            grid_parameters = None
+        # Get config file
+
 
         # Set the classifier
         trainer = ClaspyTrainer(input_data=self.lineLocalFile.text(),
@@ -581,10 +497,10 @@ class ClaspyRun(QMainWindow):
                   QProcess.Running: "Running"}
 
         state_name = states[state]
-        self.statusBar.showMessage("cLASpy_T is {}".format(state_name), 3000)
+        self.statusBar.showMessage("cLASpy_T run is {}".format(state_name), 3000)
 
     def thread_complete(self):
-        self.statusBar.showMessage("cLASpy_T finished !", 5000)
+        self.statusBar.showMessage("cLASpy_T run is finished !", 5000)
         self.threadpool.releaseThread()
         self.progressBar.reset()
         self.enable_open_results()
@@ -627,11 +543,5 @@ class ClaspyRun(QMainWindow):
         event.accept()
 
 
-if args.func == 'train':
-    run_train(args)
-elif args.func == 'predict':
-    run_predict(args)
-elif args.func == 'segment':
-    run_segment(args)
-else:
-    raise KeyError("No valid function selected!")
+# execute run() function
+run(args)

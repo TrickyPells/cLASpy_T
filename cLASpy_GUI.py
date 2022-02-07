@@ -3452,13 +3452,13 @@ class ClaspyGui(QMainWindow):
                         "No features selected")
         else:
             # Save setting file
-            temp_settings = './temp_settings.json'
-            with open(temp_settings, 'w') as setting_file:
-                json.dump(self.train_config, setting_file, indent=4)
-                self.statusBar.showMessage("Temp setting file created for training: {}".format(temp_settings), 2000)
+            temp_config = './temp_settings.json'
+            with open(temp_config, 'w') as config_file:
+                json.dump(self.train_config, config_file, indent=4)
+                self.statusBar.showMessage("Temp setting file created for training: {}".format(temp_config), 2000)
 
             # Run new process with the config file to train
-            command = ["cLASpy_Run.py", "train", temp_settings]
+            command = ["cLASpy_Run.py", "train", temp_config]
 
             if self.process is None:
                 self.process = QProcess()
