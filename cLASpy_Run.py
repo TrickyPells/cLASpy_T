@@ -46,6 +46,7 @@ from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 
 from cLASpy_Classes import *
+from cLASpy_GUI import warning_box, error_box
 
 # -------------------------
 # ---- ARGUMENT_PARSER ----
@@ -54,21 +55,21 @@ from cLASpy_Classes import *
 # Create global parser
 parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter,
                                  description=textwrap.dedent('''\
-                                 -------------------------------------------------------------------------------
-                                                             cLASpy_Run
+                                 ------------------------------------------------------------------------
+                                                            cLASpy_Run
                                                      ------------------------'''))
 
 # Add subparsers
-subparsers = parser.add_subparsers(help="cLASpy_T modes:\n\n", metavar='')
+subparsers = parser.add_subparsers(help="cLASpy_T modes:\n\n")
 
 # Create sub-command for training
 parser_train = subparsers.add_parser('train', help="training mode",
                                      formatter_class=argparse.RawTextHelpFormatter)
 
-parser_train.add_argument("-c", "--config",
-                          help="give the temporary configuration file with all parameters\n"
-                               "    and selected scalar fields.\n",
-                          type=str, metavar='')
+parser_train.add_argument("settings",
+                          help="give the temporary configuration file with\n"
+                               "all parameters and selected scalar fields",
+                          type=str)
 
 parser_train.set_defaults(func='train')  # Use training function
 
@@ -76,10 +77,10 @@ parser_train.set_defaults(func='train')  # Use training function
 parser_predict = subparsers.add_parser('predict', help="prediction mode",
                                        formatter_class=argparse.RawTextHelpFormatter)
 
-parser_predict.add_argument("-c", "--config",
-                            help="give the temporary configuration file with all parameters\n"
-                                 "    and selected scalar fields.\n",
-                            type=str, metavar='')
+parser_predict.add_argument("settings",
+                            help="give the temporary configuration file with\n"
+                                 "all parameters and selected scalar fields",
+                            type=str)
 
 
 parser_predict.set_defaults(func='predict')  # Use predict function
@@ -88,10 +89,10 @@ parser_predict.set_defaults(func='predict')  # Use predict function
 parser_segment = subparsers.add_parser('segment', help="segmentation mode",
                                        formatter_class=argparse.RawTextHelpFormatter)
 
-parser_segment.add_argument("-c", "--config",
-                            help="give the temporary configuration file with all parameters\n"
-                                 "    and selected scalar fields.\n",
-                            type=str, metavar='')
+parser_segment.add_argument("settings",
+                            help="give the temporary configuration file with\n"
+                                 "all parameters and selected scalar fields",
+                            type=str)
 
 
 parser_segment.set_defaults(func='segment')  # Use segment function
@@ -104,7 +105,30 @@ args = parser.parse_args()
 # ------ FUNCTIONS --------
 # -------------------------
 
-def run_train(config_file):
+def percent_parser(output):
+    """
+    Search regular expression to know the progress of a process.
+    :param output: The output string from process.
+    :return: integer converted in percent.
+    """
+    progress_regex = re.compile("Step (\d)/(\d):")
+    finish_regex = re.compile(" done in ")
+
+    match_progress = progress_regex.search(output)
+    if match_progress:
+        num_progress = int(match_progress.group(1))
+        denom_progress = int(match_progress.group(2))
+
+        progress = int(((num_progress - 1) / denom_progress) * 100)
+        return progress
+
+    match_finish = finish_regex.search(output)
+    if match_finish:
+        progress = 100
+        return progress
+
+
+def run_train(config_file=None):
     """
     Run the Claspy_Run GUI and perform training according the passed config file.
     :param config_file: parser arguments
@@ -137,49 +161,58 @@ def run_segment(config_file):
 # -------------------------
 
 
+class Worker(QObject):
+    """
+    Worker thread
+    :param fn: The function callback to run on this worker thread. Supplied args and
+                     kwargs will be passed through to the runner.
+    :param args: Arguments to pass to the callback function
+    :param kwargs: Keywords to pass to the callback function
+    """
+    finished = pyqtSignal()
+    error = pyqtSignal(tuple)
+    progress = pyqtSignal(int)
+
+    def __init__(self, fn, *args, **kwargs):
+        super(Worker, self).__init__()
+
+        # Store constructor arguments (re-used for processing)
+        self.fn = fn
+        self.args = args
+        self.kwargs = kwargs
+
+        # Add the callback to our kwargs
+        self.kwargs['progress_callback'] = self.progress
+
+    def run(self):
+        """
+        Initialise the runner function with passed args, kwargs.
+        """
+
+        # Retrieve args/kwargs here; and fire processing using them
+        try:
+            result = self.fn(*self.args, **self.kwargs)
+        except:
+            traceback.print_exc()
+            exctype, value = sys.exc_info()[:2]
+            self.error.emit((exctype, value, traceback.format_exc()))
+        finally:
+            self.finished.emit()  # Done
+
+
 class ClaspyRun(QMainWindow):
-    def __init__(self, parent=None):
+    def __init__(self, settings, parent=None):
         super(ClaspyRun, self).__init__(parent)
+
+        # Store settings arguments
+        self.settings = settings
+
+        # -------------- Window --------------
         self.setWindowTitle("Run of cLASpy_T")
         self.setWindowIcon(QIcon('Ressources/pythie_alpha_64px.png'))
         self.mainWidget = QWidget()
 
-        self.command_part()
-        self.threadpool = QThreadPool()
-
-        self.process = None
-
-        # Button box
-        self.buttonBox = QDialogButtonBox(QDialogButtonBox.Close)
-        self.buttonBox.rejected.connect(self.reject)
-
-        self.buttonRunTrain = QPushButton("Run")
-        self.buttonRunTrain.clicked.connect(self.run_train)
-        self.buttonBox.addButton(self.buttonRunTrain, QDialogButtonBox.ActionRole)
-        self.buttonStop = QPushButton("Stop")
-        self.buttonStop.clicked.connect(self.reject)
-        self.buttonStop.setEnabled(False)
-        self.buttonBox.addButton(self.buttonStop, QDialogButtonBox.ActionRole)
-
-        # Fill the main layout
-        self.vMainLayout = QVBoxLayout(self.mainWidget)
-        self.vMainLayout.addWidget(self.groupCommand)
-        self.vMainLayout.addWidget(self.buttonBox)
-
-        # setCentralWidget
-        self.setCentralWidget(self.mainWidget)
-
-        # Status Bar
-        self.statusBar = QStatusBar()
-        self.setStatusBar(self.statusBar)
-
-        # Geometry
-        self.setGeometry(0, 0, 1280, 960)
-
-    def command_part(self):
-        """
-        Give the command part of the GUI.
-        """
+        # ----------- Command part -----------
         self.plainTextCommand = QPlainTextEdit()
         self.plainTextCommand.setReadOnly(True)
         self.plainTextCommand.setStyleSheet(
@@ -211,12 +244,43 @@ class ClaspyRun(QMainWindow):
         self.groupCommand = QGroupBox("Command Output")
         self.groupCommand.setLayout(self.vLayoutRight)
 
+        # ------------ Process ---------------
+        self.threadpool = QThreadPool()
+        self.thread = QThread()
+        self.process = None
+
+        # ----------- Button box -------------
+        self.buttonBox = QDialogButtonBox(QDialogButtonBox.Close)
+        self.buttonBox.rejected.connect(self.reject)
+
+        self.buttonRunTrain = QPushButton("Run")
+        self.buttonRunTrain.clicked.connect(self.run_train)
+        self.buttonBox.addButton(self.buttonRunTrain, QDialogButtonBox.ActionRole)
+        self.buttonStop = QPushButton("Stop")
+        self.buttonStop.clicked.connect(self.reject)
+        self.buttonStop.setEnabled(False)
+        self.buttonBox.addButton(self.buttonStop, QDialogButtonBox.ActionRole)
+
+        # ------------- Main layout ------------------
+        self.vMainLayout = QVBoxLayout(self.mainWidget)
+        self.vMainLayout.addWidget(self.groupCommand)
+        self.vMainLayout.addWidget(self.buttonBox)
+
+        # setCentralWidget
+        self.setCentralWidget(self.mainWidget)
+
+        # Status Bar
+        self.statusBar = QStatusBar()
+        self.setStatusBar(self.statusBar)
+
+        # Geometry
+        self.setGeometry(0, 0, 1280, 960)
+
     def save_output_command(self):
         """
         Save the Output Command in a text file.
         """
         cmd_output = self.plainTextCommand.toPlainText()
-
         cmd_output_file = QFileDialog.getSaveFileName(None, 'Save Command Output as TXT file',
                                                       '', "TXT files (*.txt);;")
         if cmd_output_file[0] != '':
@@ -240,17 +304,17 @@ class ClaspyRun(QMainWindow):
 
         # Check if some features are selected
         if self.sel_feat_count <= 0:
-            warning_box("No feature field selected!\nPlease select the features you need!",
-                        "No features selected")
+            warning_box("No feature field selected!\nPlease select the features you need.",
+                        title="Warning: No features selected!")
         else:
             # Pass the function to execute
-            # Step2
-            self.thread = QThread()
-            # Step3
+            # Step 3
             self.worker = Worker(self.train)
+
             # Step 4
             self.worker.moveToThread(self.thread)
-            # Step5
+
+            # Step 5
             self.thread.started.connect(self.worker.run)
             self.worker.finished.connect(self.thread.quit)
             self.worker.finished.connect(self.worker.deleteLater)
@@ -536,7 +600,7 @@ class ClaspyRun(QMainWindow):
             # self.thread.quit()
             # self.worker.deleteLater()
             # self.thread.deleteLater()
-        except:  # Must be improved (too generic)
+        except:  # too generic
             self.statusBar.showMessage("Exception raised: Thread not stopped!", 3000)
 
         else:

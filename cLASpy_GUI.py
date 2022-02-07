@@ -208,48 +208,25 @@ def format_layerlist(layer_str, as_type='str'):
         raise TypeError("Parameter 'as_type' has invalid type (give 'list' or 'str')")
 
 
-def percent_parser(output):
-    """
-    Search regular expression to know the progress of a process.
-    :param output: The output string from process.
-    :return: integer converted in percent.
-    """
-    progress_regex = re.compile("Step (\d)/(\d):")
-    finish_regex = re.compile(" done in ")
-
-    match_progress = progress_regex.search(output)
-    if match_progress:
-        num_progress = int(match_progress.group(1))
-        denom_progress = int(match_progress.group(2))
-
-        progress = int(((num_progress - 1) / denom_progress) * 100)
-        return progress
-
-    match_finish = finish_regex.search(output)
-    if match_finish:
-        progress = 100
-        return progress
-
-
 def warning_box(message, title="Warning"):
-    nofeatures = QMessageBox()
-    nofeatures.setIcon(QMessageBox.Warning)
-    nofeatures.setText(message)
-    nofeatures.setWindowTitle(title)
-    nofeatures.setStandardButtons(QMessageBox.Ok)
-    nofeatures.buttonClicked.connect(nofeatures.close)
-    nofeatures.exec_()
+    warning_dialog = QMessageBox()
+    warning_dialog.setIcon(QMessageBox.Warning)
+    warning_dialog.setText(message)
+    warning_dialog.setWindowTitle(title)
+    warning_dialog.setStandardButtons(QMessageBox.Ok)
+    warning_dialog.buttonClicked.connect(warning_dialog.close)
+    warning_dialog.exec_()
 
 
 def error_box(message, title="Error"):
     """Show message about algorithm parameter error in a message box"""
-    parameter_box = QMessageBox()
-    parameter_box.setIcon(QMessageBox.Critical)
-    parameter_box.setText(message)
-    parameter_box.setWindowTitle(title)
-    parameter_box.setStandardButtons(QMessageBox.Ok)
-    parameter_box.buttonClicked.connect(parameter_box.close)
-    parameter_box.exec_()
+    error_dialog = QMessageBox()
+    error_dialog.setIcon(QMessageBox.Critical)
+    error_dialog.setText(message)
+    error_dialog.setWindowTitle(title)
+    error_dialog.setStandardButtons(QMessageBox.Ok)
+    error_dialog.buttonClicked.connect(error_dialog.close)
+    error_dialog.exec_()
 
 
 def new_seed(random_state_spin):
@@ -279,45 +256,6 @@ class QVLine(QFrame):
         super(QVLine, self).__init__()
         self.setFrameShape(QFrame.VLine)
         self.setFrameShadow(QFrame.Sunken)
-
-
-class Worker(QObject):
-    """
-    Worker thread
-    :param fn: The function callback to run on this worker thread. Supplied args and
-                     kwargs will be passed through to the runner.
-    :param args: Arguments to pass to the callback function
-    :param kwargs: Keywords to pass to the callback function
-    """
-    finished = pyqtSignal()
-    error = pyqtSignal(tuple)
-    progress = pyqtSignal(int)
-
-    def __init__(self, fn, *args, **kwargs):
-        super(Worker, self).__init__()
-
-        # Store constructor arguments (re-used for processing)
-        self.fn = fn
-        self.args = args
-        self.kwargs = kwargs
-
-        # Add the callback to our kwargs
-        self.kwargs['progress_callback'] = self.progress
-
-    def run(self):
-        """
-        Initialise the runner function with passed args, kwargs.
-        """
-
-        # Retrieve args/kwargs here; and fire processing using them
-        try:
-            result = self.fn(*self.args, **self.kwargs)
-        except:
-            traceback.print_exc()
-            exctype, value = sys.exc_info()[:2]
-            self.error.emit((exctype, value, traceback.format_exc()))
-        finally:
-            self.finished.emit()  # Done
 
 
 class ClaspyGui(QMainWindow):
@@ -3513,16 +3451,16 @@ class ClaspyGui(QMainWindow):
             warning_box("No feature field selected!\nPlease select the features you need!",
                         "No features selected")
         else:
-            # Save config file
-            temp_config = './temp_config.json'
-            with open(temp_config, 'w') as config_file:
-                json.dump(self.train_config, config_file, indent=4)
-                self.statusBar.showMessage("Temp config file created for training: {}".format(temp_config), 2000)
+            # Save setting file
+            temp_settings = './temp_settings.json'
+            with open(temp_settings, 'w') as setting_file:
+                json.dump(self.train_config, setting_file, indent=4)
+                self.statusBar.showMessage("Temp setting file created for training: {}".format(temp_settings), 2000)
 
             # Run new process with the config file to train
-            command = ["cLASpy_Run.py", "train", str(temp_config)]
+            command = ["cLASpy_Run.py", "train", temp_settings]
 
-            if self.process  is None:
+            if self.process is None:
                 self.process = QProcess()
                 self.process.setProcessChannelMode(QProcess.MergedChannels)
                 self.process.readyReadStandardError.connect(self.handle_stderr)
@@ -3531,7 +3469,6 @@ class ClaspyGui(QMainWindow):
                 self.process.setProgram(sys.executable)
                 self.process.setArguments(command)
                 self.process.start()
-                self.processPID = self.process.processId()
                 self.buttonStop.setEnabled(True)
                 self.buttonRunTrain.setEnabled(False)
 
@@ -3595,7 +3532,7 @@ class ClaspyGui(QMainWindow):
         self.buttonRunSegment.setEnabled(True)
 
     def stop_process(self):
-        parent_process = psutil.Process(self.processPID)
+        parent_process = psutil.Process(self.process.processId())
         try:
             for child in parent_process.children(recursive=True):
                 child.kill()
@@ -3624,6 +3561,7 @@ class ClaspyGui(QMainWindow):
             self.welcome_window.close()
         self.close()
         event.accept()
+
 
 if __name__ == '__main__':
     # Set the application
