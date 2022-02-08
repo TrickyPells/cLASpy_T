@@ -327,7 +327,7 @@ class ClaspyGui(QMainWindow):
         self.buttonRunSegment.clicked.connect(self.run_segment)
         self.buttonBox.addButton(self.buttonRunSegment, QDialogButtonBox.ActionRole)
         self.buttonStop = QPushButton("Stop")
-        self.buttonStop.clicked.connect(self.stop_thread)
+        self.buttonStop.clicked.connect(self.stop_process)
         self.buttonStop.setEnabled(False)
         self.buttonBox.addButton(self.buttonStop, QDialogButtonBox.ActionRole)
         self.buttonRunPredict.setVisible(False)
