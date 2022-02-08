@@ -3458,7 +3458,7 @@ class ClaspyGui(QMainWindow):
                 self.statusBar.showMessage("Temp setting file created for training: {}".format(temp_config), 2000)
 
             # Run new process with the config file to train
-            command = ["cLASpy_Run.py", "train", temp_config]
+            command = ["cLASpy_Run.py", temp_config]
 
             if self.process is None:
                 self.process = QProcess()
@@ -3523,8 +3523,8 @@ class ClaspyGui(QMainWindow):
 
     def process_finished(self):
         self.statusBar.showMessage("cLASpy_T finished !", 5000)
-        self.threadpool.releaseThread()
-        self.progressBar.reset()
+        # self.threadpool.releaseThread()
+        # self.progressBar.reset()
         self.enable_open_results()
         self.buttonStop.setEnabled(False)
         self.buttonRunTrain.setEnabled(True)
@@ -3570,7 +3570,7 @@ if __name__ == '__main__':
 
     # Execute the Main window
     ex = ClaspyGui()
-    # ex.showMaximized()
-    ex.show()
+    ex.showMaximized()
+    #ex.show()
 
     sys.exit(app.exec_())

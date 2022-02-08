@@ -319,11 +319,9 @@ class ClaspyRun(QMainWindow):
 
     def run_train(self):
         # Update button
-        # Pass the function to execute
-        # Step 3
-        self.worker = Worker(self.train)
 
-        # Step 4
+        # Set Worker
+        self.worker = Worker(self.train)
         self.worker.moveToThread(self.thread)
 
         # Step 5
@@ -534,7 +532,6 @@ class ClaspyRun(QMainWindow):
         self.statusBar.showMessage("cLASpy_T run is finished !", 5000)
         self.threadpool.releaseThread()
         self.progressBar.reset()
-        self.enable_open_results()
         self.buttonStop.setEnabled(False)
 
     def stop_thread(self):
