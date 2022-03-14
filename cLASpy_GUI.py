@@ -29,19 +29,21 @@
 # --------------------
 
 import sys
+import io
 import re
 import sklearn
-import PyQt5.QtBluetooth
+import json
+import time
 import psutil
-import joblib
+import subprocess
+import traceback
 
+from contextlib import redirect_stdout
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 
-import common
-from common import *
-
+from cLASpy_Classes import *
 
 # -------------------------
 # ------ FUNCTIONS --------
@@ -279,6 +281,67 @@ class QVLine(QFrame):
         self.setFrameShadow(QFrame.Sunken)
 
 
+class WorkerSignals(QObject):
+    """
+    Defines the signals available from a running worker thread.
+    Supported signals are:
+    finished
+        No data
+    error
+        tuple (exctype, value, traceback.format_exc() )
+    result
+        object data returned from processing, anything
+    progress
+        int indicating % progress
+    """
+    finished = pyqtSignal()
+    error = pyqtSignal(tuple)
+    result = pyqtSignal(object)
+    progress = pyqtSignal(int)
+
+
+class Worker(QRunnable):
+    """
+    Worker thread
+    Inherits from QRunnable to handler worker thread setup, signals and wrap-up.
+    :param callback: The function callback to run on this worker thread. Supplied args and
+                     kwargs will be passed through to the runner.
+    :type callback: function
+    :param args: Arguments to pass to the callback function
+    :param kwargs: Keywords to pass to the callback function
+    """
+
+    def __init__(self, fn, *args, **kwargs):
+        super(Worker, self).__init__()
+
+        # Store constructor arguments (re-used for processing)
+        self.fn = fn
+        self.args = args
+        self.kwargs = kwargs
+        self.signals = WorkerSignals()
+
+        # Add the callback to our kwargs
+        self.kwargs['progress_callback'] = self.signals.progress
+
+    @pyqtSlot()
+    def run(self):
+        """
+        Initialise the runner function with passed args, kwargs.
+        """
+
+        # Retrieve args/kwargs here; and fire processing using them
+        try:
+            result = self.fn(*self.args, **self.kwargs)
+        except:
+            traceback.print_exc()
+            exctype, value = sys.exc_info()[:2]
+            self.signals.error.emit((exctype, value, traceback.format_exc()))
+        else:
+            self.signals.result.emit(result)  # Return the result of the processing
+        finally:
+            self.signals.finished.emit()  # Done
+
+
 class ClaspyGui(QMainWindow):
     def __init__(self, parent=None):
         super(ClaspyGui, self).__init__(parent)
@@ -288,7 +351,7 @@ class ClaspyGui(QMainWindow):
 
         # Variable Initialization
         self.platform = get_platform()
-        self.cLASpy_T_version = common.cLASpy_T_version
+        self.cLASpy_Core_version = cLASpy_Core_version
         self.cLASpy_GUI_version = '0.1.1'
         self.cLASpy_train_version = self.cLASpy_GUI_version + '_train'
         self.cLASpy_predi_version = self.cLASpy_GUI_version + '_predi'
@@ -309,10 +372,10 @@ class ClaspyGui(QMainWindow):
         try:
             with open("claspy_options.json", 'r') as options_file:
                 self.options_dict = json.load(options_file)
-                self.pythonPath = self.options_dict['python_path']
+                # self.pythonPath = self.options_dict['python_path']
                 self.WelcomeAgain = self.options_dict['welcome_window']
         except FileNotFoundError:
-            self.pythonPath = ''
+            # self.pythonPath = ''
             self.WelcomeAgain = True
 
         # Call the Welcome window
@@ -329,8 +392,10 @@ class ClaspyGui(QMainWindow):
         self.groupStandardLAS.setEnabled(False)
         self.groupStandardLAS.setVisible(False)
 
-        # Right part of GUI
+        # Right part of GUI -----
         self.command_part()
+        self.threadpool = QThreadPool()
+        # ------ End of command part
 
         # Button box
         self.buttonBox = QDialogButtonBox(QDialogButtonBox.Close)
@@ -403,7 +468,7 @@ class ClaspyGui(QMainWindow):
         self.setStatusBar(self.statusBar)
 
         # Geometry
-        self.setGeometry(0, 0, 1024, 768)
+        self.setGeometry(0, 0, 1280, 960)
 
     # Welcome window
     def display_welcome_window(self, welcome=True):
@@ -451,7 +516,7 @@ class ClaspyGui(QMainWindow):
         label_softname.setAlignment(Qt.AlignCenter)
         label_webpage = QLabel('https://github.com/TrickyPells/cLASpy_T')
         label_webpage.setAlignment(Qt.AlignCenter)
-        label_version = QLabel('Core version: ' + str(self.cLASpy_T_version) +
+        label_version = QLabel('Core version: ' + str(self.cLASpy_Core_version) +
                                ' | GUI version: ' + str(self.cLASpy_GUI_version))
         label_version.setAlignment(Qt.AlignCenter)
 
@@ -563,23 +628,23 @@ class ClaspyGui(QMainWindow):
         self.dialogOptions = QDialog()
 
         # Add lineEdit to set the python interpreter
-        self.labelPython = QLabel("Python path:")
-        self.linePython = QLineEdit()
-        self.linePython.setMinimumWidth(200)
-        if self.platform == 'Windows':
-            self.linePython.setPlaceholderText("Give 'python.exe' path")
-        else:
-            self.linePython.setPlaceholderText("Give python path")
-        if self.pythonPath != '':
-            self.linePython.setText(self.pythonPath)
+        # self.labelPython = QLabel("Python path:")
+        # self.linePython = QLineEdit()
+        # self.linePython.setMinimumWidth(200)
+        # if self.platform == 'Windows':
+        #     self.linePython.setPlaceholderText("Give 'python.exe' path")
+        # else:
+        #     self.linePython.setPlaceholderText("Give python path")
+        # if self.pythonPath != '':
+        #     self.linePython.setText(self.pythonPath)
 
-        self.toolButtonPython = QToolButton()
-        self.toolButtonPython.setText("Browse")
-        self.toolButtonPython.clicked.connect(self.find_python)
+        # self.toolButtonPython = QToolButton()
+        # self.toolButtonPython.setText("Browse")
+        # self.toolButtonPython.clicked.connect(self.find_python)
 
-        self.hLayoutPython = QHBoxLayout()
-        self.hLayoutPython.addWidget(self.linePython)
-        self.hLayoutPython.addWidget(self.toolButtonPython)
+        # self.hLayoutPython = QHBoxLayout()
+        # self.hLayoutPython.addWidget(self.linePython)
+        # self.hLayoutPython.addWidget(self.toolButtonPython)
 
         # CheckBox Welcome Window
         check_welcome_window = QCheckBox('Do not show the welcome window again !')
@@ -596,7 +661,7 @@ class ClaspyGui(QMainWindow):
         self.buttonOptionsBox.rejected.connect(self.dialogOptions.reject)
 
         self.formLayoutOptions = QFormLayout(self.dialogOptions)
-        self.formLayoutOptions.addRow(self.labelPython, self.hLayoutPython)
+        # self.formLayoutOptions.addRow(self.labelPython, self.hLayoutPython)
         self.formLayoutOptions.addRow(QLabel('Welcome window: '), check_welcome_window)
         self.formLayoutOptions.addRow(self.buttonOptionsBox)
 
@@ -604,20 +669,20 @@ class ClaspyGui(QMainWindow):
         self.setWindowModality(Qt.ApplicationModal)
         self.dialogOptions.exec_()
 
-    def find_python(self):
-        if self.platform == 'Windows':
-            python_exe = QFileDialog.getOpenFileName(self, 'Select \'python.exe\'',
-                                                     '', "Executables (*.exe);;")
-        else:
-            python_exe = QFileDialog.getOpenFileName(self, 'Select python interpreter')
-
-        if python_exe[0] != '':
-            self.linePython.setText(os.path.normpath(python_exe[0]))
+    # def find_python(self):
+    #     if self.platform == 'Windows':
+    #         python_exe = QFileDialog.getOpenFileName(self, 'Select \'python.exe\'',
+    #                                                  '', "Executables (*.exe);;")
+    #     else:
+    #         python_exe = QFileDialog.getOpenFileName(self, 'Select python interpreter')
+    #
+    #     if python_exe[0] != '':
+    #         self.linePython.setText(os.path.normpath(python_exe[0]))
 
     def save_options(self):
-        self.pythonPath = self.linePython.text()
-        self.options_dict['python_path'] = self.pythonPath
-        self.statusBar.showMessage("Python path: {}".format(self.pythonPath), 3000)
+        # self.pythonPath = self.linePython.text()
+        # self.options_dict['python_path'] = self.pythonPath
+        # self.statusBar.showMessage("Python path: {}".format(self.pythonPath), 3000)
 
         self.options_dict['welcome_window'] = self.WelcomeAgain
         with open("claspy_options.json", 'w') as options_file:
@@ -626,10 +691,11 @@ class ClaspyGui(QMainWindow):
     def save_close_options(self):
         # call save_otpion()
         self.save_options()
+        self.dialogOptions.close()
 
-        # and close dialog
-        if self.linePython.text() != '':
-            self.dialogOptions.close()
+        # # and close dialog
+        # if self.linePython.text() != '':
+        #     self.dialogOptions.close()
 
     # Parameter part
     def parameter_part(self):
@@ -2375,33 +2441,33 @@ class ClaspyGui(QMainWindow):
 
     def number_selected_features(self):
         self.max_feat_count = 0
-        self.selected_count = 0
+        self.sel_feat_count = 0
 
         # Coordinate Features
         if self.checkAdvancedFeat.isChecked():
             if self.checkX.isEnabled():
                 self.max_feat_count += 1
                 if self.checkX.isChecked():
-                    self.selected_count += 1
+                    self.sel_feat_count += 1
             if self.checkY.isEnabled():
                 self.max_feat_count += 1
                 if self.checkY.isChecked():
-                    self.selected_count += 1
+                    self.sel_feat_count += 1
             if self.checkZ.isEnabled():
                 self.max_feat_count += 1
                 if self.checkZ.isChecked():
-                    self.selected_count += 1
+                    self.sel_feat_count += 1
 
         if self.listStandardLAS is not None and self.groupStandardLAS.isEnabled():
             self.max_feat_count += self.listStandardLAS.count()
-            self.selected_count += len(self.listStandardLAS.selectedItems())
+            self.sel_feat_count += len(self.listStandardLAS.selectedItems())
 
         if self.listExtraFeatures is not None:
             self.max_feat_count += self.listExtraFeatures.count()
-            self.selected_count += len(self.listExtraFeatures.selectedItems())
+            self.sel_feat_count += len(self.listExtraFeatures.selectedItems())
 
         self.labelNbrSelFeatures.setText("Number of selected features: {} / {}".format(
-            self.selected_count, self.max_feat_count))
+            self.sel_feat_count, self.max_feat_count))
 
     def reset_selection_features(self):
         """
@@ -3464,7 +3530,7 @@ class ClaspyGui(QMainWindow):
         self.update_config()
 
         # Check if features are selected
-        if self.selected_count > 0:
+        if self.sel_feat_count > 0:
             # Save the JSON file
             self.statusBar.showMessage("Saving JSON config file...", 3000)
             json_file = QFileDialog.getSaveFileName(None, 'Save JSON config file',
@@ -3503,7 +3569,7 @@ class ClaspyGui(QMainWindow):
         self.update_config()
 
         # Check if features are selected
-        if self.selected_count > 0:
+        if self.sel_feat_count > 0:
             # Save the JSON file
             self.statusBar.showMessage("Saving JSON config file...", 3000)
             json_file = QFileDialog.getSaveFileName(None, 'Save JSON config file',
@@ -3566,181 +3632,292 @@ class ClaspyGui(QMainWindow):
             with open(cmd_output_file[0], 'w') as text_file:
                 text_file.write(cmd_output)
 
+    def message(self, s):
+        """
+        Print message 's' in the plainTextCommand (QPlainTextEdit())
+        :param s: the message to print into plainTextCommand
+        """
+        self.plainTextCommand.appendPlainText(s)
+
+    def update_progress(self, n):
+        """Update progressBar according given percent as integer"""
+        self.progressBar.setValue(n)
+
     def run_train(self):
+        # Update buttons
+        self.buttonRunTrain.setEnabled(False)
+        self.buttonRunPredict.setEnabled(False)
+        self.buttonRunSegment.setEnabled(False)
+        self.buttonStop.setEnabled(True)
+
+        # Update training configuration
         self.update_config()
 
-        # Check pythonPath is set
-        if self.pythonPath != '':
-
-            # Check if some features are selected  and hidden_layer_sizes exist
-            if self.selected_count > 0:
-                features = str(self.train_config['feature_names']).replace(' ', '')
-
-                # Train with GridSearchCV or not
-                if self.train_config['grid_search']:
-                    # Setting up grid_parameters
-                    grid_parameters = str(self.train_config['param_grid'])
-
-                    # Create command list to run cLASpy_T
-                    command = ["cLASpy_T.py", "train",
-                               "-a", self.algo,
-                               "-i", self.lineLocalFile.text(),
-                               "-o", self.lineLocalFolder.text(),
-                               "-f", features,
-                               "-g", "-k", grid_parameters,
-                               "--scaler", self.comboScaler.currentText(),
-                               "--scoring", self.comboScorer.currentText(),
-                               "-n", str(self.spinNJobCV.value()),
-                               "-s", str(self.train_config['samples']),
-                               "--train_r", str(self.train_config['training_ratio'])]
-
-                    if self.spinPCA.value() != 0:
-                        command.append("--pca")
-                        command.append(str(self.spinPCA.value()))
-
-                    if self.train_config['random_state'] is not None:
-                        command.append("--random_state")
-                        command.append(str(self.train_config['random_state']))
-
-                else:
-                    # Setting up parameters, remove parameters set as None
-                    parameters_dict = self.train_config['parameters']
-                    keys_to_remove = list()  # Create list of keys to remove, because dictionary must keep the same length
-                    for key in parameters_dict:
-                        if parameters_dict[key] is None:
-                            keys_to_remove.append(key)
-                    for key in keys_to_remove:
-                        parameters_dict.pop(key)
-                    parameters = str(parameters_dict).replace(' ', '')
-
-                    # Create command list to run cLASpy_T
-                    command = ["cLASpy_T.py", "train",
-                               "-a", self.algo,
-                               "-i", self.lineLocalFile.text(),
-                               "-o", self.lineLocalFolder.text(),
-                               "-f", features,
-                               "-p", parameters,
-                               "--scaler", self.comboScaler.currentText(),
-                               "--scoring", self.comboScorer.currentText(),
-                               "-n", str(self.spinNJobCV.value()),
-                               "-s", str(self.train_config['samples']),
-                               "--train_r", str(self.train_config['training_ratio'])]
-
-                    if self.spinPCA.value() != 0:
-                        command.append("--pca")
-                        command.append(str(self.spinPCA.value()))
-
-                    if self.train_config['random_state'] is not None:
-                        command.append("--random_state")
-                        command.append(str(self.train_config['random_state']))
-
-                    if self.train_config['png_features']:
-                        command.append('--png_features')
-
-                # Run training process
-                if self.process is None:
-                    self.process = QProcess()
-                    #self.process.setProcessChannelMode(QProcess.ForwardedChannels)
-                    self.process.readyReadStandardOutput.connect(self.handle_stdout)
-                    self.process.readyReadStandardError.connect(self.handle_stderr)
-                    self.process.stateChanged.connect(self.handle_state)
-                    self.process.finished.connect(self.process_finished)
-                    self.process.setProgram(self.pythonPath)
-                    self.process.setArguments(command)
-                    self.process.start()
-                    self.processPID = self.process.processId()
-                    self.buttonStop.setEnabled(True)
-                    self.buttonRunTrain.setEnabled(False)
-
-            else:
-                warning_box("No feature field selected!\nPlease select the features you need!",
-                            "No features selected")
-
+        # Check if some features are selected
+        if self.sel_feat_count <= 0:
+            warning_box("No feature field selected!\nPlease select the features you need!",
+                        "No features selected")
         else:
-            warning_box("Set python path through Edit > Options", "Python path not set")
+            # Pass the function to execute
+            worker = Worker(self.train)
+            worker.signals.result.connect(self.message)
+            worker.signals.finished.connect(self.thread_complete)
+            worker.signals.progress.connect(self.update_progress)
+
+            # Execute
+            self.threadpool.start(worker)
+
+    def train(self, progress_callback):
+        self.message("\n# # # # # # # # # #  CLASPY_T  # # # # # # # # # # # #"
+                     "\n"
+                     "\n * * * * * * * *    Point Cloud Classification   * * * * * * * * *\n"
+                     "\n - - - - - - - - - - - - - -   Training Mode   - - - - - - - - - - - - - - -")
+
+        # Train with GridSearchCV or not
+        if self.train_config['grid_search']:
+            algo_parameters = None
+            grid_parameters = self.train_config['param_grid']
+        else:
+            algo_parameters = self.train_config['parameters']
+            grid_parameters = None
+
+        # Set the classifier
+        trainer = ClaspyTrainer(input_data=self.lineLocalFile.text(),
+                                output_data=self.lineLocalFolder.text(),
+                                algo=self.algo,
+                                algorithm=None,
+                                parameters=algo_parameters,
+                                features=self.train_config['feature_names'],
+                                grid_search=self.train_config['grid_search'],
+                                grid_param=grid_parameters,
+                                pca=self.spinPCA.value(),
+                                n_jobs=self.spinNJobCV.value(),
+                                random_state=self.train_config['random_state'],
+                                samples=self.train_config['samples'],
+                                scaler=self.comboScaler.currentText(),
+                                scoring=self.comboScorer.currentText(),
+                                train_ratio=self.train_config['training_ratio'],
+                                png_features=self.train_config['png_features'])
+
+        # Set the classifier according parameters
+        trainer.set_classifier()
+
+        # Introduction
+        intro = trainer.introduction(verbose=True)
+        self.message(intro)
+        progress_callback.emit(int(0 * 100 / 7))
+
+        # Part 1/7 - Format dataset
+        self.message("\nStep 1/7: Formatting data as pandas.DataFrame...")
+        step1 = trainer.format_dataset(verbose=True)
+        self.message(step1)
+        progress_callback.emit(int(1 * 100 / 7))
+
+        # Part 2/7 - Split data into training and testing sets
+        self.message("\nStep 2/7: Splitting data in train and test sets...")
+        step2 = trainer.split_dataset(verbose=True)
+        self.message(step2)
+        progress_callback.emit(int(2 * 100 / 7))
+
+        # Part 3/7 - Scale dataset as 'Standard', 'Robust' or 'MinMaxScaler'
+        self.message("\nStep 3/7: Scaling data...")
+        step3 = trainer.set_scaler_pca(verbose=True)
+        self.message(step3)
+        progress_callback.emit(int(3 * 100 / 7))
+
+        # Part 4/7 - Train model
+        if trainer.grid_search:  # Training with GridSearchCV
+            self.message('\nStep 4/7: Training model with GridSearchCV...\n')
+        else:  # Training with Cross Validation
+            self.message("\nStep 4/7: Training model with cross validation...\n")
+
+        step4 = trainer.train_model(verbose=True)  # Perform both training
+        self.message(step4)
+        progress_callback.emit(int(4 * 100 / 7))
+
+        # Part 5/7 - Create confusion matrix
+        self.message("\nStep 5/7: Creating confusion matrix...")
+        step5 = trainer.confusion_matrix(verbose=True)
+        self.message(step5)
+        progress_callback.emit(int(5 * 100 / 7))
+
+        # Part 6/7 - Save algorithm, model, scaler, pca and feature_names
+        self.message("\nStep 6/7: Saving model and scaler in file:")
+        step6 = trainer.save_model(verbose=True)
+        self.message(step6)
+        progress_callback.emit(int(6 * 100 / 7))
+
+        # Part 7/7 - Create and save prediction report
+        self.message("\nStep 7/7: Creating classification report:")
+        self.message(trainer.report_filename + '.txt')
+        step7 = trainer.classification_report(verbose=True)
+        self.message(step7)
+        progress_callback.emit(int(7 * 100 / 7))
+
+        # Kill the remaining python interpreters (1+18)
+        return "Training done!"
 
     def run_predict(self):
-        self.check_model_features()  # Check if model and input file features match
+        # Update buttons
+        self.buttonRunTrain.setEnabled(False)
+        self.buttonRunPredict.setEnabled(False)
+        self.buttonRunSegment.setEnabled(False)
+        self.buttonStop.setEnabled(True)
+
+        # Check if model and input file features match
+        self.check_model_features()
         if self.predict_features:
+            # Update predict configuration
             self.update_config()
 
-            # Create command list to run cLASpy_T
-            command = ["cLASpy_T.py", "predict",
-                       "-i", self.lineLocalFile.text(),
-                       "-o", self.lineLocalFolder.text(),
-                       "-m", self.lineModelFile.text()]
+            # Pass the function to execute
+            worker = Worker(self.predict)
+            worker.signals.result.connect(self.message)
+            worker.signals.finished.connect(self.thread_complete)
+            worker.signals.progress.connect(self.update_progress)
 
-            if self.pythonPath != '':
-                if self.process is None:
-                    self.process = QProcess()
-                    self.process.readyReadStandardOutput.connect(self.handle_stdout)
-                    self.process.readyReadStandardError.connect(self.handle_stderr)
-                    self.process.stateChanged.connect(self.handle_state)
-                    self.process.finished.connect(self.process_finished)
-                    self.process.setProgram(self.pythonPath)
-                    self.process.setArguments(command)
-                    self.process.start()
-                    self.processPID = self.process.processId()
-                    self.buttonStop.setEnabled(True)
-                    self.buttonRunPredict.setEnabled(False)
-            else:
-                self.plainTextCommand.appendPlainText("Set python path through Edit > Options")
+            # Execute
+            self.threadpool.start(worker)
+
+    def predict(self, progress_callback):
+        self.message("\n# # # # # # # # # #  CLASPY_T  # # # # # # # # # # # #"
+                     "\n"
+                     "\n * * * * * * * *    Point Cloud Classification   * * * * * * * * *\n"
+                     "\n - - - - - - - - - - - - - -   Prediction Mode   - - - - - - - - - - - - - - -")
+
+        # Set the classifier for prediction
+        predicter = ClaspyPredicter(model=self.lineModelFile.text(),
+                                    input_data=self.lineLocalFile.text(),
+                                    output_data=self.lineLocalFolder.text())
+
+        # Load model
+        self.message("\nStep 1/6: Loading model...")
+        step1 = predicter.load_model(verbose=True)
+        self.message(step1)
+        progress_callback.emit(int(1 * 100 / 6))
+
+        # Introduction
+        intro = predicter.introduction(verbose=True)
+        self.message(intro)
+
+        # Format dataset
+        self.message("\nStep 2/6: Formatting data as pandas.Dataframe...")
+        step2 = predicter.format_dataset(verbose=True)
+        self.message(step2)
+        progress_callback.emit(int(2 * 100 / 6))
+
+        # Scale the dataset as 'Standard', 'Robust' or 'MinMaxScaler'
+        self.message("\nStep 3/6: Scaling data...")
+        step3 = predicter.scale_dataset(verbose=True)
+        self.message(step3)
+        progress_callback.emit(int(3 * 100 / 6))
+
+        # Predict target of input data
+        self.message("\nStep 4/6: Making predictions for entire dataset...")
+        step4 = predicter.predict(verbose=True)
+        self.message(step4)
+        progress_callback.emit(int(4 * 100 / 6))
+
+        # Save classification results as point cloud file with all data
+        self.message("\nStep 5/6: Saving classified point cloud:")
+        step5 = predicter.save_predictions(verbose=True)
+        self.message(step5)
+        progress_callback.emit(int(5 * 100 / 6))
+
+        # Create and save prediction report
+        self.message("\nStep 6/6: Creating classification report:")
+        self.message(predicter.report_filename + '.txt')
+        step6 = predicter.classification_report(verbose=True)
+        self.message(step6)
+        progress_callback.emit(int(6 * 100 / 6))
+
+        # End of the function
+        return "Predictions done!"
 
     def run_segment(self):
+        # Update buttons
+        self.buttonRunTrain.setEnabled(False)
+        self.buttonRunPredict.setEnabled(False)
+        self.buttonRunSegment.setEnabled(False)
+        self.buttonStop.setEnabled(True)
+
+        # Update segmentation configuration
         self.update_config()
 
-        # Check pythonPath is set
-        if self.pythonPath != '':
-
-            # Check if some features are selected
-            if self.selected_count > 0:
-                features = str(self.segment_config['feature_names']).replace(' ', '')
-
-                # Setting up parameters, remove parameters set as None
-                parameters_dict = self.segment_config['parameters']
-                # Create list of keys to remove, because dictionary must keep the same length
-                keys_to_remove = list()
-                for key in parameters_dict:
-                    if parameters_dict[key] is None:
-                        keys_to_remove.append(key)
-                for key in keys_to_remove:
-                    parameters_dict.pop(key)
-                parameters = str(parameters_dict).replace(' ', '')
-
-                # Create command list to run cLASpy_T
-                command = ["cLASpy_T.py", "segment",
-                           "-i", self.lineLocalFile.text(),
-                           "-o", self.lineLocalFolder.text(),
-                           "-f", features,
-                           "-p", parameters]
-
-                # Run semgentation process
-                if self.process is None:
-                    self.process = QProcess()
-                    self.process.readyReadStandardOutput.connect(self.handle_stdout)
-                    self.process.readyReadStandardError.connect(self.handle_stderr)
-                    self.process.stateChanged.connect(self.handle_state)
-                    self.process.finished.connect(self.process_finished)
-                    self.process.setProgram(self.pythonPath)
-                    self.process.setArguments(command)
-                    self.process.start()
-                    self.processPID = self.process.processId()
-                    self.buttonStop.setEnabled(True)
-                    self.buttonRunSegment.setEnabled(False)
-
-            else:
-                warning_box("No feature field selected!\nPlease select the features you need!",
-                            "No features selected")
+        # Check if some features are selected
+        if self.sel_feat_count <= 0:
+            warning_box("No feature field selected!\nPlease select the features you need!",
+                        "No features selected")
         else:
-            warning_box("Set python path through Edit > Options", "Python path not set")
+            # Pass the function to execute
+            worker = Worker(self.segment)
+            worker.signals.result.connect(self.message)
+            worker.signals.finished.connect(self.thread_complete)
+            worker.signals.progress.connect(self.update_progress)
+
+            # Execute
+            self.threadpool.start(worker)
+
+    def segment(self, progress_callback):
+        self.message("\n# # # # # # # # # #  CLASPY_T  # # # # # # # # # # # #"
+                     "\n"
+                     "\n * * * * * * * *    Point Cloud Classification   * * * * * * * * *\n"
+                     "\n - - - - - - - - - - - - - -   Segmentation Mode   - - - - - - - - - - - - - - -")
+
+        # Set the classifier
+        segmenter = ClaspySegmenter(input_data=self.lineLocalFile.text(),
+                                    output_data=self.lineLocalFolder.text(),
+                                    parameters=self.segment_config['parameters'],
+                                    features=self.segment_config['feature_names'])
+
+        # Set the classifier according parameters
+        segmenter.set_classifier()
+
+        # Introduction
+        intro = segmenter.introduction(verbose=True)
+        self.message(intro)
+        progress_callback.emit(int(0 * 100 / 5))
+
+        # Format dataset
+        self.message("\nStep 1/5: Formatting data as pandas.DataFrame...")
+        step1 = segmenter.format_dataset(verbose=True)
+        self.message(step1)
+        progress_callback.emit(int(1 * 100 / 5))
+
+        # Scale the dataset as 'Standard', 'Robust' or 'MinMaxScaler'
+        self.message("\nStep 2/5: Scaling data...")
+        step2 = segmenter.set_scaler_pca(verbose=True)
+        self.message(step2)
+        progress_callback.emit(int(2 * 100 / 5))
+
+        # Split data into training and testing sets
+        self.message("\nStep 3/5: Clustering the dataset...")
+        step3 = segmenter.segment(verbose=True)
+        self.message(step3)
+        progress_callback.emit(int(3 * 100 / 5))
+
+        # Save algorithm, model, scaler, pca and feature_names
+        self.message("\nStep 4/5: Saving segmented point cloud in file...")
+        step4 = segmenter.save_clusters(verbose=True)
+        self.message(step4)
+        progress_callback.emit(int(4 * 100 / 5))
+
+        # Create and save prediction report
+        self.message("\nStep 5/5: Creating classification report:")
+        step5 = segmenter.classification_report(verbose=True)
+        self.message(step5)
+        progress_callback.emit(int(5 * 100 / 5))
+
+        # End of the function
+        return "Segmentation done!"
 
     def handle_stdout(self):
         data = self.process.readAllStandardOutput()
         stdout = bytes(data).decode('utf8')
+        self.plainTextCommand.appendPlainText(stdout)
         progress = percent_parser(stdout)
         if progress:
             self.progressBar.setValue(progress)
-        self.plainTextCommand.appendPlainText(stdout)
 
     def handle_stderr(self):
         data = self.process.readAllStandardError()
@@ -3755,9 +3932,9 @@ class ClaspyGui(QMainWindow):
         state_name = states[state]
         self.statusBar.showMessage("cLASpy_T is {}".format(state_name), 3000)
 
-    def process_finished(self):
+    def thread_complete(self):
         self.statusBar.showMessage("cLASpy_T finished !", 5000)
-        self.process = None
+        self.threadpool.releaseThread()
         self.progressBar.reset()
         self.enable_open_results()
         self.buttonStop.setEnabled(False)
