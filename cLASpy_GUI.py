@@ -326,10 +326,6 @@ class ClaspyGui(QMainWindow):
         self.buttonRunSegment = QPushButton("Segment")
         self.buttonRunSegment.clicked.connect(self.run_segment)
         self.buttonBox.addButton(self.buttonRunSegment, QDialogButtonBox.ActionRole)
-        self.buttonStop = QPushButton("Stop")
-        self.buttonStop.clicked.connect(self.stop_process)
-        self.buttonStop.setEnabled(False)
-        self.buttonBox.addButton(self.buttonStop, QDialogButtonBox.ActionRole)
         self.buttonRunPredict.setVisible(False)
         self.buttonRunSegment.setVisible(False)
 
@@ -3441,7 +3437,6 @@ class ClaspyGui(QMainWindow):
         # self.buttonRunTrain.setEnabled(False)
         # self.buttonRunPredict.setEnabled(False)
         # self.buttonRunSegment.setEnabled(False)
-        # self.buttonStop.setEnabled(True)
 
         # Update training configuration
         self.update_config()
@@ -3469,7 +3464,6 @@ class ClaspyGui(QMainWindow):
                 self.process.setProgram(sys.executable)
                 self.process.setArguments(command)
                 self.process.start()
-                self.buttonStop.setEnabled(True)
                 self.buttonRunTrain.setEnabled(False)
 
     def run_predict(self):
@@ -3477,7 +3471,6 @@ class ClaspyGui(QMainWindow):
         self.buttonRunTrain.setEnabled(False)
         self.buttonRunPredict.setEnabled(False)
         self.buttonRunSegment.setEnabled(False)
-        self.buttonStop.setEnabled(True)
 
         # Check if model and input file features match
         self.check_model_features()
@@ -3494,7 +3487,6 @@ class ClaspyGui(QMainWindow):
         self.buttonRunTrain.setEnabled(False)
         self.buttonRunPredict.setEnabled(False)
         self.buttonRunSegment.setEnabled(False)
-        self.buttonStop.setEnabled(True)
 
         # Update segmentation configuration
         self.update_config()
@@ -3522,31 +3514,12 @@ class ClaspyGui(QMainWindow):
         self.statusBar.showMessage("cLASpy_T is {}".format(state_name), 5000)
 
     def process_finished(self):
+        self.process = None
         self.statusBar.showMessage("cLASpy_T finished !", 5000)
-        # self.threadpool.releaseThread()
-        # self.progressBar.reset()
         self.enable_open_results()
-        self.buttonStop.setEnabled(False)
         self.buttonRunTrain.setEnabled(True)
         self.buttonRunPredict.setEnabled(True)
         self.buttonRunSegment.setEnabled(True)
-
-    def stop_process(self):
-        parent_process = psutil.Process(self.process.processId())
-        try:
-            for child in parent_process.children(recursive=True):
-                child.kill()
-            parent_process.kill()
-        except:
-            self.statusBar.showMessage("ERROR: Process not killed!", 3000)
-        else:
-            self.buttonStop.setEnabled(False)
-            self.buttonRunTrain.setEnabled(True)
-            self.buttonRunPredict.setEnabled(True)
-            self.buttonRunSegment.setEnabled(True)
-            self.plainTextCommand.appendPlainText("\n********************"
-                                                  "\nProcess stopped by user!"
-                                                  "\n********************")
 
     def reject(self):
         """
