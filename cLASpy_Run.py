@@ -204,9 +204,13 @@ class ClaspyRun(QMainWindow):
         # ----------- Button box -------------
         self.buttonBox = QDialogButtonBox()
         self.buttonStop = QPushButton("Stop")
-        self.buttonStop.clicked.connect(self.reject)
+        self.buttonStop.clicked.connect(self.stop_thread)
         self.buttonStop.setEnabled(True)
         self.buttonBox.addButton(self.buttonStop, QDialogButtonBox.ActionRole)
+        #self.buttonClose = QPushButton("Close")
+        # self.buttonClose.clicked.connect(self.reject)
+        #self.buttonClose.setEnabled(False)
+        #self.buttonBox.addButton(self.buttonClose, QDialogButtonBox.Close)
 
         # ------------- Main layout ------------------
         self.vMainLayout = QVBoxLayout(self.mainWidget)
@@ -526,7 +530,7 @@ class ClaspyRun(QMainWindow):
                   QProcess.Running: "Running"}
 
         state_name = states[state]
-        self.statusBar.showMessage("cLASpy_T run is {}".format(state_name), 3000)
+        self.statusBar.showMessage("cLASpy_T run is {}".format(state_name), 5000)
 
     def thread_complete(self):
         self.statusBar.showMessage("cLASpy_T run is finished !", 5000)
@@ -535,33 +539,34 @@ class ClaspyRun(QMainWindow):
         self.buttonStop.setEnabled(False)
 
     def stop_thread(self):
+        self.buttonStop.setEnabled(False)
+        self.buttonStop.setText("Stopping...")
+        self.plainTextCommand.appendPlainText("\n********************"
+                                              "\nProcess stopped by user!"
+                                              "\n********************")
+
+        time.sleep(3)
         try:
             self.thread.exit()
-            self.thread.wait()
             # self.thread.quit()
             # self.worker.deleteLater()
             # self.thread.deleteLater()
         except:  # too generic
             self.statusBar.showMessage("Exception raised: Thread not stopped!", 3000)
 
-        else:
-            self.buttonStop.setEnabled(False)
-            self.plainTextCommand.appendPlainText("\n********************"
-                                                  "\nProcess stopped by user!"
-                                                  "\n********************")
+        self.thread.wait(5000)
+        self.plainTextCommand.appendPlainText("\nWaiting time ends!")
+        self.buttonStop.setText("Stop")
+        self.close()
 
     def reject(self):
         """
         Close ClaspyRun
         """
+        #self.thread.quit()
+        self.thread.exit()
+        self.thread.wait()
         self.close()
-
-    def closeEvent(self, event):
-        """
-        Close ClaspyRun
-        """
-        self.close()
-        event.accept()
 
 
 # execute run() function
