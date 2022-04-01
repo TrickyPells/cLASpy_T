@@ -3450,11 +3450,12 @@ class ClaspyGui(QMainWindow):
             temp_config = './temp_settings.json'
             with open(temp_config, 'w') as config_file:
                 json.dump(self.train_config, config_file, indent=4)
-                self.statusBar.showMessage("Temp setting file created for training: {}".format(temp_config), 2000)
+                self.statusBar.showMessage("Temp setting file for training: {}".format(temp_config), 5000)
 
-            # Run new process with the config file to train
+            # process command
             command = ["cLASpy_Run.py", temp_config]
 
+            # Run new process with the config file to train
             if self.process is None:
                 self.process = QProcess()
                 self.process.setProcessChannelMode(QProcess.MergedChannels)
@@ -3464,6 +3465,8 @@ class ClaspyGui(QMainWindow):
                 self.process.setProgram(sys.executable)
                 self.process.setArguments(command)
                 self.process.start()
+                print("ParentID: {}".format(os.getpid()))
+                print("Id du process: {}".format(self.process.processId()))
                 self.buttonRunTrain.setEnabled(False)
 
     def run_predict(self):

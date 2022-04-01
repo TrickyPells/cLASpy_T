@@ -28,6 +28,7 @@
 # --- DEPENDENCIES ---
 # --------------------
 import os
+import signal
 import sys
 import io
 import re
@@ -83,9 +84,9 @@ def run(arguments):
     app.setStyle('Fusion')
 
     # Execute the Main window
-    ex = ClaspyRun(arguments=args)
+    ex = ClaspyRun(arguments=arguments)
     ex.show()
-    ex.run_train()
+    # ex.run_worker()
     sys.exit(app.exec_())
 
 # -------------------------
@@ -196,21 +197,23 @@ class ClaspyRun(QMainWindow):
         self.groupCommand = QGroupBox("Command Output")
         self.groupCommand.setLayout(self.vLayoutRight)
 
-        # ------------ Process ---------------
-        self.threadpool = QThreadPool()
-        self.thread = QThread()
-        self.process = None
-
         # ----------- Button box -------------
         self.buttonBox = QDialogButtonBox()
+
         self.buttonStop = QPushButton("Stop")
         self.buttonStop.clicked.connect(self.stop_thread)
         self.buttonStop.setEnabled(True)
         self.buttonBox.addButton(self.buttonStop, QDialogButtonBox.ActionRole)
-        #self.buttonClose = QPushButton("Close")
-        # self.buttonClose.clicked.connect(self.reject)
-        #self.buttonClose.setEnabled(False)
-        #self.buttonBox.addButton(self.buttonClose, QDialogButtonBox.Close)
+
+        self.buttonRerun = QPushButton("Re-run")
+        self.buttonRerun.clicked.connect(self.run_worker)
+        self.buttonRerun.setEnabled(False)
+        self.buttonBox.addButton(self.buttonRerun, QDialogButtonBox.ActionRole)
+
+        self.buttonClose = QPushButton("Close")
+        self.buttonClose.clicked.connect(self.close)
+        self.buttonClose.setEnabled(False)
+        self.buttonBox.addButton(self.buttonClose, QDialogButtonBox.ActionRole)
 
         # ------------- Main layout ------------------
         self.vMainLayout = QVBoxLayout(self.mainWidget)
@@ -226,6 +229,12 @@ class ClaspyRun(QMainWindow):
 
         # Geometry
         self.setGeometry(0, 0, 640, 800)
+
+        # Process ID
+        self.pid = os.getpid()
+        self.thread = QThread()
+        self.run_worker()
+        # self.worker = Worker(self.train)
 
     def create_trainer(self):
         """
@@ -321,11 +330,25 @@ class ClaspyRun(QMainWindow):
         """Update progressBar according given percent as integer"""
         self.progressBar.setValue(n)
 
-    def run_train(self):
+    def run_worker(self):
         # Update button
+        self.buttonRerun.setEnabled(False)
+        self.buttonClose.setEnabled(False)
+        self.buttonStop.setEnabled(True)
 
-        # Set Worker
-        self.worker = Worker(self.train)
+        # Create ClaspyObjects
+        if self.mode == 'train':
+            #self.trainer = self.create_trainer()
+            self.worker = Worker(self.train)
+        elif self.mode == 'predi':
+            #self.predicter = self.create_predicter()
+            self.worker = Worker(self.predict)
+        elif self.mode == 'segme':
+            #self.segmenter = self.create_segmenter()
+            self.worker = Worker(self.segment)
+
+        # Set Worker as thread
+        self.thread = QThread()
         self.worker.moveToThread(self.thread)
 
         # Step 5
@@ -403,18 +426,6 @@ class ClaspyRun(QMainWindow):
         # Kill the remaining python interpreters (1+18)
         return "Training done!"
 
-    def run_predict(self):
-        # Update button
-
-        # Pass the function to execute
-        self.worker = Worker(self.predict)
-        self.worker.signals.result.connect(self.message)
-        self.worker.signals.finished.connect(self.thread_complete)
-        self.worker.signals.progress.connect(self.update_progress)
-
-        # Execute
-        self.threadpool.start(self.worker)
-
     def predict(self, progress_callback):
         self.message("\n# # # # # # # # # #  CLASPY_T  # # # # # # # # # # # #"
                      "\n"
@@ -464,18 +475,6 @@ class ClaspyRun(QMainWindow):
 
         # End of the function
         return "Predictions done!"
-
-    def run_segment(self):
-        # Update buttons
-
-        # Pass the function to execute
-        self.worker = Worker(self.segment)
-        self.worker.signals.result.connect(self.message)
-        self.worker.signals.finished.connect(self.thread_complete)
-        self.worker.signals.progress.connect(self.update_progress)
-
-        # Execute
-        self.threadpool.start(self.worker)
 
     def segment(self, progress_callback):
         self.message("\n# # # # # # # # # #  CLASPY_T  # # # # # # # # # # # #"
@@ -533,39 +532,33 @@ class ClaspyRun(QMainWindow):
         self.statusBar.showMessage("cLASpy_T run is {}".format(state_name), 5000)
 
     def thread_complete(self):
-        self.statusBar.showMessage("cLASpy_T run is finished !", 5000)
-        self.threadpool.releaseThread()
+        self.statusBar.showMessage("cLASpy_T run finished!", 5000)
+
         self.progressBar.reset()
         self.buttonStop.setEnabled(False)
+        self.buttonRerun.setEnabled(True)
+        self.buttonClose.setEnabled(True)
 
     def stop_thread(self):
         self.buttonStop.setEnabled(False)
         self.buttonStop.setText("Stopping...")
+
+        time.sleep(1)
+        parent = psutil.Process(self.pid)
+        for child in parent.children(recursive=True):
+            child.kill()
+
+        self.buttonStop.setText("Stop")
+        self.buttonRerun.setEnabled(True)
+        self.buttonClose.setEnalbed(True)
+
         self.plainTextCommand.appendPlainText("\n********************"
                                               "\nProcess stopped by user!"
                                               "\n********************")
 
-        time.sleep(3)
-        try:
-            self.thread.exit()
-            # self.thread.quit()
-            # self.worker.deleteLater()
-            # self.thread.deleteLater()
-        except:  # too generic
-            self.statusBar.showMessage("Exception raised: Thread not stopped!", 3000)
-
-        self.thread.wait(5000)
-        self.plainTextCommand.appendPlainText("\nWaiting time ends!")
-        self.buttonStop.setText("Stop")
-        self.close()
-
-    def reject(self):
-        """
-        Close ClaspyRun
-        """
-        #self.thread.quit()
-        self.thread.exit()
-        self.thread.wait()
+    def closeEvent(self, event):
+        self.stop_thread()
+        time.sleep(1)
         self.close()
 
 
