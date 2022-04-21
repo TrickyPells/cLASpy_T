@@ -55,9 +55,9 @@ parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter,
                                                              cLASpy_T
                                                      ------------------------
                                  This program classifies 3D point clouds using machine learning algorithms based
-                                 on the Scikit-Learn library. Three supervised classifiers are available
-                                 (RandomForestClassifier, GradientBoostingClassifier and MLPClassifier)
-                                 and one unsupervised clustering algorithm (KMeans).
+                                 on scikit-learn. Three supervised classifiers (RandomForestClassifier, Gradient
+                                 BoostingClassifier and MLPClassifier) and one clustering algorithm (KMeans) are
+                                 available.
                                  The input data must be CSV or LAS file.
                                  
                                  For training, input_data file must contain:

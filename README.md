@@ -1,38 +1,110 @@
 # **cLASpy_T**
 
-**cLASpy_T** means '*Tools for classification of LAS file with python and machine learning libraries*' (classification LAS python-Tools). 
-cLASpy_T uses Scikit-Learn machine learning algorithms to classify 3D point clouds, such as LiDAR or Photogrammetric point clouds.
-The data must be provided in a LAS ou CSV file. Other formats should be supported later (GEOTIFF or PLY), and other machine learning libraries too (TensorFlow).
+**cLASpy_T** means '*Tools for classification of LAS file with python and machine learning algorithms*' or **classification LAS python Tools**.\
+cLASpy_T uses scikit-learn machine learning algorithms to classify 3D point clouds, such as LiDAR or Photogrammetric point clouds.
+Data must be provided in LAS ou CSV files. Other formats should be supported later (GEOTIFF or PLY), and other machine learning project too (TensorFlow).
 
-First, create model with labelled data and according an available machine learning algorithm in cLASpy-T.
-Once the model created, use it to perform predictions for non-labelled data.
+* First, create model with labelled data and a machine learning algorithm.
+* Once the model created, use it to perform predictions for non-labelled data.
 
 ## **Installation**
-
-Use the git command to clone 'cLASpy_T.git'.
+### **Get cLASpy_T source code**
+Move to the directory where put cLASpy_T source code, then get cLASpy_T source code with the git command to clone 'cLASpy_T.git:
 
 ```bash
 git clone https://github.com/TrickyPells/cLASpy_T.git
 ```
 
-## **Usage**
+If you do not know what 'Git' is, you also can download cLASpy_T source code on its Github page.
+Choose the branch you want to download, click on 'Code', then 'Download ZIP'. Once downloaded,
+decompress the ZIP archive in the directory you want.
+
+Once you clone or download/decompress source code, move to the cLASpy_T directory:
+```bash
+cd cLASpy_T
+```
+
+### **Create a Virtual Environment**
+First, create a new directory call '.venv' and use venv command from python to create a new virtual
+environment call 'claspy':
 
 ```bash
-python cLASpy_T.py [optional arguments] algorithm /path/to/the/data.file
+mkdir .venv
+python -m venv .venv\claspy
+```
+
+Now, activate this new virtual environment with:
+
+On Windows:
+```bash
+.venv\claspy\Scripts\activate
+```
+and the command prompt returns something like this:
+```bash
+(claspy) ...\cLASpy_T>
+```
+On Linux:
+```bash
+source .venv/claspy/bin/activate
+```
+and the terminal returns something like this:
+```bash
+(claspy) .../cLASpy_T$
+```
+
+### **Install all dependencies**
+The 'requirements.txt' file lists all required packages. We will use 'pip' command to install
+all dependencies automatically.
+
+First, check if 'pip' needs to be upgraded:
+```bash
+(claspy) ...\cLASpy_T>python -m pip install --upgrade pip
+```
+
+Once done, install all dependencies:
+
+```bash
+(claspy) ...\cLASpy_T>python -m pip install -r requirements.txt
+```
+
+### **Test the installation**
+To check if everything is OK, use the following command:
+```bash
+(claspy) ...\cLASpy_T>python cLASpy_T.py train -a=rf -i=.\Test\Orne_20130525.las
+```
+You should see returns of the program in the command prompt. At the end, a folder named 'Orne_20130525' in the 'Test' folder appears with all result files of this training.
+
+If you run into any issue, feel free to discuss it on the Github page : https://github.com/TrickyPells/cLASpy_T
+
+## **Usage**
+cLASpy_T is divided into 3 main modules: 'train', 'predict' and 'segment'.
+
+* **train** module performs training according the chosen machine learning algorithm and the provided data file. The data file must contain fields of features that describe each point and the target field of label as integer.
+
+
+* **predict** module performs predictions according a previous trained model and file of unknown data.  The data file must contain field of features that describe each point. The program ignores any 'target' field.
+
+
+* **segment** module performs cluster segmentation of dataset according KMeans algorithm (see scikit-learn documentation).
+
+Use '--help' argument for more details.
+
+## 'train' module
+```bash
+python cLASpy_T.py train [arguments] -a=algorithm -i=/path/to/the/data.file
 ```
 
 ### **Available algorithms**
+Refer to scikit-learn documentation (https://scikit-learn.org/stable/user_guide.html)
 
-* **rf** : *RandomForestClassifier* > Random Forest algorithm
-* **gb** : *GradientBoostingClassifier* > Gradient Boosting algorithm
+* **rf** : *RandomForestClassifier* > Random forest algorithm
+* **gb** : *GradientBoostingClassifier* > Random forest with gradient boosting
 * **ann** : *MLPClassifier* > Artificial Neural Network algorithm
 * **kmeans** : *KMeans* > K-Means clustering algorithm
 
-(Refer to Scikit-Learn library for more details)
-
 ### **Format of data files**
 
-The input data must be in **LAS** or **CSV**(sep=',') format.
+The input data must be in **LAS** or **CSV** (sep=',') format.
 
 *Example of CSV file:*
 ```txt
@@ -40,114 +112,91 @@ X,Y,Z,Target,Intensity,Red,Green,Blue,Roughness (5),Omnivariance (5),Sphericity 
 638.957,916.201,-2.953,1,39.0,104,133,113,0.11013,0.63586,0.00095...
 ```
 
-**For training, data file must contain:**
+**Data file must contain:**
 
-* target field named **'target'** (not case-sensitive), contains the labels as integer 
-* data fields
+* Target field named **'target'** (not case-sensitive), contains the labels as integer.
+* Fields of the data features that describe each point.
 
-**For prediction, data file must contain:**
+If X, Y and/or Z fields provided, **they are excluded for training**, but re-used to write the output file.
 
-* data fields
+To use **'Intensity'** field from LAS file, rename it as, for example, **'Original_Intensity'** or **'Amplitude'**.
 
+### **Arguments**
 
-If X, Y and/or Z fields are present, **they are excluded**, but re-used to write the output file.
-
-To use **'Intensity'** field from LAS file, rename it (examples: **'Original_Intensity'** or **'Amplitude'**).
-
-### **Optional arguments:**
-
-**-h, --help :**\
+**-h, --help**\
 *Show this help message and exit*
 
-**-g, --grid_search :**\
-*Perform the training with GridSearchCV* (See the Scikit-Learn documentation).
+**-a, --algo**\
+*Set the algorithm:  'rf', 'gb' or 'ann'*
+* *rf > **RandomForestClassifier***
+* *gb > **GradientBoostingClassifier***
+* *ann > **MLPClassifier***
 
-**-i, --importance :**\
-*Export feature importance from **RandomForest** and **GradientBoosting** model as a PNG image file.\
-Does not work with **GridSearchCV**.*
+**-c, --config**\
+*Give the configuration file with all parameters and selected scalar fields.*
+* ***On Windows:** C:/path/to/the/config.json*
+* ***On Unix:** /path/to/the/config.json*
 
-**-k, --param_grid [="dict"] :**\
-*Set the parameters for the GridSearch as list(sep=',') in dict **with ANY SPACE**.\
-Wrong parameters will be ignored. If empty, GridSearchCV uses presets.*
+**-i, --input_data**\
+*Set the input data file.*
+* ***On Windows:** C:/path/to/the/input_data.file*
+* ***On Linux:** /path/to/the/input_data.file*
 
-*Example:*
+**-o, --output**\
+*Set the output folder to save all result files.*
+* ***On Windows:** C:/path/to/the/output/folder*
+* ***On Linux:** /path/to/the/output/folder*
+  
+*Default: Create folder with the path of inpuit data.*
+
+**-f, --features**\
+*Select the features to used to train the model. Give a list of feature names. Whitespaces will be replaced by underscore '_'.*
 ```bash
--k="{'n_estimators':[50,100,500],'loss':['deviance','exponential'],hidden_layer_sizes':[[100,100],[50,100,50]]}"    
+-f=['Anisotropy_5m', 'R', 'G', 'B', ...]
 ```
 
-**-m, --model_to_import [="/path/to.model"] :**\
-*The model file to import to make predictions.*
+**-g, --grid_search**\
+*Perform the training with GridSearchCV.*
 
-*Examples:*
+**-k, --param_grid**\
+*Set the parameters to pass to the GridSearch as list in dictionary. NO WHITESPACES!*\
+*If empty, GridSearchCV uses presets. Wrong parameters will be ignored.*
 ```bash
--m="/path/to/the/file.model"
+-k="{'n_estimators':[50,100,500],'loss':['deviance', 'exponential'],'hidden_layer_sizes':[[100,100],[50,100,50]]}"
 ```
- **-n, --n_jobs [=int] :**\
-*Set the number of CPU used, '-1' means all available CPUs.*
 
-**-p, --parameters [="dict"] :**\
-*Set the parameters to pass at the classifier, as dict **with ANY SPACE**.*\
-*Wrong parameters will be ignored.*
+**-n, --n_jobs**\
+*Set the number of CPU used, '-1' means all CPU available (Default: -1).*
 
-*Example:*
+**-p, --parameters**\
+*Set the parameters to pass to the classifier for training, as dictionary. NO WHITESPACES*\
 ```bash
 -p="{'n_estimators':50,'max_depth':5,'max_iter':500}"
 ```
 
-**--pca [=int] :**\
-*Set the PCA analysis and the number of principal components.*
+**--pca**\
+*Set the Principal Component Analysis and the number of principal components.*
 
-**-s, --samples [=float (in Mpts)] :**\
-*Set the number of samples, in Million points, for large dataset.\
-If data length > samples:\
-then train + test length = samples*
+**--png_features**\
+*Export the feature importance from RandomForest and GradientBoosting algorithms as a PNG image.*
 
-**--scaler [='Standard','Robust','MinMax']:**\
-*Set method to scale the data before training (See the Scikit-Learn documentation).*
+**--random_state**\
+*Set the random_state for data split the GridSearchCV or the cross-validation.*
 
-**--scoring [='accuracy','balanced_accuracy','average_precision','precision','recall',...]**\
-*Set scorer to **GridSearchCV** or **cross_val_score** according to the Scikit-Learn documentation.*
+**-s, --samples**\
+*Set the number of samples for large dataset (float number in million points)*\
+*samples = train set + test set*
 
-**--test_ratio [0.0-1.0]:**\
+**--scaler**\
+*Set method to scale the data before training ['Standard', 'Robust', 'MinMax']*\
+*See the preprocessing documentation of scikit-learn (Default: 'Standard')*
 
-*Set the test ratio as float [0.0-1.0] to split into train and test data.\
+**--scoring**\
+*Set scorer for GridSearchCV or cross_val_score. ['accuracy', 'balanced_accuracy', 'precision', 'recall', ...] Default: 'accuracy'*\
+*See the scikit-learn documentation.*
 
-If train_ratio + test_ratio > 1:\
-then test_ratio = 1 - train_ratio*
-
-**--train_ratio [0.0-1.0]:**\
-*Set the train ratio as float number to split into train and test data.\
-If train_ratio + test_ratio > 1:\
-then test_ratio = 1 - train_ratio*
-
-## **Branches**
-List all branches (local and remote):
-```bash
-git branch -a
-```
-
-```bash
-  cheno
-* dev
-  master
-  remotes/origin/HEAD -> origin/dev
-  remotes/origin/beta
-  remotes/origin/cheno
-  remotes/origin/dev
-  remotes/origin/master
-```
-
-To create a new local branch from remote:\
-*(Here, to create a local branch 'beta')*
-
-```bash
-git checkout --track origin/beta
-```
-
-```bash
-Switched to a new branch 'beta'
-Branch 'beta' set up to track remote branch 'beta' from 'origin'.
-```
+**--train_r**\
+*Set the train ratio as float [0.0 - 1.0] to split into train and test data (Default: 0.5).*
 
 ## **Contributing**
 Pull requests are welcome.\

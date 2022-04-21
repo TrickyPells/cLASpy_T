@@ -170,6 +170,9 @@ $RECYCLE.BIN/
 *.msm
 *.msp
 
+# Windows batch
+*.bat
+
 # Windows shortcuts
 *.lnk
 
