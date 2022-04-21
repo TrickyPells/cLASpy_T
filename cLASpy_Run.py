@@ -175,14 +175,8 @@ class ClaspyRun(QMainWindow):
         # Save button
         self.buttonSaveCommand = QPushButton("Save Command Output")
         self.buttonSaveCommand.clicked.connect(self.save_output_command)
-
-        # Clear button
-        self.buttonClear = QPushButton("Clear")
-        self.buttonClear.clicked.connect(self.plainTextCommand.clear)
-
         self.hLayoutSaveClear = QHBoxLayout()
         self.hLayoutSaveClear.addWidget(self.buttonSaveCommand)
-        self.hLayoutSaveClear.addWidget(self.buttonClear)
 
         # Progress bar
         self.progressBar = QProgressBar()
@@ -204,11 +198,6 @@ class ClaspyRun(QMainWindow):
         self.buttonStop.clicked.connect(self.stop_thread)
         self.buttonStop.setEnabled(True)
         self.buttonBox.addButton(self.buttonStop, QDialogButtonBox.ActionRole)
-
-        self.buttonRerun = QPushButton("Re-run")
-        self.buttonRerun.clicked.connect(self.run_worker)
-        self.buttonRerun.setEnabled(False)
-        self.buttonBox.addButton(self.buttonRerun, QDialogButtonBox.ActionRole)
 
         self.buttonClose = QPushButton("Close")
         self.buttonClose.clicked.connect(self.close)
@@ -325,6 +314,7 @@ class ClaspyRun(QMainWindow):
         :param s: the message to print into plainTextCommand
         """
         self.plainTextCommand.appendPlainText(s)
+        self.plainTextCommand.ensureCursorVisible()
 
     def update_progress(self, n):
         """Update progressBar according given percent as integer"""
@@ -332,7 +322,6 @@ class ClaspyRun(QMainWindow):
 
     def run_worker(self):
         # Update button
-        self.buttonRerun.setEnabled(False)
         self.buttonClose.setEnabled(False)
         self.buttonStop.setEnabled(True)
 
@@ -417,13 +406,12 @@ class ClaspyRun(QMainWindow):
         progress_callback.emit(int(6 * 100 / 7))
 
         # Part 7/7 - Create and save prediction report
-        self.message("\nStep 7/7: Creating classification report:")
-        self.message(self.trainer.report_filename + '.txt')
+        self.message("\nStep 7/7: Creating training report:")
+        self.message("\n" + self.trainer.report_filename + '.txt')
         step7 = self.trainer.classification_report(verbose=True)
         self.message(step7)
         progress_callback.emit(int(7 * 100 / 7))
 
-        # Kill the remaining python interpreters (1+18)
         return "Training done!"
 
     def predict(self, progress_callback):
@@ -467,13 +455,12 @@ class ClaspyRun(QMainWindow):
         progress_callback.emit(int(5 * 100 / 6))
 
         # Create and save prediction report
-        self.message("\nStep 6/6: Creating classification report:")
-        self.message(self.predicter.report_filename + '.txt')
+        self.message("\nStep 6/6: Creating prediction report:")
+        self.message("\n" + self.predicter.report_filename + '.txt')
         step6 = self.predicter.classification_report(verbose=True)
         self.message(step6)
         progress_callback.emit(int(6 * 100 / 6))
 
-        # End of the function
         return "Predictions done!"
 
     def segment(self, progress_callback):
@@ -515,12 +502,12 @@ class ClaspyRun(QMainWindow):
         progress_callback.emit(int(4 * 100 / 5))
 
         # Create and save prediction report
-        self.message("\nStep 5/5: Creating classification report:")
+        self.message("\nStep 5/5: Creating segmentation report:")
+        self.message("\n" + self.segmenter.report_filename + '.txt')
         step5 = self.segmenter.classification_report(verbose=True)
         self.message(step5)
         progress_callback.emit(int(5 * 100 / 5))
 
-        # End of the function
         return "Segmentation done!"
 
     def handle_state(self, state):
@@ -536,7 +523,6 @@ class ClaspyRun(QMainWindow):
 
         self.progressBar.reset()
         self.buttonStop.setEnabled(False)
-        self.buttonRerun.setEnabled(True)
         self.buttonClose.setEnabled(True)
 
     def stop_thread(self):
@@ -549,7 +535,6 @@ class ClaspyRun(QMainWindow):
             child.kill()
 
         self.buttonStop.setText("Stop")
-        self.buttonRerun.setEnabled(True)
         self.buttonClose.setEnalbed(True)
 
         self.plainTextCommand.appendPlainText("\n********************"

@@ -275,8 +275,8 @@ class ClaspyGui(QMainWindow):
 
         self.options_dict = dict()
         self.train_config = dict()
-        self.predi_config = dict()
-        self.segme_config = dict()
+        self.predict_config = dict()
+        self.segment_config = dict()
         self.file_type = 'NONE'
         self.process = None
 
@@ -1896,15 +1896,19 @@ class ClaspyGui(QMainWindow):
         self.pushModelFeatures.clicked.connect(self.check_model_features)
 
         v_layout_features = QVBoxLayout()
-        v_layout_features.addWidget(self.listModelFeatures)
         v_layout_features.addWidget(self.pushModelFeatures)
+        v_layout_features.addWidget(self.listModelFeatures)
         self.groupModelFeatures.setLayout(v_layout_features)
+
+        # Horizontal layout for Algorithm and Features
+        hLayoutTabPredict = QHBoxLayout()
+        hLayoutTabPredict.addWidget(self.groupAlgoParam)
+        hLayoutTabPredict.addWidget(self.groupModelFeatures)
 
         # Vertical layout for prediction tab
         self.vLayoutTabPredict = QVBoxLayout()
         self.vLayoutTabPredict.addWidget(self.groupModel)
-        self.vLayoutTabPredict.addWidget(self.groupAlgoParam)
-        self.vLayoutTabPredict.addWidget(self.groupModelFeatures)
+        self.vLayoutTabPredict.addLayout(hLayoutTabPredict)
 
         self.tabPredict.setLayout(self.vLayoutTabPredict)
 
@@ -3433,11 +3437,6 @@ class ClaspyGui(QMainWindow):
 
     # Run part
     def run_train(self):
-        # Update buttons
-        # self.buttonRunTrain.setEnabled(False)
-        # self.buttonRunPredict.setEnabled(False)
-        # self.buttonRunSegment.setEnabled(False)
-
         # Update training configuration
         self.update_config()
 
@@ -3447,16 +3446,19 @@ class ClaspyGui(QMainWindow):
                         "No features selected")
         else:
             # Save setting file
-            temp_config = './temp_settings.json'
+            temp_config = './temp_config.json'
             with open(temp_config, 'w') as config_file:
                 json.dump(self.train_config, config_file, indent=4)
-                self.statusBar.showMessage("Temp setting file for training: {}".format(temp_config), 5000)
+                self.statusBar.showMessage("Temp config file for training: {}".format(temp_config), 5000)
 
             # process command
             command = ["cLASpy_Run.py", temp_config]
 
             # Run new process with the config file to train
             if self.process is None:
+                self.buttonRunTrain.setEnabled(False)
+                self.buttonRunPredict.setEnabled(False)
+                self.buttonRunSegment.setEnabled(False)
                 self.process = QProcess()
                 self.process.setProcessChannelMode(QProcess.MergedChannels)
                 self.process.readyReadStandardError.connect(self.handle_stderr)
@@ -3465,32 +3467,43 @@ class ClaspyGui(QMainWindow):
                 self.process.setProgram(sys.executable)
                 self.process.setArguments(command)
                 self.process.start()
-                print("ParentID: {}".format(os.getpid()))
-                print("Id du process: {}".format(self.process.processId()))
-                self.buttonRunTrain.setEnabled(False)
+                # print("ParentID: {}".format(os.getpid()))
+                # print("ProcessID: {}".format(self.process.processId()))
 
     def run_predict(self):
-        # Update buttons
-        self.buttonRunTrain.setEnabled(False)
-        self.buttonRunPredict.setEnabled(False)
-        self.buttonRunSegment.setEnabled(False)
-
         # Check if model and input file features match
         self.check_model_features()
+
         if self.predict_features:
             # Update predict configuration
             self.update_config()
 
             # Save config file
+            temp_config = './temp_config.json'
+            with open(temp_config, 'w') as config_file:
+                json.dump(self.predict_config, config_file, indent=4)
+                self.statusBar.showMessage("Temp config file for prediction: {}".format(temp_config), 5000)
 
-            # Run new process with config file to predict
+            # Process command
+            command = ["cLASpy_Run.py", temp_config]
+
+            # Run new process with the config file to predict
+            if self.process is None:
+                self.buttonRunTrain.setEnabled(False)
+                self.buttonRunPredict.setEnabled(False)
+                self.buttonRunSegment.setEnabled(False)
+                self.process = QProcess()
+                self.process.setProcessChannelMode(QProcess.MergedChannels)
+                self.process.readyReadStandardError.connect(self.handle_stderr)
+                self.process.stateChanged.connect(self.handle_state)
+                self.process.finished.connect(self.process_finished)
+                self.process.setProgram(sys.executable)
+                self.process.setArguments(command)
+                self.process.start()
+                # print("ParentID: {}".format(os.getpid()))
+                # print("ProcessID: {}".format(self.process.processId()))
 
     def run_segment(self):
-        # Update buttons
-        self.buttonRunTrain.setEnabled(False)
-        self.buttonRunPredict.setEnabled(False)
-        self.buttonRunSegment.setEnabled(False)
-
         # Update segmentation configuration
         self.update_config()
 
@@ -3499,9 +3512,30 @@ class ClaspyGui(QMainWindow):
             warning_box("No feature field selected!\nPlease select the features you need!",
                         "No features selected")
         else:
-            # Save config file
-            pass
-            # Run new process with config file to segment
+            # Save setting file
+            temp_config = './temp_config.json'
+            with open(temp_config, 'w') as config_file:
+                json.dump(self.segment_config, config_file, indent=4)
+                self.statusBar.showMessage("Temp config file for segmentation: {}".format(temp_config), 5000)
+
+            # process command
+            command = ["cLASpy_Run.py", temp_config]
+
+            # Run new process with the config file to train
+            if self.process is None:
+                self.buttonRunTrain.setEnabled(False)
+                self.buttonRunPredict.setEnabled(False)
+                self.buttonRunSegment.setEnabled(False)
+                self.process = QProcess()
+                self.process.setProcessChannelMode(QProcess.MergedChannels)
+                self.process.readyReadStandardError.connect(self.handle_stderr)
+                self.process.stateChanged.connect(self.handle_state)
+                self.process.finished.connect(self.process_finished)
+                self.process.setProgram(sys.executable)
+                self.process.setArguments(command)
+                self.process.start()
+                # print("ParentID: {}".format(os.getpid()))
+                # print("ProcessID: {}".format(self.process.processId()))
 
     def handle_stderr(self):
         data = self.process.readAllStandardError()
