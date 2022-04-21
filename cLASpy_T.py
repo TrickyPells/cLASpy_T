@@ -333,7 +333,7 @@ def shortname_algo(algorithm):
 
 def arguments_from_config():
     """
-    Update the arguments from the config file given in args.config.
+    Update the arguments from the setting file given in args.config.
     """
     # Open the config file
     args.config = os.path.normpath(args.config)
