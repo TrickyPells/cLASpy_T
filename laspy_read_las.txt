@@ -1,0 +1,20 @@
+import numpy as np
+import pandas as pd
+import laspy
+
+las = laspy.read('chemin')
+
+# liste de toutes les dimensions
+list(las.point_format.diemnsion_names)
+
+# liste de toutes les diemnsions standard
+list(las.point_format.standard_dimension_names)
+
+# list de toutes les dimensions extra
+list(las.point_format.extra_dimension_names) 
+
+# tous les points vers un np array
+point_records = las.points
+
+# tous les points vers un dataframe
+frame = pd.DataFrame(las.points.array)
