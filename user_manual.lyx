@@ -431,7 +431,7 @@ name "subsec:Create-a-Virtual"
 
 \begin_layout Standard
 Python uses many packages, depending of your usages.
- To prevent a dirty installation and package incompatibilities, it's could
+ To prevent a dirty installation and package incompatibilities, it could
  be a great idea to use virtual environments.
  Here, you will create a specific virtual environment for 
 \emph on
@@ -495,7 +495,7 @@ activate
 \end_layout
 
 \begin_layout Standard
-Your Command Prompt must return something like this:
+Your Command Prompt should return something like this:
 \end_layout
 
 \begin_layout LyX-Code
@@ -588,6 +588,18 @@ Me
 Code
 \backslash
 cLASpy_T>python -m pip install -r requirements.txt
+\end_layout
+
+\begin_layout Standard
+If you are behin a firewall, you will need to set it first like this:
+\end_layout
+
+\begin_layout LyX-Code
+set http_proxy=http://proxy.corp.com:8083
+\newline
+set https_proxy=http://proxy.corp.com:8083
+\newline
+where 'proxy.corp.com' is the address of the proxy and '8083' the port
 \end_layout
 
 \begin_layout Section

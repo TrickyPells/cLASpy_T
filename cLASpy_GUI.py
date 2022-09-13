@@ -29,19 +29,22 @@
 # --------------------
 
 import sys
+import io
 import re
 import sklearn
-import PyQt5.QtBluetooth
+import json
+import threading
+import time
 import psutil
-import joblib
+import subprocess
+import traceback
 
+from contextlib import redirect_stdout
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 
-import common
-from common import *
-
+from cLASpy_Classes import *
 
 # -------------------------
 # ------ FUNCTIONS --------
@@ -206,48 +209,25 @@ def format_layerlist(layer_str, as_type='str'):
         raise TypeError("Parameter 'as_type' has invalid type (give 'list' or 'str')")
 
 
-def percent_parser(output):
-    """
-    Search regular expression to know the progress of a process.
-    :param output: The output string from process.
-    :return: integer converted in percent.
-    """
-    progress_regex = re.compile("Step (\d)/(\d):")
-    finish_regex = re.compile(" done in ")
-
-    match_progress = progress_regex.search(output)
-    if match_progress:
-        num_progress = int(match_progress.group(1))
-        denom_progress = int(match_progress.group(2))
-
-        progress = int(((num_progress - 1) / denom_progress) * 100)
-        return progress
-
-    match_finish = finish_regex.search(output)
-    if match_finish:
-        progress = 100
-        return progress
-
-
 def warning_box(message, title="Warning"):
-    nofeatures = QMessageBox()
-    nofeatures.setIcon(QMessageBox.Warning)
-    nofeatures.setText(message)
-    nofeatures.setWindowTitle(title)
-    nofeatures.setStandardButtons(QMessageBox.Ok)
-    nofeatures.buttonClicked.connect(nofeatures.close)
-    nofeatures.exec_()
+    warning_dialog = QMessageBox()
+    warning_dialog.setIcon(QMessageBox.Warning)
+    warning_dialog.setText(message)
+    warning_dialog.setWindowTitle(title)
+    warning_dialog.setStandardButtons(QMessageBox.Ok)
+    warning_dialog.buttonClicked.connect(warning_dialog.close)
+    warning_dialog.exec_()
 
 
 def error_box(message, title="Error"):
     """Show message about algorithm parameter error in a message box"""
-    parameter_box = QMessageBox()
-    parameter_box.setIcon(QMessageBox.Critical)
-    parameter_box.setText(message)
-    parameter_box.setWindowTitle(title)
-    parameter_box.setStandardButtons(QMessageBox.Ok)
-    parameter_box.buttonClicked.connect(parameter_box.close)
-    parameter_box.exec_()
+    error_dialog = QMessageBox()
+    error_dialog.setIcon(QMessageBox.Critical)
+    error_dialog.setText(message)
+    error_dialog.setWindowTitle(title)
+    error_dialog.setStandardButtons(QMessageBox.Ok)
+    error_dialog.buttonClicked.connect(error_dialog.close)
+    error_dialog.exec_()
 
 
 def new_seed(random_state_spin):
@@ -288,7 +268,7 @@ class ClaspyGui(QMainWindow):
 
         # Variable Initialization
         self.platform = get_platform()
-        self.cLASpy_T_version = common.cLASpy_T_version
+        self.cLASpy_Core_version = cLASpy_Core_version
         self.cLASpy_GUI_version = '0.1.1'
         self.cLASpy_train_version = self.cLASpy_GUI_version + '_train'
         self.cLASpy_predi_version = self.cLASpy_GUI_version + '_predi'
@@ -296,8 +276,8 @@ class ClaspyGui(QMainWindow):
 
         self.options_dict = dict()
         self.train_config = dict()
-        self.predi_config = dict()
-        self.segme_config = dict()
+        self.predict_config = dict()
+        self.segment_config = dict()
         self.file_type = 'NONE'
         self.process = None
 
@@ -309,10 +289,10 @@ class ClaspyGui(QMainWindow):
         try:
             with open("claspy_options.json", 'r') as options_file:
                 self.options_dict = json.load(options_file)
-                self.pythonPath = self.options_dict['python_path']
+                # self.pythonPath = self.options_dict['python_path']
                 self.WelcomeAgain = self.options_dict['welcome_window']
         except FileNotFoundError:
-            self.pythonPath = ''
+            # self.pythonPath = ''
             self.WelcomeAgain = True
 
         # Call the Welcome window
@@ -329,8 +309,10 @@ class ClaspyGui(QMainWindow):
         self.groupStandardLAS.setEnabled(False)
         self.groupStandardLAS.setVisible(False)
 
-        # Right part of GUI
-        self.command_part()
+        # Right part of GUI -----
+        # self.command_part()
+        # self.threadpool = QThreadPool()
+        # ------ End of command part
 
         # Button box
         self.buttonBox = QDialogButtonBox(QDialogButtonBox.Close)
@@ -345,10 +327,6 @@ class ClaspyGui(QMainWindow):
         self.buttonRunSegment = QPushButton("Segment")
         self.buttonRunSegment.clicked.connect(self.run_segment)
         self.buttonBox.addButton(self.buttonRunSegment, QDialogButtonBox.ActionRole)
-        self.buttonStop = QPushButton("Stop")
-        self.buttonStop.clicked.connect(self.stop_process)
-        self.buttonStop.setEnabled(False)
-        self.buttonBox.addButton(self.buttonStop, QDialogButtonBox.ActionRole)
         self.buttonRunPredict.setVisible(False)
         self.buttonRunSegment.setVisible(False)
 
@@ -356,7 +334,7 @@ class ClaspyGui(QMainWindow):
         self.splitterMain = QSplitter(Qt.Horizontal)
         self.splitterMain.addWidget(self.groupParameters)
         self.splitterMain.addWidget(self.groupFeatures)
-        self.splitterMain.addWidget(self.groupCommand)
+        #self.splitterMain.addWidget(self.groupCommand)
         self.splitterMain.setSizes(([200, 100, 468]))
 
         self.vMainLayout = QVBoxLayout(self.mainWidget)
@@ -403,7 +381,7 @@ class ClaspyGui(QMainWindow):
         self.setStatusBar(self.statusBar)
 
         # Geometry
-        self.setGeometry(0, 0, 1024, 768)
+        self.setGeometry(0, 0, 1280, 960)
 
     # Welcome window
     def display_welcome_window(self, welcome=True):
@@ -451,7 +429,7 @@ class ClaspyGui(QMainWindow):
         label_softname.setAlignment(Qt.AlignCenter)
         label_webpage = QLabel('https://github.com/TrickyPells/cLASpy_T')
         label_webpage.setAlignment(Qt.AlignCenter)
-        label_version = QLabel('Core version: ' + str(self.cLASpy_T_version) +
+        label_version = QLabel('Core version: ' + str(self.cLASpy_Core_version) +
                                ' | GUI version: ' + str(self.cLASpy_GUI_version))
         label_version.setAlignment(Qt.AlignCenter)
 
@@ -562,25 +540,6 @@ class ClaspyGui(QMainWindow):
     def options(self):
         self.dialogOptions = QDialog()
 
-        # Add lineEdit to set the python interpreter
-        self.labelPython = QLabel("Python path:")
-        self.linePython = QLineEdit()
-        self.linePython.setMinimumWidth(200)
-        if self.platform == 'Windows':
-            self.linePython.setPlaceholderText("Give 'python.exe' path")
-        else:
-            self.linePython.setPlaceholderText("Give python path")
-        if self.pythonPath != '':
-            self.linePython.setText(self.pythonPath)
-
-        self.toolButtonPython = QToolButton()
-        self.toolButtonPython.setText("Browse")
-        self.toolButtonPython.clicked.connect(self.find_python)
-
-        self.hLayoutPython = QHBoxLayout()
-        self.hLayoutPython.addWidget(self.linePython)
-        self.hLayoutPython.addWidget(self.toolButtonPython)
-
         # CheckBox Welcome Window
         check_welcome_window = QCheckBox('Do not show the welcome window again !')
         if self.WelcomeAgain:
@@ -596,7 +555,7 @@ class ClaspyGui(QMainWindow):
         self.buttonOptionsBox.rejected.connect(self.dialogOptions.reject)
 
         self.formLayoutOptions = QFormLayout(self.dialogOptions)
-        self.formLayoutOptions.addRow(self.labelPython, self.hLayoutPython)
+        # self.formLayoutOptions.addRow(self.labelPython, self.hLayoutPython)
         self.formLayoutOptions.addRow(QLabel('Welcome window: '), check_welcome_window)
         self.formLayoutOptions.addRow(self.buttonOptionsBox)
 
@@ -604,21 +563,7 @@ class ClaspyGui(QMainWindow):
         self.setWindowModality(Qt.ApplicationModal)
         self.dialogOptions.exec_()
 
-    def find_python(self):
-        if self.platform == 'Windows':
-            python_exe = QFileDialog.getOpenFileName(self, 'Select \'python.exe\'',
-                                                     '', "Executables (*.exe);;")
-        else:
-            python_exe = QFileDialog.getOpenFileName(self, 'Select python interpreter')
-
-        if python_exe[0] != '':
-            self.linePython.setText(os.path.normpath(python_exe[0]))
-
     def save_options(self):
-        self.pythonPath = self.linePython.text()
-        self.options_dict['python_path'] = self.pythonPath
-        self.statusBar.showMessage("Python path: {}".format(self.pythonPath), 3000)
-
         self.options_dict['welcome_window'] = self.WelcomeAgain
         with open("claspy_options.json", 'w') as options_file:
             json.dump(self.options_dict, options_file, indent=4)
@@ -626,10 +571,7 @@ class ClaspyGui(QMainWindow):
     def save_close_options(self):
         # call save_otpion()
         self.save_options()
-
-        # and close dialog
-        if self.linePython.text() != '':
-            self.dialogOptions.close()
+        self.dialogOptions.close()
 
     # Parameter part
     def parameter_part(self):
@@ -1983,15 +1925,19 @@ class ClaspyGui(QMainWindow):
         self.pushModelFeatures.clicked.connect(self.check_model_features)
 
         v_layout_features = QVBoxLayout()
-        v_layout_features.addWidget(self.listModelFeatures)
         v_layout_features.addWidget(self.pushModelFeatures)
+        v_layout_features.addWidget(self.listModelFeatures)
         self.groupModelFeatures.setLayout(v_layout_features)
+
+        # Horizontal layout for Algorithm and Features
+        hLayoutTabPredict = QHBoxLayout()
+        hLayoutTabPredict.addWidget(self.groupAlgoParam)
+        hLayoutTabPredict.addWidget(self.groupModelFeatures)
 
         # Vertical layout for prediction tab
         self.vLayoutTabPredict = QVBoxLayout()
         self.vLayoutTabPredict.addWidget(self.groupModel)
-        self.vLayoutTabPredict.addWidget(self.groupAlgoParam)
-        self.vLayoutTabPredict.addWidget(self.groupModelFeatures)
+        self.vLayoutTabPredict.addLayout(hLayoutTabPredict)
 
         self.tabPredict.setLayout(self.vLayoutTabPredict)
 
@@ -2375,33 +2321,33 @@ class ClaspyGui(QMainWindow):
 
     def number_selected_features(self):
         self.max_feat_count = 0
-        self.selected_count = 0
+        self.sel_feat_count = 0
 
         # Coordinate Features
         if self.checkAdvancedFeat.isChecked():
             if self.checkX.isEnabled():
                 self.max_feat_count += 1
                 if self.checkX.isChecked():
-                    self.selected_count += 1
+                    self.sel_feat_count += 1
             if self.checkY.isEnabled():
                 self.max_feat_count += 1
                 if self.checkY.isChecked():
-                    self.selected_count += 1
+                    self.sel_feat_count += 1
             if self.checkZ.isEnabled():
                 self.max_feat_count += 1
                 if self.checkZ.isChecked():
-                    self.selected_count += 1
+                    self.sel_feat_count += 1
 
         if self.listStandardLAS is not None and self.groupStandardLAS.isEnabled():
             self.max_feat_count += self.listStandardLAS.count()
-            self.selected_count += len(self.listStandardLAS.selectedItems())
+            self.sel_feat_count += len(self.listStandardLAS.selectedItems())
 
         if self.listExtraFeatures is not None:
             self.max_feat_count += self.listExtraFeatures.count()
-            self.selected_count += len(self.listExtraFeatures.selectedItems())
+            self.sel_feat_count += len(self.listExtraFeatures.selectedItems())
 
         self.labelNbrSelFeatures.setText("Number of selected features: {} / {}".format(
-            self.selected_count, self.max_feat_count))
+            self.sel_feat_count, self.max_feat_count))
 
     def reset_selection_features(self):
         """
@@ -2744,7 +2690,7 @@ class ClaspyGui(QMainWindow):
             elif algorithm == 'GradientBoostingClassifier':
                 self.algo = 'gb'
                 self.comboAlgorithms.setCurrentIndex(1)
-                self.RFcheckImportance.setChecked(config_dict['png_features'])
+                self.GBcheckImportance.setChecked(config_dict['png_features'])
 
                 # Get algo parameter dict
                 param_dict = config_dict['parameters']
@@ -3446,7 +3392,7 @@ class ClaspyGui(QMainWindow):
 
     def save_config(self):
         """
-        Save the configuration of training, predictions or semgentation according the current tab.
+        Save the configuration of training, predictions or segmentation according the current tab.
         """
         if self.tabModes.currentIndex() == 0:
             self.save_train_config()
@@ -3464,7 +3410,7 @@ class ClaspyGui(QMainWindow):
         self.update_config()
 
         # Check if features are selected
-        if self.selected_count > 0:
+        if self.sel_feat_count > 0:
             # Save the JSON file
             self.statusBar.showMessage("Saving JSON config file...", 3000)
             json_file = QFileDialog.getSaveFileName(None, 'Save JSON config file',
@@ -3503,7 +3449,7 @@ class ClaspyGui(QMainWindow):
         self.update_config()
 
         # Check if features are selected
-        if self.selected_count > 0:
+        if self.sel_feat_count > 0:
             # Save the JSON file
             self.statusBar.showMessage("Saving JSON config file...", 3000)
             json_file = QFileDialog.getSaveFileName(None, 'Save JSON config file',
@@ -3518,234 +3464,112 @@ class ClaspyGui(QMainWindow):
             warning_box("No feature field selected !\nPlease, select the features you need !",
                         "No selected features")
 
-    # Command and Run
-    def command_part(self):
-        """
-        Give the command part of the GUI.
-        """
-        self.plainTextCommand = QPlainTextEdit()
-        self.plainTextCommand.setReadOnly(True)
-        self.plainTextCommand.setStyleSheet(
-            """QPlainTextEdit {background-color: #333;
-                               color: #EEEEEE;}""")
-
-        # Save button
-        self.buttonSaveCommand = QPushButton("Save Command Output")
-        self.buttonSaveCommand.clicked.connect(self.save_output_command)
-
-        # Clear button
-        self.buttonClear = QPushButton("Clear")
-        self.buttonClear.clicked.connect(self.plainTextCommand.clear)
-
-        self.hLayoutSaveClear = QHBoxLayout()
-        self.hLayoutSaveClear.addWidget(self.buttonSaveCommand)
-        self.hLayoutSaveClear.addWidget(self.buttonClear)
-
-        # Progress bar
-        self.progressBar = QProgressBar()
-        self.progressBar.setMaximum(100)
-
-        # Fill layout of right part
-        self.vLayoutRight = QVBoxLayout()
-        self.vLayoutRight.addWidget(self.plainTextCommand)
-        self.vLayoutRight.addLayout(self.hLayoutSaveClear)
-        self.vLayoutRight.addWidget(self.progressBar)
-
-        self.groupCommand = QGroupBox("Command Output")
-        self.groupCommand.setLayout(self.vLayoutRight)
-
-    def save_output_command(self):
-        """
-        Save the Output Command in a text file.
-        """
-        cmd_output = self.plainTextCommand.toPlainText()
-
-        cmd_output_file = QFileDialog.getSaveFileName(None, 'Save Command Output as TXT file',
-                                                      '', "TXT files (*.txt);;")
-        if cmd_output_file[0] != '':
-            with open(cmd_output_file[0], 'w') as text_file:
-                text_file.write(cmd_output)
-
+    # Run part
     def run_train(self):
+        # Update training configuration
         self.update_config()
 
-        # Check pythonPath is set
-        if self.pythonPath != '':
-
-            # Check if some features are selected  and hidden_layer_sizes exist
-            if self.selected_count > 0:
-                features = str(self.train_config['feature_names']).replace(' ', '')
-
-                # Train with GridSearchCV or not
-                if self.train_config['grid_search']:
-                    # Setting up grid_parameters
-                    grid_parameters = str(self.train_config['param_grid'])
-
-                    # Create command list to run cLASpy_T
-                    command = ["cLASpy_T.py", "train",
-                               "-a", self.algo,
-                               "-i", self.lineLocalFile.text(),
-                               "-o", self.lineLocalFolder.text(),
-                               "-f", features,
-                               "-g", "-k", grid_parameters,
-                               "--scaler", self.comboScaler.currentText(),
-                               "--scoring", self.comboScorer.currentText(),
-                               "-n", str(self.spinNJobCV.value()),
-                               "-s", str(self.train_config['samples']),
-                               "--train_r", str(self.train_config['training_ratio'])]
-
-                    if self.spinPCA.value() != 0:
-                        command.append("--pca")
-                        command.append(str(self.spinPCA.value()))
-
-                    if self.train_config['random_state'] is not None:
-                        command.append("--random_state")
-                        command.append(str(self.train_config['random_state']))
-
-                else:
-                    # Setting up parameters, remove parameters set as None
-                    parameters_dict = self.train_config['parameters']
-                    keys_to_remove = list()  # Create list of keys to remove, because dictionary must keep the same length
-                    for key in parameters_dict:
-                        if parameters_dict[key] is None:
-                            keys_to_remove.append(key)
-                    for key in keys_to_remove:
-                        parameters_dict.pop(key)
-                    parameters = str(parameters_dict).replace(' ', '')
-
-                    # Create command list to run cLASpy_T
-                    command = ["cLASpy_T.py", "train",
-                               "-a", self.algo,
-                               "-i", self.lineLocalFile.text(),
-                               "-o", self.lineLocalFolder.text(),
-                               "-f", features,
-                               "-p", parameters,
-                               "--scaler", self.comboScaler.currentText(),
-                               "--scoring", self.comboScorer.currentText(),
-                               "-n", str(self.spinNJobCV.value()),
-                               "-s", str(self.train_config['samples']),
-                               "--train_r", str(self.train_config['training_ratio'])]
-
-                    if self.spinPCA.value() != 0:
-                        command.append("--pca")
-                        command.append(str(self.spinPCA.value()))
-
-                    if self.train_config['random_state'] is not None:
-                        command.append("--random_state")
-                        command.append(str(self.train_config['random_state']))
-
-                    if self.train_config['png_features']:
-                        command.append('--png_features')
-
-                # Run training process
-                if self.process is None:
-                    self.process = QProcess()
-                    #self.process.setProcessChannelMode(QProcess.ForwardedChannels)
-                    self.process.readyReadStandardOutput.connect(self.handle_stdout)
-                    self.process.readyReadStandardError.connect(self.handle_stderr)
-                    self.process.stateChanged.connect(self.handle_state)
-                    self.process.finished.connect(self.process_finished)
-                    self.process.setProgram(self.pythonPath)
-                    self.process.setArguments(command)
-                    self.process.start()
-                    self.processPID = self.process.processId()
-                    self.buttonStop.setEnabled(True)
-                    self.buttonRunTrain.setEnabled(False)
-
-            else:
-                warning_box("No feature field selected!\nPlease select the features you need!",
-                            "No features selected")
-
+        # Check if some features are selected
+        if self.sel_feat_count <= 0:
+            warning_box("No feature field selected!\nPlease select the features you need!",
+                        "No features selected")
         else:
-            warning_box("Set python path through Edit > Options", "Python path not set")
+            # Save setting file
+            temp_config = './temp_config.json'
+            with open(temp_config, 'w') as config_file:
+                json.dump(self.train_config, config_file, indent=4)
+                self.statusBar.showMessage("Temp config file for training: {}".format(temp_config), 5000)
+
+            # process command
+            command = ["cLASpy_Run.py", temp_config]
+
+            # Run new process with the config file to train
+            if self.process is None:
+                self.buttonRunTrain.setEnabled(False)
+                self.buttonRunPredict.setEnabled(False)
+                self.buttonRunSegment.setEnabled(False)
+                self.process = QProcess()
+                self.process.setProcessChannelMode(QProcess.MergedChannels)
+                self.process.readyReadStandardError.connect(self.handle_stderr)
+                self.process.stateChanged.connect(self.handle_state)
+                self.process.finished.connect(self.process_finished)
+                self.process.setProgram(sys.executable)
+                self.process.setArguments(command)
+                self.process.start()
+                # print("ParentID: {}".format(os.getpid()))
+                # print("ProcessID: {}".format(self.process.processId()))
 
     def run_predict(self):
-        self.check_model_features()  # Check if model and input file features match
+        # Check if model and input file features match
+        self.check_model_features()
+
         if self.predict_features:
+            # Update predict configuration
             self.update_config()
 
-            # Create command list to run cLASpy_T
-            command = ["cLASpy_T.py", "predict",
-                       "-i", self.lineLocalFile.text(),
-                       "-o", self.lineLocalFolder.text(),
-                       "-m", self.lineModelFile.text()]
+            # Save config file
+            temp_config = './temp_config.json'
+            with open(temp_config, 'w') as config_file:
+                json.dump(self.predict_config, config_file, indent=4)
+                self.statusBar.showMessage("Temp config file for prediction: {}".format(temp_config), 5000)
 
-            if self.pythonPath != '':
-                if self.process is None:
-                    self.process = QProcess()
-                    self.process.readyReadStandardOutput.connect(self.handle_stdout)
-                    self.process.readyReadStandardError.connect(self.handle_stderr)
-                    self.process.stateChanged.connect(self.handle_state)
-                    self.process.finished.connect(self.process_finished)
-                    self.process.setProgram(self.pythonPath)
-                    self.process.setArguments(command)
-                    self.process.start()
-                    self.processPID = self.process.processId()
-                    self.buttonStop.setEnabled(True)
-                    self.buttonRunPredict.setEnabled(False)
-            else:
-                self.plainTextCommand.appendPlainText("Set python path through Edit > Options")
+            # Process command
+            command = ["cLASpy_Run.py", temp_config]
+
+            # Run new process with the config file to predict
+            if self.process is None:
+                self.buttonRunTrain.setEnabled(False)
+                self.buttonRunPredict.setEnabled(False)
+                self.buttonRunSegment.setEnabled(False)
+                self.process = QProcess()
+                self.process.setProcessChannelMode(QProcess.MergedChannels)
+                self.process.readyReadStandardError.connect(self.handle_stderr)
+                self.process.stateChanged.connect(self.handle_state)
+                self.process.finished.connect(self.process_finished)
+                self.process.setProgram(sys.executable)
+                self.process.setArguments(command)
+                self.process.start()
+                # print("ParentID: {}".format(os.getpid()))
+                # print("ProcessID: {}".format(self.process.processId()))
 
     def run_segment(self):
+        # Update segmentation configuration
         self.update_config()
 
-        # Check pythonPath is set
-        if self.pythonPath != '':
-
-            # Check if some features are selected
-            if self.selected_count > 0:
-                features = str(self.segment_config['feature_names']).replace(' ', '')
-
-                # Setting up parameters, remove parameters set as None
-                parameters_dict = self.segment_config['parameters']
-                # Create list of keys to remove, because dictionary must keep the same length
-                keys_to_remove = list()
-                for key in parameters_dict:
-                    if parameters_dict[key] is None:
-                        keys_to_remove.append(key)
-                for key in keys_to_remove:
-                    parameters_dict.pop(key)
-                parameters = str(parameters_dict).replace(' ', '')
-
-                # Create command list to run cLASpy_T
-                command = ["cLASpy_T.py", "segment",
-                           "-i", self.lineLocalFile.text(),
-                           "-o", self.lineLocalFolder.text(),
-                           "-f", features,
-                           "-p", parameters]
-
-                # Run semgentation process
-                if self.process is None:
-                    self.process = QProcess()
-                    self.process.readyReadStandardOutput.connect(self.handle_stdout)
-                    self.process.readyReadStandardError.connect(self.handle_stderr)
-                    self.process.stateChanged.connect(self.handle_state)
-                    self.process.finished.connect(self.process_finished)
-                    self.process.setProgram(self.pythonPath)
-                    self.process.setArguments(command)
-                    self.process.start()
-                    self.processPID = self.process.processId()
-                    self.buttonStop.setEnabled(True)
-                    self.buttonRunSegment.setEnabled(False)
-
-            else:
-                warning_box("No feature field selected!\nPlease select the features you need!",
-                            "No features selected")
+        # Check if some features are selected
+        if self.sel_feat_count <= 0:
+            warning_box("No feature field selected!\nPlease select the features you need!",
+                        "No features selected")
         else:
-            warning_box("Set python path through Edit > Options", "Python path not set")
+            # Save setting file
+            temp_config = './temp_config.json'
+            with open(temp_config, 'w') as config_file:
+                json.dump(self.segment_config, config_file, indent=4)
+                self.statusBar.showMessage("Temp config file for segmentation: {}".format(temp_config), 5000)
 
-    def handle_stdout(self):
-        data = self.process.readAllStandardOutput()
-        stdout = bytes(data).decode('utf8')
-        progress = percent_parser(stdout)
-        if progress:
-            self.progressBar.setValue(progress)
-        self.plainTextCommand.appendPlainText(stdout)
+            # process command
+            command = ["cLASpy_Run.py", temp_config]
+
+            # Run new process with the config file to train
+            if self.process is None:
+                self.buttonRunTrain.setEnabled(False)
+                self.buttonRunPredict.setEnabled(False)
+                self.buttonRunSegment.setEnabled(False)
+                self.process = QProcess()
+                self.process.setProcessChannelMode(QProcess.MergedChannels)
+                self.process.readyReadStandardError.connect(self.handle_stderr)
+                self.process.stateChanged.connect(self.handle_state)
+                self.process.finished.connect(self.process_finished)
+                self.process.setProgram(sys.executable)
+                self.process.setArguments(command)
+                self.process.start()
+                # print("ParentID: {}".format(os.getpid()))
+                # print("ProcessID: {}".format(self.process.processId()))
 
     def handle_stderr(self):
         data = self.process.readAllStandardError()
         stderr = bytes(data).decode('utf8')
-        self.plainTextCommand.appendPlainText(stderr)
+        self.statusBar.showMessage("{}".format(stderr), 5000)
 
     def handle_state(self, state):
         states = {QProcess.NotRunning: "Not Running",
@@ -3753,33 +3577,15 @@ class ClaspyGui(QMainWindow):
                   QProcess.Running: "Running"}
 
         state_name = states[state]
-        self.statusBar.showMessage("cLASpy_T is {}".format(state_name), 3000)
+        self.statusBar.showMessage("cLASpy_T is {}".format(state_name), 5000)
 
     def process_finished(self):
-        self.statusBar.showMessage("cLASpy_T finished !", 5000)
         self.process = None
-        self.progressBar.reset()
+        self.statusBar.showMessage("cLASpy_T finished !", 5000)
         self.enable_open_results()
-        self.buttonStop.setEnabled(False)
         self.buttonRunTrain.setEnabled(True)
         self.buttonRunPredict.setEnabled(True)
         self.buttonRunSegment.setEnabled(True)
-
-    def stop_process(self):
-        parent_process = psutil.Process(self.processPID)
-        try:
-            for child in parent_process.children(recursive=True):
-                child.kill()
-            parent_process.kill()
-        except:
-            self.statusBar.showMessage("ERROR: Process not killed!", 3000)
-        else:
-            self.buttonRunTrain.setEnabled(True)
-            self.buttonRunPredict.setEnabled(True)
-            self.buttonRunSegment.setEnabled(True)
-            self.plainTextCommand.appendPlainText("\n********************"
-                                                  "\nProcess stopped by user!"
-                                                  "\n********************")
 
     def reject(self):
         """
@@ -3806,7 +3612,7 @@ if __name__ == '__main__':
 
     # Execute the Main window
     ex = ClaspyGui()
-    # ex.showMaximized()
-    ex.show()
+    ex.showMaximized()
+    #ex.show()
 
     sys.exit(app.exec_())
