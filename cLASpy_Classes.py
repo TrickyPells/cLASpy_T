@@ -680,7 +680,7 @@ class ClaspyTrainer:
             self.target = None
 
         # Target is mandatory for training
-        if isinstance(self, ClaspyTrainer) and self.target is None:
+        if self.mode == "training" and self.target is None:
             raise ValueError("A 'target' field is mandatory for training!")
 
         # Create temp list of features
