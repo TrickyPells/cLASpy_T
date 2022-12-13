@@ -1,7 +1,7 @@
 colorclass==2.2.2
 cycler==0.11.0
 fonttools==4.37.1
-joblib==1.1.0
+joblib==1.2.0
 kiwisolver==1.4.4
 laspy==1.7.1
 matplotlib==3.5.3
