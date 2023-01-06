@@ -96,6 +96,7 @@ class ClaspyTrainer:
     ClaspyTrainer is basic class of cLASpy_T.
     Used to create object to train model according the selected algorithm.
     """
+
     def __init__(self, input_data, output_data=None, algo=None, algorithm=None,
                  parameters=None, features=None, grid_search=False, grid_param=None,
                  pca=None, n_jobs=-1, random_state=0, samples=None, scaler='Standard',
@@ -105,6 +106,7 @@ class ClaspyTrainer:
         # Set variables
         self.mode = 'training'
         self.start_time = datetime.now()  # Set the start time
+        self.elapsed_time = None
         self.timestamp = self.start_time.strftime("%m%d_%H%M")  # Timestamp for file creation
 
         # Data
@@ -132,7 +134,30 @@ class ClaspyTrainer:
         self.png_features = png_features
 
         # Set some varaible members to None
+        self.classifier = None
+        self.conf_matrix = None
+        self.data = None
+        self.data_features = None
+        self.data_test = None
+        self.data_train = None
+        self.feat_importance = None
+        self.frame = None
+        self.model = None
         self.model_to_load = None
+        self.nbr_points = None
+        self.pipeline = None
+        self.pipe_params = None
+        self.report_filename = None
+        self.results = None
+        self.scaler = None
+        self.target = None
+        self.target_test = None
+        self.target_test_pred = None
+        self.target_train = None
+        self.test_ratio = None
+        self.test_report = None
+        self.test_size = None
+        self.train_size = None
 
     def fullname_algo(self):
         """
@@ -308,7 +333,7 @@ class ClaspyTrainer:
                 if key in param_names:
                     well_params[key] = self.grid_parameters[key]
                 else:
-                    check_grid_param_str += "GridSearchCV: Invalid parameter '{}' for {}, it was skipped!"\
+                    check_grid_param_str += "GridSearchCV: Invalid parameter '{}' for {}, it was skipped!" \
                         .format(str(key), self.algorithm)
 
         # Check if well_params is empty dict and set predefined parameters
@@ -607,6 +632,7 @@ class ClaspyTrainer:
         except (TypeError, FileExistsError):
             introduction += " Folder already exists.\n"
 
+        # Add info of point cloud from file
         introduction += self.point_cloud_info(verbose=True)
 
         if verbose:
@@ -614,16 +640,38 @@ class ClaspyTrainer:
 
     def point_cloud_info(self, verbose=True):
         """
-        Load data into dataframe and return the point cloud info
+        Return the point cloud info
         """
         # Point cloud info string
         point_cloud_info = "\n"
 
         # Load data into DataFrame
         if self.data_type == '.csv':
-            self.frame = pd.read_csv(self.data_path, sep=',', header='infer')
-            self.nbr_points = len(self.frame)
+            with open(self.data_path, 'r') as file:
+                self.nbr_points = sum(1 for line in file) - 1
             point_cloud_info += "Number of points: {:,}\n".format(self.nbr_points)
+
+        elif self.data_type == '.las':
+            las = laspy.open(self.data_path, mode='r')
+            point_cloud_info += "LAS Version: {}\n".format(las.header.version)
+            point_cloud_info += "LAS point format: {}\n".format(las.header.point_format.id)
+            self.nbr_points = las.header.point_count
+            point_cloud_info += "Number of points: {:,}\n".format(self.nbr_points)
+            las.close()
+
+        else:
+            point_cloud_info += "Unknown Extension file!\n"
+
+        if verbose:
+            return point_cloud_info
+
+    def load_data(self):
+        """
+        Load data in a pandas DataFrame
+        """
+        # Check data type
+        if self.data_type == '.csv':
+            self.frame = pd.read_csv(self.data_path, sep=',', header='infer')
 
             # Replace 'space' by '_' and clean up the header built by CloudCompare ('//X')
             for field in self.frame.columns.values.tolist():
@@ -631,31 +679,49 @@ class ClaspyTrainer:
                 self.frame = self.frame.rename(columns={field: field_})
                 if field == '//X':
                     self.frame = self.frame.rename(columns={"//X": "X"})
+
         elif self.data_type == '.las':
-            las = laspy.file.File(self.data_path, mode='r')
-            point_cloud_info += "LAS Version: {}\n".format(las.header.version)
-            point_cloud_info += "LAS point format: {}\n".format(las.header.data_format_id)
-            self.nbr_points = las.header.records_count
-            point_cloud_info += "Number of points: {:,}\n".format(self.nbr_points)
-
-            # Get the data by dimensions
-            self.frame = pd.DataFrame()
-            for dim in las.point_format.specs:
-                self.frame[dim.name] = las.get_reader().get_dimension(dim.name)
+            las = laspy.read(self.data_path)
+            self.frame = pd.DataFrame(las.points.array)
             las.close()
+
         else:
-            point_cloud_info += "Unknown Extension file!\n"
+            raise TypeError("Unrecognized file extension!")
 
-        if verbose:
-            return point_cloud_info
+        return self.frame
 
+    def get_data_features(self):
+        """
+        Get all features (or field names) from data file.
+        """
+        # Get all features from header
+        if self.data_type == '.csv':
+            csv_frame = pd.read_csv(self.data_path, sep=',', header='infer', nrows=10)
+            # Replace 'space' by '_' and clean up the header built by CloudCompare ('//X')
+            for field in csv_frame.columns.values.tolist():
+                field_ = field.replace(' ', '_')
+                csv_frame = csv_frame.rename(columns={field: field_})
+                if field == '//X':
+                    csv_frame = csv_frame.rename(columns={"//X": "X"})
+            self.data_features = csv_frame.columns.values.tolist()
+
+        elif self.data_type == '.las':
+            las = laspy.open(self.data_path, mode='r')
+            self.data_features = list(las.header.point_format.dimension_names)
+            las.close()
+
+        else:
+            raise TypeError("Unrecognized file extension!")
+        
     def format_dataset(self, verbose=True):
         """
-        Format dataset as XY & Z & target Dataframe, remove raw_classification from file
-        and return point cloud informations and 'Done' when finished
+        Format dataset from CSV and LAS file as pandas Dataframe
         """
         # Report string
         format_data_str = "\n"
+
+        # Get all feature names from data
+        self.get_data_features()
 
         # Search X, Y, Z, target and raw_classif fields
         field_x = None
@@ -673,11 +739,9 @@ class ClaspyTrainer:
             elif field.casefold() == 'target':
                 field_t = field
 
-        # Create target varaible if exist
+        # Create target variable if exist
         if field_t:
             self.target = self.frame.loc[:, field_t]
-        else:
-            self.target = None
 
         # Target is mandatory for training
         if isinstance(self, ClaspyTrainer) and self.target is None:
@@ -697,15 +761,15 @@ class ClaspyTrainer:
             for field in [field_x, field_y, field_z]:  # remove X, Y, Z
                 selected_features.remove(field)
             if self.data_type == '.las':
-                las = laspy.file.File(self.data_path, mode='r')
-                standard_dimensions = point_format[las.header.data_format_id]
+                las = laspy.read(self.data_path)
+                standard_dimensions = point_format[las.header.point_format.id]
                 for field in standard_dimensions:  # remove standard LAS dimensions
                     if field in selected_features:
                         selected_features.remove(field)
             self.features = selected_features
 
         elif isinstance(self.features, str):
-            self.features = yaml.safe_load(self.features)
+            self.features = yaml.safe_load(self.features)  # asked features
             format_data_str += self.get_selected_features(temp_features)
 
         elif isinstance(self.features, list):
@@ -726,7 +790,8 @@ class ClaspyTrainer:
         # Set filename for output result files
         self.number_of_points()
         str_nbr_pts = self.format_nbr_pts()
-        self.report_filename = str(self.folder_path + '/' + self.mode[0:5] + '_' + self.algo + str_nbr_pts + str(self.timestamp))
+        self.report_filename = str(
+            self.folder_path + '/' + self.mode[0:5] + '_' + self.algo + str_nbr_pts + str(self.timestamp))
 
         if verbose:
             return format_data_str
@@ -763,12 +828,12 @@ class ClaspyTrainer:
                              stratify=self.target)
 
         # Convert target_train and target_test column-vectors as 1d array
-        #self.target_train = self.target_train.reshape(self.train_size)
-        #self.target_test = self.target_test.reshape(self.test_size)
+        # self.target_train = self.target_train.reshape(self.train_size)
+        # self.target_test = self.target_test.reshape(self.test_size)
 
-        split_dataset_str += "\tNumber of used points: {:,} pts\n".\
+        split_dataset_str += "\tNumber of used points: {:,} pts\n". \
             format(self.train_size + self.test_size).replace(',', ' ')
-        split_dataset_str += "\tSize of train|test datasets: {:,} pts | {:,} pts\n".\
+        split_dataset_str += "\tSize of train|test datasets: {:,} pts | {:,} pts\n". \
             format(self.train_size, self.test_size).replace(',', ' ')
 
         if verbose:
@@ -975,7 +1040,7 @@ class ClaspyTrainer:
                     report.write('\n\n\nResults of the GridSearchCV:\n')
                     report.write(self.results.to_string(index=False))
 
-            # Write the Cross validation results
+                # Write the Cross validation results
                 else:
                     report.write('\n\n\nResults of the Cross-Validation:\n')
                     report.write(pd.DataFrame(self.results).to_string(index=False, header=False))
@@ -1012,6 +1077,7 @@ class ClaspyPredicter(ClaspyTrainer):
     """
     ClaspyPredicter create object to predict classes according the selected model.
     """
+
     def __init__(self, input_data, model, output_data=None, n_jobs=-1, samples=None):
         """Initialize the ClaspyPredicter"""
         ClaspyTrainer.__init__(self, input_data=input_data, output_data=output_data,
@@ -1172,6 +1238,7 @@ class ClaspySegmenter(ClaspyTrainer):
     """
     ClaspySegmenter create object to segment data into clusters according the selected algorithm.
     """
+
     def __init__(self, input_data, output_data=None, parameters=None, features=None,
                  pca=None, n_jobs=-1, random_state=0, samples=None, scaler='Standard'):
         """Initialize the ClaspySegmenter"""
@@ -1302,4 +1369,3 @@ class ClaspySegmenter(ClaspyTrainer):
 
         if verbose:
             return save_pt_cloud_str
-
