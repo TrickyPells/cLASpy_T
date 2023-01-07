@@ -690,6 +690,33 @@ class ClaspyTrainer:
 
         return self.frame
 
+    def load_data_csv(self):
+        """
+        Load data from CSV file according asked features (self.features)
+        or all features as default features, except X, Y and Z.
+        Extracts target field if exists.
+        :return: data and target pandas.DataFrames
+        """
+        # Check if asked features is empty
+        if self.features is None:
+            # Remove X, Y and Z fields from self.data_features
+            for field in self.data_features:
+                field.replace('_', ' ')
+                if field.casefold() in ['x', 'y', 'z']:  # casefold() -> non case-sensitive
+                    self.data_features.remove(field)
+
+        return data, target
+
+    def load_data_las(self):
+        """
+        Load data from LAS file according asked features (self.features)
+        or extra_dimensions as default features.
+        Extracts target field if exists.
+        :return: data and target pandas.DataFrames
+        """
+
+        return data, target
+
     def get_data_features(self):
         """
         Get all features (or field names) from data file.
@@ -703,15 +730,17 @@ class ClaspyTrainer:
                 csv_frame = csv_frame.rename(columns={field: field_})
                 if field == '//X':
                     csv_frame = csv_frame.rename(columns={"//X": "X"})
-            self.data_features = csv_frame.columns.values.tolist()
+            data_features = csv_frame.columns.values.tolist()
 
         elif self.data_type == '.las':
             las = laspy.open(self.data_path, mode='r')
-            self.data_features = list(las.header.point_format.dimension_names)
+            data_features = list(las.header.point_format.dimension_names)
             las.close()
 
         else:
             raise TypeError("Unrecognized file extension!")
+
+        return data_features
         
     def format_dataset(self, verbose=True):
         """
@@ -720,16 +749,32 @@ class ClaspyTrainer:
         # Report string
         format_data_str = "\n"
 
-        # Get all feature names from data
-        self.get_data_features()
+        # Get all feature names from data into a list
+        self.data_features = self.get_data_features()
 
-        # Search X, Y, Z, target and raw_classif fields
-        field_x = None
-        field_y = None
-        field_z = None
-        field_t = None
+        # Get default features when asked features are empty (self.features)
+        if self.features is None:  # Use all features except LAS standard fields and X, Y, Z
+            format_data_str += "All features in input_data will be used!\n" \
+                               "Except X, Y, Z and LAS standard dimensions!\n"
 
-        for field in self.frame.columns.values.tolist():
+        # If asked features exists (self.features), check all are presents in self.data_features
+        elif isinstance(self.features, str):
+            self.features = yaml.safe_load(self.features)  # asked features from str to list
+            format_data_str += self.get_selected_features(self.data_features)
+
+        elif isinstance(self.features, list):
+            format_data_str += self.get_selected_features(self.data_features)
+
+        # Load data according asked features from CSV or LAS
+        if self.data_type == '.csv':
+            self.data, self.target = self.load_data_csv()
+
+        if self.data_type == '.las':
+            self.data, self.target = self.load_data_las()
+
+
+        # Get X, Y, Z and target fields
+        for field in self.data_features:
             if field.casefold() == 'x':  # casefold() -> non case-sensitive
                 field_x = field
             elif field.casefold() == 'y':
