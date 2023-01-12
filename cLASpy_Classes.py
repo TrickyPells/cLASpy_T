@@ -105,6 +105,7 @@ class ClaspyTrainer:
 
         # Set variables
         self.mode = 'training'
+        self.has_target = False  # Boolean True if target field exists in data file
         self.start_time = datetime.now()  # Set the start time
         self.elapsed_time = None
         self.timestamp = self.start_time.strftime("%m%d_%H%M")  # Timestamp for file creation
@@ -134,30 +135,31 @@ class ClaspyTrainer:
         self.png_features = png_features
 
         # Set some varaible members to None
-        self.classifier = None
-        self.conf_matrix = None
-        self.data = None
-        self.data_features = None
-        self.data_test = None
-        self.data_train = None
-        self.feat_importance = None
-        self.frame = None
-        self.model = None
-        self.model_to_load = None
-        self.nbr_points = None
-        self.pipeline = None
-        self.pipe_params = None
-        self.report_filename = None
+        self.classifier = None  # Classifier object
+        self.conf_matrix = None  # Confusion matrix
+        self.data = None  # All data except target values
+        self.data_features = None  # Feature names from data file
+        self.data_test = None  # Data to test model
+        self.data_train = None  # Data to train model
+        self.feat_importance = None  # Boolean to plot feature importance or not
+        self.frame = None  # Loaded data as pandas.DataFrame
+        self.model = None  # Model object
+        self.model_to_load = None  # Model to load (path file)
+        self.nbr_points = None  # Integer of number of points
+        self.pipeline = None  # Pipeline object
+        self.pipe_params = None  # Pipeline parameters
+        self.report_filename = None  # Filename for the classification report
         self.results = None
-        self.scaler = None
-        self.target = None
-        self.target_test = None
-        self.target_test_pred = None
-        self.target_train = None
-        self.test_ratio = None
+        self.scaler = None  # Scaler object
+        self.target = None  # Target values
+        self.target_name = None  # name of target field in data file
+        self.target_test = None  # Target to test model
+        self.target_test_pred = None  # Prediction results after testing
+        self.target_train = None  # Target to train model
+        self.test_ratio = None  # Ratio test_size / (test_size + train_size)
         self.test_report = None
-        self.test_size = None
-        self.train_size = None
+        self.test_size = None  # Size of the test dataset
+        self.train_size = None  # Size of the train dataset
 
     def fullname_algo(self):
         """
@@ -354,41 +356,6 @@ class ClaspyTrainer:
             self.pipe_params[new_key] = well_params[key]
 
         return check_grid_param_str
-
-    def get_selected_features(self, data_features, verbose=True):
-        """
-        self.features: the wanted features (selected by user).
-        :param data_features: all features in input_data except ('x', 'y', 'z' and 'target').
-        :param verbose: Set verbose as True or False.
-        :return: the final selected features and string report
-        """
-        # Initialization
-        selected_feat_str = "\n"  # String to report info
-        selected_features = list()  # The final list of all features found in input data
-
-        # Check if features is a list()
-        if isinstance(self.features, list):
-            selected_feat_str += "\nGet selected features:"
-            for feature in self.features:
-                for dt_feature in data_features:
-                    if dt_feature.casefold() == feature.casefold():
-                        selected_features.append(dt_feature)
-                        selected_feat_str += " - {} asked --> {} found\n".format(feature, dt_feature)
-
-            selected_feat_str += "\nNumber of wanted features: {}\n".format(len(self.features))
-            selected_feat_str += "Number of final selected features: {}\n".format(len(selected_features))
-
-            if len(self.features) == len(selected_features):
-                self.features = selected_features
-                selected_feat_str += " --> All required features are present!\n"
-            else:
-                differences = list(set(self.features) - set(selected_features))
-                raise ValueError("{} features are missing in 'input_data'!".format(differences))
-        else:
-            raise TypeError("Selected features must be a list of string!")
-
-        if verbose:
-            return selected_feat_str
 
     def set_random_forest(self):
         """
@@ -695,15 +662,26 @@ class ClaspyTrainer:
         Load data from CSV file according asked features (self.features)
         or all features as default features, except X, Y and Z.
         Extracts target field if exists.
-        :return: data and target pandas.DataFrames
+        :return: data and target as pandas.DataFrame
         """
-        # Check if asked features is empty
+        # If asked features is empty, load default features (all except X, Y, Z)
         if self.features is None:
             # Remove X, Y and Z fields from self.data_features
             for field in self.data_features:
-                field.replace('_', ' ')
                 if field.casefold() in ['x', 'y', 'z']:  # casefold() -> non case-sensitive
                     self.data_features.remove(field)
+                if field.casefold() == 'target':
+                    self.has_target = True
+                    self.target_name = field
+            self.features = self.data_features  # if 'target' exists, will be in self.features
+
+        # Load data with pandas.read_csv()
+        data = pd.read_csv(self.data_path, sep=',', header='infer', usecols=self.features)
+
+        # Extract 'target' from data frame
+        if self.has_target:
+            target = pd.DataFrame.loc[:, self.target_name]
+            data.drop(columns=self.target_name, inplace=True)
 
         return data, target
 
@@ -717,6 +695,42 @@ class ClaspyTrainer:
 
         return data, target
 
+    def get_selected_features(self, data_features, verbose=True):
+        """
+        self.features: the wanted features (selected by user).
+        :param data_features: all features in input_data.
+        :param verbose: Set verbose as True or False.
+        :return: the final selected features and string report
+        """
+        # Initialization
+        selected_feat_str = "\n"  # String to report info
+        selected_features = list()  # The final list of all features found in input data
+
+        # Check if features is a list()
+        if isinstance(self.features, list):
+            selected_feat_str += "\nGet selected features:"
+            for feature in self.features:
+                for dt_feature in data_features:
+                    # Compare data_feature with 'space' replaced by '_'
+                    if dt_feature.replace(' ', '_').casefold() == feature.casefold():
+                        selected_features.append(dt_feature)  # Put feature without '_'
+                        selected_feat_str += " - {} asked --> {} found\n".format(feature, dt_feature)
+
+            selected_feat_str += "\nNumber of wanted features: {}\n".format(len(self.features))
+            selected_feat_str += "Number of final selected features: {}\n".format(len(selected_features))
+
+            if len(self.features) == len(selected_features):
+                self.features = selected_features  # Selected feature with 'space', no '_'
+                selected_feat_str += " --> All required features are present!\n"
+            else:
+                differences = list(set(self.features) - set(selected_features))
+                raise ValueError("{} features are missing in 'input_data'!".format(differences))
+        else:
+            raise TypeError("Selected features must be a list of string!")
+
+        if verbose:
+            return selected_feat_str
+
     def get_data_features(self):
         """
         Get all features (or field names) from data file.
@@ -726,8 +740,8 @@ class ClaspyTrainer:
             csv_frame = pd.read_csv(self.data_path, sep=',', header='infer', nrows=10)
             # Replace 'space' by '_' and clean up the header built by CloudCompare ('//X')
             for field in csv_frame.columns.values.tolist():
-                field_ = field.replace(' ', '_')
-                csv_frame = csv_frame.rename(columns={field: field_})
+                #field_ = field.replace(' ', '_')
+                #csv_frame = csv_frame.rename(columns={field: field_})
                 if field == '//X':
                     csv_frame = csv_frame.rename(columns={"//X": "X"})
             data_features = csv_frame.columns.values.tolist()
@@ -749,7 +763,7 @@ class ClaspyTrainer:
         # Report string
         format_data_str = "\n"
 
-        # Get all feature names from data into a list
+        # Get all feature names from data file
         self.data_features = self.get_data_features()
 
         # Get default features when asked features are empty (self.features)
