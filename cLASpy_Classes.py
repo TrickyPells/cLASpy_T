@@ -639,10 +639,8 @@ class ClaspyTrainer:
         # Get all features from header
         if self.data_type == '.csv':
             csv_frame = pd.read_csv(self.data_path, sep=',', header='infer', nrows=10)
-            # Replace 'space' by '_' and clean up the header built by CloudCompare ('//X')
+            # Clean up the header built by CloudCompare ('//X')
             for field in csv_frame.columns.values.tolist():
-                #field_ = field.replace(' ', '_')
-                #csv_frame = csv_frame.rename(columns={field: field_})
                 if field == '//X':
                     csv_frame = csv_frame.rename(columns={"//X": "X"})
             data_features = csv_frame.columns.values.tolist()
@@ -693,31 +691,6 @@ class ClaspyTrainer:
         if verbose:
             return selected_feat_str
 
-    def load_data(self):
-        """
-        Load data in a pandas DataFrame
-        """
-        # Check data type
-        if self.data_type == '.csv':
-            self.frame = pd.read_csv(self.data_path, sep=',', header='infer')
-
-            # Replace 'space' by '_' and clean up the header built by CloudCompare ('//X')
-            for field in self.frame.columns.values.tolist():
-                field_ = field.replace(' ', '_')
-                self.frame = self.frame.rename(columns={field: field_})
-                if field == '//X':
-                    self.frame = self.frame.rename(columns={"//X": "X"})
-
-        elif self.data_type == '.las':
-            las = laspy.read(self.data_path)
-            self.frame = pd.DataFrame(las.points.array)
-            las.close()
-
-        else:
-            raise TypeError("Unrecognized file extension!")
-
-        return self.frame
-
     def load_data_csv(self):
         """
         Load data from CSV file according asked features (self.features)
@@ -734,12 +707,15 @@ class ClaspyTrainer:
                     self.features.append(field)  # if 'target' exists, will be in self.features
 
         # Load data with pandas.read_csv()
-        data = pd.read_csv(self.data_path, sep=',', header='infer', usecols=self.features)
+        data = pd.read_csv(self.data_path,
+                           sep=',',
+                           header='infer',
+                           usecols=self.features)  # dtype=feature_dtype dict like LAS
 
         # Extract 'target' from data frame
         target = None
         if self.has_target:
-            target = pd.DataFrame.loc[:, self.target_name]
+            target = pd.DataFrame.loc[:, self.target_name]  # use dtype uint8
             data.drop(columns=self.target_name, inplace=True)
 
         return data, target
@@ -756,11 +732,18 @@ class ClaspyTrainer:
 
         # If asked features is empty, load LAS Standard Dimensions
         if self.features is None:
-            point_std_dimensions = las.points[list(las.header.point_format.standard_dimension_names)]
-            data = pd.DataFrame(point_std_dimensions.array)
+            points_std_dimensions = las.points[list(las.header.point_format.standard_dimension_names)]
+            data = pd.DataFrame(points_std_dimensions.array)
         else:
-            point_selected_dimensions = las.points[self.features]
-            data = pd.DataFrame(point_selected_dimensions.array)
+            # Get LAS points from selected features
+            points_selected_dimensions = las.points[self.features]
+            # Force np.float32 for selected features, not np.float64
+            feature_dtype = dict()
+            for feature in self.features:
+                feature_dtype[feature] = np.float32
+
+            # Create DataFrame with np.float32 for features
+            data = pd.DataFrame(points_selected_dimensions.array).astype(feature_dtype)
 
         # Extract 'target' as data frame
         target = None
