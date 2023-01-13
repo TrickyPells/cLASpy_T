@@ -13,9 +13,11 @@ print(list(las.header.point_format.dimensions))
 
 # liste de toutes les dimensions standard
 print(list(las.header.point_format.standard_dimension_names))
+print(list(las.point_format.standard_dimension_names))
 
 # list de toutes les dimensions extra
 print(list(las.header.point_format.extra_dimension_names))
+print(list(las.point_format.extra_dimension_names))
 
 # tous les points vers un np array
 point_records = las.points

@@ -632,6 +632,67 @@ class ClaspyTrainer:
         if verbose:
             return point_cloud_info
 
+    def get_data_features(self):
+        """
+        Get all features (or field names) from data file.
+        """
+        # Get all features from header
+        if self.data_type == '.csv':
+            csv_frame = pd.read_csv(self.data_path, sep=',', header='infer', nrows=10)
+            # Replace 'space' by '_' and clean up the header built by CloudCompare ('//X')
+            for field in csv_frame.columns.values.tolist():
+                #field_ = field.replace(' ', '_')
+                #csv_frame = csv_frame.rename(columns={field: field_})
+                if field == '//X':
+                    csv_frame = csv_frame.rename(columns={"//X": "X"})
+            data_features = csv_frame.columns.values.tolist()
+
+        elif self.data_type == '.las':
+            las = laspy.open(self.data_path, mode='r')
+            data_features = list(las.header.point_format.dimension_names)
+            las.close()
+
+        else:
+            raise TypeError("Unrecognized file extension!")
+
+        return data_features
+
+    def get_selected_features(self, data_features, verbose=True):
+        """
+        self.features: the wanted features (selected by user).
+        :param data_features: all features in input_data.
+        :param verbose: Set verbose as True or False.
+        :return: the final selected features and string report
+        """
+        # Initialization
+        selected_feat_str = "\n"  # String to report info
+        selected_features = list()  # The final list of all features found in input data
+
+        # Check if features is a list()
+        if isinstance(self.features, list):
+            selected_feat_str += "\nGet selected features:"
+            for feature in self.features:
+                for dt_feature in data_features:
+                    # Compare data_feature with 'space' replaced by '_'
+                    if dt_feature.replace(' ', '_').casefold() == feature.casefold():
+                        selected_features.append(dt_feature)  # Put feature with 'space'
+                        selected_feat_str += " - {} asked --> {} found\n".format(feature, dt_feature)
+
+            selected_feat_str += "\nNumber of wanted features: {}\n".format(len(self.features))
+            selected_feat_str += "Number of final selected features: {}\n".format(len(selected_features))
+
+            if len(self.features) == len(selected_features):
+                self.features = selected_features  # Selected feature with 'space', not '_'
+                selected_feat_str += " --> All required features are present!\n"
+            else:
+                differences = list(set(self.features) - set(selected_features))
+                raise ValueError("{} features are missing in 'input_data'!".format(differences))
+        else:
+            raise TypeError("Selected features must be a list of string!")
+
+        if verbose:
+            return selected_feat_str
+
     def load_data(self):
         """
         Load data in a pandas DataFrame
@@ -666,19 +727,17 @@ class ClaspyTrainer:
         """
         # If asked features is empty, load default features (all except X, Y, Z)
         if self.features is None:
+            self.features = list()
             # Remove X, Y and Z fields from self.data_features
             for field in self.data_features:
-                if field.casefold() in ['x', 'y', 'z']:  # casefold() -> non case-sensitive
-                    self.data_features.remove(field)
-                if field.casefold() == 'target':
-                    self.has_target = True
-                    self.target_name = field
-            self.features = self.data_features  # if 'target' exists, will be in self.features
+                if field.casefold() not in ['x', 'y', 'z']:  # casefold() -> non case-sensitive
+                    self.features.append(field)  # if 'target' exists, will be in self.features
 
         # Load data with pandas.read_csv()
         data = pd.read_csv(self.data_path, sep=',', header='infer', usecols=self.features)
 
         # Extract 'target' from data frame
+        target = None
         if self.has_target:
             target = pd.DataFrame.loc[:, self.target_name]
             data.drop(columns=self.target_name, inplace=True)
@@ -692,70 +751,25 @@ class ClaspyTrainer:
         Extracts target field if exists.
         :return: data and target pandas.DataFrames
         """
+        # Read LAS file
+        las = laspy.read(self.data_path)
+
+        # If asked features is empty, load LAS Standard Dimensions
+        if self.features is None:
+            point_std_dimensions = las.points[list(las.header.point_format.standard_dimension_names)]
+            data = pd.DataFrame(point_std_dimensions.array)
+        else:
+            point_selected_dimensions = las.points[self.features]
+            data = pd.DataFrame(point_selected_dimensions.array)
+
+        # Extract 'target' as data frame
+        target = None
+        if self.has_target:
+            point_target = las.points[[self.target_name]]
+            target = pd.DataFrame(point_target.array)
 
         return data, target
 
-    def get_selected_features(self, data_features, verbose=True):
-        """
-        self.features: the wanted features (selected by user).
-        :param data_features: all features in input_data.
-        :param verbose: Set verbose as True or False.
-        :return: the final selected features and string report
-        """
-        # Initialization
-        selected_feat_str = "\n"  # String to report info
-        selected_features = list()  # The final list of all features found in input data
-
-        # Check if features is a list()
-        if isinstance(self.features, list):
-            selected_feat_str += "\nGet selected features:"
-            for feature in self.features:
-                for dt_feature in data_features:
-                    # Compare data_feature with 'space' replaced by '_'
-                    if dt_feature.replace(' ', '_').casefold() == feature.casefold():
-                        selected_features.append(dt_feature)  # Put feature without '_'
-                        selected_feat_str += " - {} asked --> {} found\n".format(feature, dt_feature)
-
-            selected_feat_str += "\nNumber of wanted features: {}\n".format(len(self.features))
-            selected_feat_str += "Number of final selected features: {}\n".format(len(selected_features))
-
-            if len(self.features) == len(selected_features):
-                self.features = selected_features  # Selected feature with 'space', no '_'
-                selected_feat_str += " --> All required features are present!\n"
-            else:
-                differences = list(set(self.features) - set(selected_features))
-                raise ValueError("{} features are missing in 'input_data'!".format(differences))
-        else:
-            raise TypeError("Selected features must be a list of string!")
-
-        if verbose:
-            return selected_feat_str
-
-    def get_data_features(self):
-        """
-        Get all features (or field names) from data file.
-        """
-        # Get all features from header
-        if self.data_type == '.csv':
-            csv_frame = pd.read_csv(self.data_path, sep=',', header='infer', nrows=10)
-            # Replace 'space' by '_' and clean up the header built by CloudCompare ('//X')
-            for field in csv_frame.columns.values.tolist():
-                #field_ = field.replace(' ', '_')
-                #csv_frame = csv_frame.rename(columns={field: field_})
-                if field == '//X':
-                    csv_frame = csv_frame.rename(columns={"//X": "X"})
-            data_features = csv_frame.columns.values.tolist()
-
-        elif self.data_type == '.las':
-            las = laspy.open(self.data_path, mode='r')
-            data_features = list(las.header.point_format.dimension_names)
-            las.close()
-
-        else:
-            raise TypeError("Unrecognized file extension!")
-
-        return data_features
-        
     def format_dataset(self, verbose=True):
         """
         Format dataset from CSV and LAS file as pandas Dataframe
@@ -779,69 +793,25 @@ class ClaspyTrainer:
         elif isinstance(self.features, list):
             format_data_str += self.get_selected_features(self.data_features)
 
+        else:
+            raise TypeError("Selected features must be a list of string!")
+
+        # Check if 'target' field exists in self.data_features
+        for field in self.data_features:
+            if field.casefold() == 'target':
+                self.has_target = True
+                self.target_name = field
+
+        # Target is mandatory for training
+        if self.has_target is False and not isinstance(self, ClaspyPredicter) and not isinstance(self, ClaspySegmenter):
+            raise ValueError("A 'target' field is mandatory for training!")
+
         # Load data according asked features from CSV or LAS
         if self.data_type == '.csv':
             self.data, self.target = self.load_data_csv()
 
         if self.data_type == '.las':
             self.data, self.target = self.load_data_las()
-
-
-        # Get X, Y, Z and target fields
-        for field in self.data_features:
-            if field.casefold() == 'x':  # casefold() -> non case-sensitive
-                field_x = field
-            elif field.casefold() == 'y':
-                field_y = field
-            elif field.casefold() == 'z':
-                field_z = field
-            elif field.casefold() == 'target':
-                field_t = field
-
-        # Create target variable if exist
-        if field_t:
-            self.target = self.frame.loc[:, field_t]
-
-        # Target is mandatory for training
-        if isinstance(self, ClaspyTrainer) and self.target is None:
-            raise ValueError("A 'target' field is mandatory for training!")
-
-        # Create temp list of features
-        temp_features = self.frame.columns.values.tolist()
-
-        # Remove target field from self.frame if exist
-        if self.target is not None:
-            temp_features.remove(field_t)
-
-        # Get only the selected features among temp_features
-        if self.features is None:  # Use all features except standard LAS fields and X, Y, Z
-            format_data_str += "All features in input_data will be used!\n"
-            selected_features = temp_features
-            for field in [field_x, field_y, field_z]:  # remove X, Y, Z
-                selected_features.remove(field)
-            if self.data_type == '.las':
-                las = laspy.read(self.data_path)
-                standard_dimensions = point_format[las.header.point_format.id]
-                for field in standard_dimensions:  # remove standard LAS dimensions
-                    if field in selected_features:
-                        selected_features.remove(field)
-            self.features = selected_features
-
-        elif isinstance(self.features, str):
-            self.features = yaml.safe_load(self.features)  # asked features
-            format_data_str += self.get_selected_features(temp_features)
-
-        elif isinstance(self.features, list):
-            format_data_str += self.get_selected_features(temp_features)
-
-        else:
-            raise TypeError("Selected features must be a list of string!")
-
-        # Sort data by field names
-        self.features.sort()  # Sort to be compatible between formats
-
-        # data without target field
-        self.data = self.frame.filter(self.features, axis=1)
 
         # Replace NAN values by median
         self.data.fillna(value=self.data.median(0), inplace=True)  # .median(0) computes median by column
