@@ -40,10 +40,10 @@ Once you cone or download/decompress source code, move to the **cLASpy_T** direc
  
 Create a Virtual Environment
 ----------------------------
- 
- Python uses many packages, depending of your usages. To prevent a dirty installation and package incompatibilities, it could be a great idea to use virtual environments. Here, we will create a specific virutal environment for **cLASpy_T**.
- 
- First, create a new directory called :file:`.venv` and use :command:`venv` command from python to create a new virtual environment called :file:`claspy_venv`:
+
+Python uses many packages, depending of your usages. To prevent a dirty installation and package incompatibilities, it could be a great idea to use virtual environments. Here, we will create a specific virutal environment for **cLASpy_T**.
+
+First, create a new directory called :file:`.venv` and use :command:`venv` command from python to create a new virtual environment called :file:`claspy_venv`:
  
 
 .. code-block:: command
