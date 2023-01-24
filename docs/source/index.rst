@@ -4,7 +4,7 @@
    contain the root `toctree` directive.
 
 Welcome to cLASpy_T |version| documentation!
-====================================
+============================================
 
 About cLASpy_T
 --------------
