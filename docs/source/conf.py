@@ -12,8 +12,16 @@ author = 'Xavier PELLERIN LE BAS'
 release = '0.2'
 version = '0.2.1'
 
+rst_epilog = """
+.. |claspyt| replace:: cLASpy_T
+.. |gui| replace:: cLASpy_GUI
+"""
+
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
+
+# The master toctree document.
+master_doc = 'index'
 
 extensions = [
     'sphinx.ext.duration',
