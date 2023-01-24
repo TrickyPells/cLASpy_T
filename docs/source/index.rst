@@ -31,8 +31,7 @@ Roughly, the software formats the input point clouds provided by ALS or CSV file
    :caption: Contents:
 
    installation
-   command_line
-   graphical_interface
+   usage
    tutorials
 
 Indices and tables
