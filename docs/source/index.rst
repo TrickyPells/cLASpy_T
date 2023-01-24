@@ -6,6 +6,8 @@
 Welcome to cLASpy_T |version| documentation!
 ============================================
 
+.. image:: ../Ressources/cLASpy_T_Logo_Low.png
+
 About cLASpy_T
 --------------
 
