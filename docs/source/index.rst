@@ -3,10 +3,10 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
+.. image:: ../../Ressources/cLASpy_T_Logo_Low.png
+
 Welcome to cLASpy_T |version| documentation!
 ============================================
-
-.. image:: ../../Ressources/cLASpy_T_Logo_Low.png
 
 About cLASpy_T
 --------------
