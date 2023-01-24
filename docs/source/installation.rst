@@ -145,7 +145,7 @@ If you want to deactivate the virtual environment, juste type:
 Install all dependencies
 ------------------------
 
-All required packages are listed in the :file:`requirements.txt` file. We will use :command:`pip`command to install all dependencies automatically.
+All required packages are listed in the :file:`requirements.txt` file. We will use :command:`pip` command to install all dependencies automatically.
 
 If no terminal already open, open one, move to the :file:`cLASpy_T` directory and activate the virtual environment created earlier.
 
