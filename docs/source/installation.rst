@@ -20,20 +20,20 @@ Get cLASpy_T source code
   
 First, open the Command Prompt ``cmd.exe``. You can easily open it by clicking :menuselection:`&Start`, then search `cmd`.
   
-Once the Command Prompt open, move to the directory where put the **cLASpy_T** source code. For example, 'Me' user moves to his :file:`Code` directory and gets the **cLASpy_T** source code with the :command:`git`command to clone 'cLASpy_T.git':
+Once the Command Prompt open, move to the directory where put the **cLASpy_T** source code. For example, 'Me' user moves to his :file:`Code` directory and gets the **cLASpy_T** source code with the :command:`git` command to clone 'cLASpy_T.git':
   
-.. code-block:: command
+.. code-block:: doscon
 
   C:\Users\Me>cd Code
   C:\Users\Me\Code>git clone https://github.com/TrickyPells/cLASpy_T.git
   
 .. note::
 
-  If you do not know what :command:`git` is, you also can download **cLASpy_T** source code on the `github page <https://github.com/TrickyPells/cLASpy_T>`_. Choose the branch you want to download and click :labelgui:`&Code` on the right, then :labelgui:`&Download ZIP`. Once downloaded, decompress the ZIP file in the directory you want.
+  If you do not know what :command:`git` is, you also can download **cLASpy_T** source code on the `github page <https://github.com/TrickyPells/cLASpy_T>`_. Choose the branch you want to download and click :guilabel:`&Code` on the right, then :guilabel:`&Download ZIP`. Once downloaded, decompress the ZIP file in the directory you want.
   
 Once you cone or download/decompress source code, move to the **cLASpy_T** directory:
 
-.. code-block:: command
+.. code-block:: doscon
   
   C:\Users\Me\Code>cd cLASpy_T
  
@@ -46,26 +46,26 @@ Python uses many packages, depending of your usages. To prevent a dirty installa
 First, create a new directory called :file:`.venv` and use :command:`venv` command from python to create a new virtual environment called :file:`claspy_venv`:
  
 
-.. code-block:: command
+.. code-block:: doscon
    
   C:\Users\Me\Code\cLASpy_T>mkdir .venv
   C:\Users\Me\Code\cLASpy_T>python -m venv .venv\claspy_venv
   
 Now, you can use this new virtual environment:
 
-.. code-block:: command
+.. code-block:: doscon
 
   C:\Users\Me\Code\`cLASpy_T>.venv\claspy_venv\Scripts\activate
   
 Your Command Prompt must return something like this:
 
-.. code-block:: command
+.. code-block:: doscon
 
   (claspy_venv) C:\Users\Me\Code\cLASpy_T>
   
 To deactivate the virtual environment, juste type:
 
-.. code-block:: command
+.. code-block:: doscon
 
   (claspy_venv) C:\Users\Me\Code\cLASpy_T>deactivate
   
@@ -78,13 +78,13 @@ If no Command Prompt is already open, open one, move to the :file:`cLASpy_T` dir
 
 Check if :command:`pip` needs to be upgraded:
 
-.. code-block:: command
+.. code-block:: doscon
 
   (claspy_venv) C:\Users\Me\Code\cLASpy_T>python -m pip install --upgrade pip
   
 Once donce, you can install all dependencies:
 
-.. code-block:: command
+.. code-block:: doscon
 
   (claspy_venv) C:\Users\Me\Code\cLASpy_T>python -m pip install -r requirements.txt
 
