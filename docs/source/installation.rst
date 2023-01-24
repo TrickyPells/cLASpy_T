@@ -36,9 +36,10 @@ Once you cone or download/decompress source code, move to the **cLASpy_T** direc
 .. code-block:: command
   
   C:\Users\Me\Code>cd cLASpy_T
-  
- Create a Virtual Environment
- ----------------------------
+ 
+ 
+Create a Virtual Environment
+----------------------------
  
  Python uses many packages, depending of your usages. To prevent a dirty installation and package incompatibilities, it could be a great idea to use virtual environments. Here, we will create a specific virutal environment for **cLASpy_T**.
  
