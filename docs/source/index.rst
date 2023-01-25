@@ -27,7 +27,7 @@ Purpose of cLASpy_T
 .. _DataFrame: https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 3
    :caption: Contents:
 
    installation
