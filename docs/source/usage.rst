@@ -17,6 +17,8 @@ Presentation
   In command line mode, use :command:`python cLASpy_T.py train`, :command:`predict` or :command:`segment` with :command:`--help` argument for more details.
   
 
+.. _scikit-learn: https://scikit-learn.org/stable/modules/classes.html
+
 Command line
 ============
 
