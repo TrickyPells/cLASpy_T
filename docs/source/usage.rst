@@ -45,8 +45,8 @@ And to segment a dataset:
   python cLASpy_T.py segment -i=/home/me/data/lidar_survey.las
   
 
-:command:`train` module
------------------------
+`train` module
+--------------
 
 The 'train' module is used to create a supervised model from the machine learning algorithm that you select. |claspyt| uses `scikit-learn`_ library as main machine learning library, so do not hesitate to look up the documentation.
 
@@ -63,13 +63,13 @@ Format of data files
 
   The input data must be in **LAS** or **CSV** (sep=',') formats.
 
-:command:`predict` module
--------------------------
+`predict` module
+----------------
 
 
 
-:command:`segment` module
--------------------------
+'segment' module
+----------------
 
 
 
