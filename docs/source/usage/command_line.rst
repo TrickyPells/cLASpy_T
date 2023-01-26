@@ -36,9 +36,9 @@ Available supervised algorithms
 
 Currently, there 3 available supervised machine learning algorithms from `scikit-learn`_:
 
-* :command:`rf`: `RandomForestClassifier <https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.RandomForestClassifier.html#sklearn.ensemble.RandomForestClassifier>`_ for Random Forest algorithm
-* :command:`gb`: `GradientBoostingClassifier <https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.GradientBoostingClassifier.html#sklearn.ensemble.GradientBoostingClassifier>`_ for Gradient Boosting algorithm
-* :command:`ann`: `MLPClassifier <https://scikit-learn.org/stable/modules/generated/sklearn.neural_network.MLPClassifier.html#sklearn.neural_network.MLPClassifier>`_ for Neural Network algorithm
+  * :command:`rf`: `RandomForestClassifier <https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.RandomForestClassifier.html#sklearn.ensemble.RandomForestClassifier>`_ for Random Forest algorithm
+  * :command:`gb`: `GradientBoostingClassifier <https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.GradientBoostingClassifier.html#sklearn.ensemble.GradientBoostingClassifier>`_ for Gradient Boosting algorithm
+  * :command:`ann`: `MLPClassifier <https://scikit-learn.org/stable/modules/generated/sklearn.neural_network.MLPClassifier.html#sklearn.neural_network.MLPClassifier>`_ for Neural Network algorithm
 
 Format of data files
 --------------------
@@ -71,27 +71,27 @@ Arguments
 - :command:`-a, --algo`
   *Set the supervised machine learning algorithm: 'rf', 'gb', 'ann'.*
 
-  * :command:`rf` > **RandomForestClassifier**
-  * :command:`gb` > **GradientBoostingClassifier**
-  * :command:`ann` > **MLPClassifier**
+    * :command:`rf` > **RandomForestClassifier**
+    * :command:`gb` > **GradientBoostingClassifier**
+    * :command:`ann` > **MLPClassifier**
 
 - :command:`-c, --config`
   *Give the configuration file with all parameters and selected scalar fields.*
 
-  * **On Windows**: C:\path\to\the\config.json
-  * **On Linux**: /path/to/the/config.json
+    * **On Windows**: C:\path\to\the\config.json
+    * **On Linux**: /path/to/the/config.json
 
 - :command:`-i, --input_data`
   *Set the input file of the dataset (LAS or CSV).*
 
-  * **On Windows**: C:\path\to\the\input_data.las
-  * **On Linux**: /path/to/the/input_data.las
+    * **On Windows**: C:\path\to\the\input_data.las
+    * **On Linux**: /path/to/the/input_data.las
 
 - :command:`-o, --output`
   *Set the output folder to save all results. Default: Create folder with the path of the input file.*
 
-  * **On Windows**: C:\path\to\the\output_folder
-  * **On Linux**: /path/to/the/output_folder
+    * **On Windows**: C:\path\to\the\output_folder
+    * **On Linux**: /path/to/the/output_folder
 
 - :command:`-f, --features`
   *Select the features to used to train the model. Give a list of feature names. Caution: Replace whitespaces by underscores '_'.*
@@ -136,16 +136,12 @@ Arguments
 - :command:`--scaler`
   *Set the method to scale the dataset before training. Default: 'Standard'.*
 
-  * :command:`Standard`: `StandardScaler`_ > Standardize features by removing the mean and scaling to unit variance.
+    * :command:`Standard`: `StandardScaler`_ > Standardize features by removing the mean and scaling to unit variance.
+    * :command:`MinMax`: `MinMaxScaler`_ > Transform features by scaling each feature to a given range, *e.g.* betwen zero and one.
+    * :command:`Robust`: `RobustScaler`_ > Scale features using statistics that are robust to outliers, *e.g.* between 1st and 3rd quartile.
 
 .. _StandardScaler: https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.StandardScaler.html#sklearn.preprocessing.StandardScaler
-
-  * :command:`MinMax`: `MinMaxScaler`_ > Transform features by scaling each feature to a given range, *e.g.* betwen zero and one.
-
 .. _MinMaxScaler: https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.MinMaxScaler.html#sklearn.preprocessing.MinMaxScaler
-
-  * :command:`Robust`: `RobustScaler`_ > Scale features using statistics that are robust to outliers, *e.g.* between 1st and 3rd quartile.
-
 .. _RobustScaler: https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.RobustScaler.html#sklearn.preprocessing.RobustScaler
 
 - :command:`--scoring`
