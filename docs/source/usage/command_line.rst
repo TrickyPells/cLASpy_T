@@ -25,9 +25,11 @@ And to segment a dataset:
 
 
 *'train'* module
-==============
+================
 
 The 'train' module is used to create a supervised model from the machine learning algorithm that you select. |claspyt| uses `scikit-learn`_ library as main machine learning library, so do not hesitate to look up the documentation.
+
+.. _scikit-learn: https://scikit-learn.org/stable/
 
 Available supervised algorithms
 -------------------------------
@@ -43,8 +45,9 @@ Format of data files
 
 The input data must be in **LAS** or **CSV** (sep=',') formats.
 
+*Example of CSV file:*
+
 .. code-block:: asc
-   :caption: Example of CSV file:
 
   X,Y,Z,Target,Intensity,Red,Green,Blue,Roughness (5),Omnivariance (5),Sphericity (5)...
   638.957,916.201,-2.953,1,39.0,104,133,113,0.11013,0.63586,0.00095...
@@ -91,10 +94,10 @@ Arguments
   * **On Linux**: /path/to/the/output_folder
 
 - :command:`-f, --features`
-  *Select the features to used to train the model. Give a list of feature names.
-Caution: Replace whitespaces by underscores '_'.*
+  *Select the features to used to train the model. Give a list of feature names. Caution: Replace whitespaces by underscores '_'.*
 
 .. code-block:: console
+
   -f=['Anisotropy_5m', 'R', 'G', 'B', ...]
 
 - :command:`-g, --grid_search`
@@ -105,16 +108,17 @@ Caution: Replace whitespaces by underscores '_'.*
 Wrong parameters will be ignored. Caution: Replace whitespaces by underscores '_'.*
 
 .. code-block:: console
+
   -k="{'n_estimators':[50,100,500],'loss':['deviance', 'exponential'],'hidden_layer_sizes':[[100,100],[50,100,50]]}"
 
 - :command:`-n, --n_jobs`
   *Set the number of threads to use, '-1' means all available threads. Default: -1.*
 
 - :command:`-p, --parameters`
-  *Set the parameters to pass to the classifier for training, as a dictionary.
-Caution: Replace whitespaces by underscores '_'.*
+  *Set the parameters to pass to the classifier for training, as a dictionary. Caution: Replace whitespaces by underscores '_'.*
 
 .. code-block:: console
+
   -p="{'n_estimators':50,'max_depth':5,'max_iter':500}"
 
 - :command:`--pca`
@@ -133,10 +137,15 @@ Caution: Replace whitespaces by underscores '_'.*
   *Set the method to scale the dataset before training. Default: 'Standard'.*
 
   * :command:`Standard`: `StandardScaler`_ > Standardize features by removing the mean and scaling to unit variance.
+
 .. _StandardScaler: https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.StandardScaler.html#sklearn.preprocessing.StandardScaler
+
   * :command:`MinMax`: `MinMaxScaler`_ > Transform features by scaling each feature to a given range, *e.g.* betwen zero and one.
+
 .. _MinMaxScaler: https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.MinMaxScaler.html#sklearn.preprocessing.MinMaxScaler
+
   * :command:`Robust`: `RobustScaler`_ > Scale features using statistics that are robust to outliers, *e.g.* between 1st and 3rd quartile.
+
 .. _RobustScaler: https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.RobustScaler.html#sklearn.preprocessing.RobustScaler
 
 - :command:`--scoring`

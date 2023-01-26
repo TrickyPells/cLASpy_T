@@ -25,7 +25,6 @@ Once you cone or download/decompress source code, move to the :file:`cLASpy_T` d
 
   C:\Users\Me\Code>cd cLASpy_T
 
-
 Create a Virtual Environment
 ============================
 
