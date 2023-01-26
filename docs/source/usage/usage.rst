@@ -23,5 +23,5 @@ Presentation
 .. toctree::
    :maxdepth: 2
 
-   usage/command_line.rst
-   usage/gui.rst
+   command_line.rst
+   gui.rst
