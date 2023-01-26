@@ -155,12 +155,12 @@ Arguments
   *Set the train ratio as float [0.0 - 1.0] to split data into train and test datasets. Default: 0.5.*
 
 
-'predict' module
-================
+*'predict'* module
+===================
 
 
 
-'segment' module
-================
+*'segment'* module
+===================
 
 

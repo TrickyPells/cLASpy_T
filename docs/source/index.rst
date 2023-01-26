@@ -32,8 +32,6 @@ Roughly, the software formats the input point clouds provided by LAS or CSV file
 
    installation.rst
    usage/usage.rst
-   usage/command_line.rst
-   usage/gui.rst
    tutorials/tutorials.rst
 
 License
