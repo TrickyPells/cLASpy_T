@@ -14,7 +14,7 @@ version = '0.2.1'
 
 rst_epilog = """
 .. |claspyt| replace:: **cLASpy_T**
-.. |gui| replace:: **cLASpy_GUI**
+.. |gui| replace:: cLASpy_GUI
 """
 
 # -- General configuration ---------------------------------------------------
