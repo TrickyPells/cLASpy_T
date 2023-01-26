@@ -30,9 +30,9 @@ Roughly, the software formats the input point clouds provided by LAS or CSV file
    :maxdepth: 3
    :caption: Contents:
 
-   installation/installation
-   usage/usage
-   tutorials/tutorials
+   installation/installation.rst
+   usage/usage.rst
+   tutorials/tutorials.rst
 
 License
 ^^^^^^^

@@ -15,5 +15,5 @@ See the `Download section of the beginners Guide`_ from the Python documentation
 .. toctree::
    :maxdepth: 2
 
-   installation/windows
-   installation/linux
+   installation/windows.rst
+   installation/linux.rst
