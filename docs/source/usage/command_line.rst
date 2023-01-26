@@ -104,8 +104,8 @@ Arguments
   *Perform the training with GridSearchCV (see `scikit-learn`_ documentation).*
 
 - :command:`-k, --param_grid`
-  *Set the parameters to pass to the GridSearchCV as lists in a dictionary. If empty, GridSearchCV uses presets.
-Wrong parameters will be ignored. Caution: Replace whitespaces by underscores '_'.*
+  *Set the parameters to pass to the GridSearchCV as lists in a dictionary. If empty, GridSearchCV uses presets.*
+  *Wrong parameters will be ignored. Caution: Replace whitespaces by underscores '_'.*
 
 .. code-block:: console
 
@@ -128,7 +128,7 @@ Wrong parameters will be ignored. Caution: Replace whitespaces by underscores '_
   *Export the feature importnaces from RandomForest and GradientBoosting algorithms as PNG image.*
 
 - :command:`--random_state`
-  *Set the random_state to split dataset in the GridSearchCV and cross-validation.
+  *Set the random_state to split dataset in the GridSearchCV and cross-validation.*
 
 - :command:`-s, --samples`
   *Set the number of samples for large dataset (float in million points). samples = train_set + test_set.*
