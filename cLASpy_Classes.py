@@ -134,7 +134,8 @@ class ClaspyTrainer:
         self.grid_parameters = grid_param
         self.png_features = png_features
 
-        # Set some varaible members to None
+        # Set some variable members to None
+        self.magnitude = 1000000  # Magnitude for number_of_points() and format_nbr_pts()
         self.classifier = None  # Classifier object
         self.conf_matrix = None  # Confusion matrix
         self.data = None  # All data except target values
@@ -189,35 +190,35 @@ class ClaspyTrainer:
         else:
             raise ValueError("Choose a valid machine learning algorithm ('--algo')!")
 
-    def number_of_points(self, magnitude=1000000):
+    def number_of_points(self):
         """
         Set the number of point according the magnitude.
         self.samples: float of the number of point for training.
         len(self.data): total number of points in data file.
-        :param magnitude: the order of magnitude.
+        self.magnitude: the order of magnitude.
         Set self.samples as an integer of the number samples used.
         """
         # Check if self.samples is float or integer
         if isinstance(self.samples, float):
-            if self.samples * magnitude >= len(self.data):
+            if self.samples * self.magnitude >= len(self.data):
                 self.samples = len(self.data)
             else:
-                self.samples = self.samples * magnitude
+                self.samples = self.samples * self.magnitude
         elif isinstance(self.samples, int):
             if self.samples >= len(self.data):
                 self.samples = len(self.data)
         else:  # if self.samples is not float or int
             self.samples = len(self.data)
 
-    def format_nbr_pts(self, magnitude=1000000):
+    def format_nbr_pts(self):
         """
         Format the nbr_pts as string for the filename.
         self.samples: Integer of the number of points used to format in string.
         :return: String of the point number write according the magnitude suffix.
         """
         # Format as Mpts or kpts according number of points
-        if self.samples >= magnitude:  # number of points > 1Mpts
-            str_nbr_pts = str(np.round(self.samples / magnitude, 1))
+        if self.samples >= self.magnitude:  # number of points > 1Mpts
+            str_nbr_pts = str(np.round(self.samples / self.magnitude, 1))
             if str_nbr_pts.split('.')[-1][0] == '0':  # round number if there is zero after point ('xxx.0x')
                 str_nbr_pts = str_nbr_pts.split('.')[0]
             else:
@@ -730,26 +731,21 @@ class ClaspyTrainer:
         # Read LAS file
         las = laspy.read(self.data_path)
 
-        # If asked features is empty, load LAS Standard Dimensions
+        # If asked features is empty, load LAS Extra Dimensions
         if self.features is None:
-            points_std_dimensions = las.points[list(las.header.point_format.standard_dimension_names)]
-            data = pd.DataFrame(points_std_dimensions.array)
+            points_selected_dimensions = las.points[list(las.header.point_format.extra_dimension_names)]
         else:
             # Get LAS points from selected features
             points_selected_dimensions = las.points[self.features]
-            # Force np.float32 for selected features, not np.float64
-            feature_dtype = dict()
-            for feature in self.features:
-                feature_dtype[feature] = np.float32
 
-            # Create DataFrame with np.float32 for features
-            data = pd.DataFrame(points_selected_dimensions.array).astype(feature_dtype)
+        # Create DataFrame with np.float32 for features
+        data = pd.DataFrame(points_selected_dimensions.array).astype(np.float32)
 
-        # Extract 'target' as data frame
+        # Extract 'target' as dataframe
         target = None
         if self.has_target:
-            point_target = las.points[[self.target_name]]
-            target = pd.DataFrame(point_target.array)
+            data.drop(columns=self.target_name, inplace=True)  # Drop target field from data
+            target = pd.DataFrame(las.points[[self.target_name]].array)
 
         return data, target
 
@@ -1096,6 +1092,7 @@ class ClaspyPredicter(ClaspyTrainer):
                                n_jobs=n_jobs, samples=samples)
 
         # Set specific variables for ClaspyPredicter
+        self.pca_compo = None
         self.mode = 'predict'
         self.model_to_load = model
         self.feat_importance = None
@@ -1158,7 +1155,6 @@ class ClaspyPredicter(ClaspyTrainer):
             self.pca_compo = np.array2string(self.pca.components_)
             scale_str += "Scale dataset with Scaler and PCA transforms\n"
         else:
-            self.pca_compo = None
             scale_str += "Scale dataset with Scaler transform\n"
 
         # return verbose
@@ -1208,39 +1204,37 @@ class ClaspyPredicter(ClaspyTrainer):
 
         predictions = pd.DataFrame(self.y_proba, columns=pred_header, dtype='float32').round(decimals=4)
 
-        if self.root_ext[1] == '.csv':
+        if self.data_type == '.csv':
             # Join predictions to self.frame (input_data)
             self.frame = self.frame.join(predictions)
             self.frame.to_csv(self.report_filename + '.csv', sep=',', header=True, index=False)
-        elif self.root_ext[1] == '.las':
+        elif self.data_type == '.las':
             # Reopen original las file
-            las = laspy.file.File(self.data_path, mode='r')
+            output_las = laspy.read(self.data_path)
 
-            # Create new output las file
-            output_las = laspy.file.File(self.report_filename + '.las', mode="w", header=las.header)
-            output_las.define_new_dimension(name='Prediction', data_type=5,
-                                            description='Prediction done by the model')
+            # Create ExtraBytesParams for additonnal dimensions
+            extrabytes_list = list()
+            extrabytes_list.append(laspy.ExtraBytesParams(name='Prediction',
+                                                          type=np.uint16,
+                                                          description="Prediction done by the model"))
 
-            # Create new dimension
-            dimensions = predictions.columns.values.tolist()
+            dimensions = predictions.columns.values.tolist()  # Get liste of dimensions
             if predictions.shape[1] > 1:
-                dimensions.remove('Prediction')
+                dimensions.remove('Prediction')  # Remove prediction dimension already added
                 for dim in dimensions:
-                    output_las.define_new_dimension(name=dim, data_type=9,
-                                                    description='Probability for this class')
+                    extrabytes_list.append(laspy.ExtraBytesParams(name=dim,
+                                                                  type=np.float32,
+                                                                  description='Probability for this class'))
 
-            # Fill output_las with original dimensions from self.las
-            for dim in las.point_format:
-                data = las.reader.get_dimension(dim.name)
-                output_las.writer.set_dimension(dim.name, data)
-            las.close()
+            # Add Extra dimensions at once
+            output_las.add_extra_dims(extrabytes_list)
 
             # Fill output_las with new data
-            output_las.Prediction = predictions['Prediction']
-            if predictions.shape[1] > 1:
-                for dim in dimensions:
-                    output_las.writer.set_dimension(dim, predictions[dim].values)
-            output_las.close()
+            for dim in predictions.columns.values.tolist():
+                output_las[dim] = predictions[dim].values
+
+            # Write output_las file
+            output_las.write(self.report_filename + '.las')
 
         if verbose:
             return save_pt_cloud_str
@@ -1356,28 +1350,24 @@ class ClaspySegmenter(ClaspyTrainer):
         cluster_header = ['Cluster']
         clusters = pd.DataFrame(self.y_cluster, columns=cluster_header, dtype='float32').round(decimals=4)
 
-        if self.root_ext[1] == '.csv':
+        if self.data_type == '.csv':
             # Join predictions to self.frame (input_data)
             self.frame = self.frame.join(clusters)
             self.frame.to_csv(self.report_filename + '.csv', sep=',', header=True, index=False)
-        elif self.root_ext[1] == '.las':
+        elif self.data_type == '.las':
             # Reopen original las file
-            las = laspy.file.File(self.data_path, mode='r')
+            output_las = laspy.read(self.data_path)
 
-            # Create new output las file
-            output_las = laspy.file.File(self.report_filename + '.las', mode="w", header=las.header)
-            output_las.define_new_dimension(name='Cluster', data_type=5,
-                                            description='K-Means clustering segmentation')
-
-            # Fill output_las with original dimensions from self.las
-            for dim in las.point_format:
-                data = las.reader.get_dimension(dim.name)
-                output_las.writer.set_dimension(dim.name, data)
-            las.close()
+            # Create ExtraBytesParams for additonnal dimensions
+            output_las.add_extra_dim(laspy.ExtraBytesParams(name='Cluster',
+                                                            type=np.uint16,
+                                                            description="K-Means clustering segmentation"))
 
             # Fill output_las with new data
-            output_las.writer.set_dimension('Cluster', clusters['Cluster'].values)
-            output_las.close()
+            output_las['Cluster'] = clusters['Cluster'].values
+
+            # Write output_las file
+            output_las.write(self.report_filename + '.las')
 
         if verbose:
             return save_pt_cloud_str

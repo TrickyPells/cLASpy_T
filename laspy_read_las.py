@@ -43,9 +43,9 @@ print("DTYPE: ")
 print(frame.dtypes)
 print(frame_target.dtypes)
 
-with open("./Test/Orne_20130525.csv", 'r') as file:
-    #csvfile = csv.reader(file)
-    print("row_count : ", sum(1 for line in file)-1)
+# with open("./Test/Orne_20130525.csv", 'r') as file:
+#     #csvfile = csv.reader(file)
+#     print("row_count : ", sum(1 for line in file)-1)
 
 print("Done")
 
