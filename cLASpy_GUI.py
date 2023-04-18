@@ -21,6 +21,7 @@
 #        M2C laboratory (FRANCE)  -- https://m2c.cnrs.fr/ --          #
 #  #################################################################  #
 #  Description:                                                       #
+#     - 0.3.0 : Version of cLASpy_T with laspy2 support               #
 #                                                                     #
 #######################################################################
 
@@ -45,6 +46,7 @@ from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 
 from cLASpy_Classes import *
+
 
 # -------------------------
 # ------ FUNCTIONS --------

@@ -21,6 +21,7 @@
 #        M2C laboratory (FRANCE)  -- https://m2c.cnrs.fr/ --          #
 #  #################################################################  #
 #  Description:                                                       #
+#     - 0.3.0 : laspy2 support                                        #
 #                                                                     #
 #######################################################################
 
@@ -50,40 +51,40 @@ from sklearn.metrics import confusion_matrix, classification_report
 # ------ VARIABLES --------
 # -------------------------
 # Version of cLASpy_Core
-cLASpy_Core_version = '0.2.0'  # 0.2.0 version with classes
+cLASpy_Core_version = '0.3.0'  # 0.3.0 version with laspy2 support
 
-# Define point_format dict for LAS files
-point_format = dict()
-
-gps_time = ['gps_time']
-nir = ['nir']
-rgb = ['red', 'green', 'blue']
-wavepacket = ['wavepacket_index', 'wavepacket_offset', 'wavepacket_size',
-              'return_point_wave_location', 'x_t', 'y_t', 'z_t']
-
-# Point formats for LAS 1.2 to 1.4
-point_format[0] = ['X', 'Y', 'Z', 'intensity', 'return_number', 'number_of_returns',
-                   'scan_direction_flag', 'edge_of_flight_line', 'classification',
-                   'raw_classification', 'flag_byte', 'synthetic', 'key_point',
-                   'withheld', 'scan_angle_rank', 'user_data', 'point_source_id', 'pt_src_id']
-point_format[1] = point_format[0] + gps_time
-point_format[2] = point_format[0] + rgb
-point_format[3] = point_format[0] + gps_time + rgb
-
-# Point formats for LAS 1.3 to 1.4
-point_format[4] = point_format[0] + gps_time + wavepacket
-point_format[5] = point_format[0] + gps_time + rgb + wavepacket
-
-# Point formats for LAS 1.4
-point_format[6] = ['X', 'Y', 'Z', 'intensity', 'return_number', 'number_of_returns',
-                   'synthetic', 'key_point', 'withheld', 'overlap', 'scanner_channel',
-                   'raw_classification', 'flag_byte', 'scan_direction_flag',
-                   'edge_of_flight_line', 'classification', 'user_data',
-                   'scan_angle_rank', 'point_source_id', 'pt_src_id', 'gps_time']
-point_format[7] = point_format[6] + rgb
-point_format[8] = point_format[6] + rgb + nir
-point_format[9] = point_format[6] + wavepacket
-point_format[10] = point_format[6] + rgb + nir + wavepacket
+# # Define point_format dict for LAS files
+# point_format = dict()
+#
+# gps_time = ['gps_time']
+# nir = ['nir']
+# rgb = ['red', 'green', 'blue']
+# wavepacket = ['wavepacket_index', 'wavepacket_offset', 'wavepacket_size',
+#               'return_point_wave_location', 'x_t', 'y_t', 'z_t']
+#
+# # Point formats for LAS 1.2 to 1.4
+# point_format[0] = ['X', 'Y', 'Z', 'intensity', 'return_number', 'number_of_returns',
+#                    'scan_direction_flag', 'edge_of_flight_line', 'classification',
+#                    'raw_classification', 'flag_byte', 'synthetic', 'key_point',
+#                    'withheld', 'scan_angle_rank', 'user_data', 'point_source_id', 'pt_src_id']
+# point_format[1] = point_format[0] + gps_time
+# point_format[2] = point_format[0] + rgb
+# point_format[3] = point_format[0] + gps_time + rgb
+#
+# # Point formats for LAS 1.3 to 1.4
+# point_format[4] = point_format[0] + gps_time + wavepacket
+# point_format[5] = point_format[0] + gps_time + rgb + wavepacket
+#
+# # Point formats for LAS 1.4
+# point_format[6] = ['X', 'Y', 'Z', 'intensity', 'return_number', 'number_of_returns',
+#                    'synthetic', 'key_point', 'withheld', 'overlap', 'scanner_channel',
+#                    'raw_classification', 'flag_byte', 'scan_direction_flag',
+#                    'edge_of_flight_line', 'classification', 'user_data',
+#                    'scan_angle_rank', 'point_source_id', 'pt_src_id', 'gps_time']
+# point_format[7] = point_format[6] + rgb
+# point_format[8] = point_format[6] + rgb + nir
+# point_format[9] = point_format[6] + wavepacket
+# point_format[10] = point_format[6] + rgb + nir + wavepacket
 
 
 # -------------------------
