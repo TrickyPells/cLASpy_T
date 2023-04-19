@@ -588,7 +588,7 @@ class ClaspyTrainer:
         elif self.data_type == '.las':
             introduction += "Path to LAS file: {}\n".format(self.data_path)
         else:
-            self.introduction += "Unknown Extension file !\n"
+            introduction += "Unknown Extension file !\n"
 
         # Create a folder to store models, reports and predictions
         introduction += "\nCreate a new folder to store the result files..."
@@ -613,6 +613,14 @@ class ClaspyTrainer:
         """
         # Point cloud info string
         point_cloud_info = "\n"
+
+        # Try open input file
+        try:
+            open(self.data_path, 'r')
+        except FileNotFoundError as fe:
+            raise FileNotFoundError('Input data file not found!')
+        except PermissionError as pe:
+            raise FileNotFoundError('Input data file not found or path is empty!')
 
         # Load data into DataFrame
         if self.data_type == '.csv':

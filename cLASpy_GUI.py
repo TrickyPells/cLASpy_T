@@ -773,23 +773,35 @@ class ClaspyGui(QMainWindow):
         else:
             file_path = os.path.normpath(self.lineFile.text())
 
-        root_ext = os.path.splitext(file_path)
-        if self.pushLocal.isChecked():
-            self.lineLocalFolder.setText(os.path.splitext(root_ext[0])[0])
+        # try to open input file
+        try:
+            open(file_path, 'r')
+        except FileNotFoundError as fe:
+            file_path = ''  # empty the file_path of non found file
+        except PermissionError as pe:
+            file_path = ''
 
-        if root_ext[1] == '.csv':
-            self.file_type = 'CSV'
-            feature_names = self.open_csv(file_path)
-        elif root_ext[1] == '.las':
-            self.file_type = 'LAS'
-            feature_names, standard_fields = self.open_las(file_path)
-            self.listStandardLAS.setEnabled(True)  # Enable List of standard LAS fields
-            self.listStandardLAS.clear()
-            for item in standard_fields:
-                self.listStandardLAS.addItem(str(item))
+        root, extension = os.path.splitext(file_path)
+        if self.pushLocal.isChecked():
+            self.lineLocalFolder.setText(root)
+
+        if root != '':
+            if extension == '.csv':
+                self.file_type = 'CSV'
+                feature_names = self.open_csv(file_path)
+            elif extension == '.las':
+                self.file_type = 'LAS'
+                feature_names, standard_fields = self.open_las(file_path)
+                self.listStandardLAS.setEnabled(True)  # Enable List of standard LAS fields
+                self.listStandardLAS.clear()
+                for item in standard_fields:
+                    self.listStandardLAS.addItem(str(item))
+            else:
+                feature_names = ["File error:", "Unknown extension file!"]
+                self.statusBar.showMessage("File error: Unknown extension file!", 3000)
         else:
-            feature_names = ["File error:", "Unknown extension file!"]
-            self.statusBar.showMessage("File error: Unknown extension file!", 3000)
+            feature_names = ["File error:", "Input file not found", self.lineLocalFile.text()]
+            self.statusBar.showMessage("File error: File not found!", 3000)
 
         # Check if the target field exist
         try:
