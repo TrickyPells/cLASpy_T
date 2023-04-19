@@ -275,6 +275,7 @@ class ClaspyGui(QMainWindow):
         self.mainWidget = QWidget()
 
         # Variable Initialization
+        self.welcome_window = None
         self.platform = get_platform()
         self.cLASpy_Core_version = cLASpy_Core_version
         self.cLASpy_GUI_version = cLASpy_GUI_Version
@@ -3602,7 +3603,7 @@ class ClaspyGui(QMainWindow):
         """
         Close the GUI with 'Close' button
         """
-        if self.welcome_window:
+        if self.welcome_window is not None:
             self.welcome_window.close()
         self.close()
 
@@ -3610,7 +3611,7 @@ class ClaspyGui(QMainWindow):
         """
         Close the GUI with cross button
         """
-        if self.welcome_window:
+        if self.welcome_window is not None:
             self.welcome_window.close()
         self.close()
         event.accept()
