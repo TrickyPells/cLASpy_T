@@ -47,6 +47,12 @@ from PyQt5.QtWidgets import *
 
 from cLASpy_Classes import *
 
+# -------------------------
+# ------ VARIABLES --------
+# -------------------------
+
+cLASpy_GUI_Version = '0.3.0'  # Version with laspy 2.2 support
+
 
 # -------------------------
 # ------ FUNCTIONS --------
@@ -271,7 +277,7 @@ class ClaspyGui(QMainWindow):
         # Variable Initialization
         self.platform = get_platform()
         self.cLASpy_Core_version = cLASpy_Core_version
-        self.cLASpy_GUI_version = '0.1.1'
+        self.cLASpy_GUI_version = cLASpy_GUI_Version
         self.cLASpy_train_version = self.cLASpy_GUI_version + '_train'
         self.cLASpy_predi_version = self.cLASpy_GUI_version + '_predi'
         self.cLASpy_segme_version = self.cLASpy_GUI_version + '_segme'
@@ -794,11 +800,11 @@ class ClaspyGui(QMainWindow):
         if self.target:
             self.labelTarget.setText("Target field is available.")
             self.SeglabelTarget.setText("Will be discarded for segmentation.")
-            self.buttonRunTrain.setEnabled()
+            self.buttonRunTrain.setEnabled(True)
         else:
             self.labelTarget.setText("Not found!!")
             self.SeglabelTarget.setText("Not mandatory.")
-            self.buttonRunTrain.setDisabled()
+            self.buttonRunTrain.setDisabled(True)
 
         # Rewrite listExtraFeature
         self.listExtraFeatures.clear()

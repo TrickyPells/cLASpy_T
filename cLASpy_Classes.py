@@ -670,16 +670,16 @@ class ClaspyTrainer:
 
         # Check if features is a list()
         if isinstance(self.features, list):
-            selected_feat_str += "\nGet selected features:"
+            selected_feat_str += "\nGet selected features:\n"
             for feature in self.features:
                 for dt_feature in data_features:
                     # Compare data_feature with 'space' replaced by '_'
-                    if dt_feature.replace(' ', '_').casefold() == feature.casefold():
+                    if dt_feature.replace(' ', '_').casefold() == feature.replace(' ', '_').casefold():
                         selected_features.append(dt_feature)  # Put feature with 'space'
                         selected_feat_str += " - {} asked --> {} found\n".format(feature, dt_feature)
 
-            selected_feat_str += "\nNumber of wanted features: {}\n".format(len(self.features))
-            selected_feat_str += "Number of final selected features: {}\n".format(len(selected_features))
+            selected_feat_str += "\nNumber of selected features: {}\n".format(len(self.features))
+            selected_feat_str += "Number of final used features: {}\n".format(len(selected_features))
 
             if len(self.features) == len(selected_features):
                 self.features = selected_features  # Selected feature with 'space', not '_'
@@ -732,6 +732,11 @@ class ClaspyTrainer:
         # Read LAS file
         las = laspy.read(self.data_path)
 
+        # Extract 'target' as dataframe
+        target = None
+        if self.has_target:
+            target = pd.DataFrame(las.points[[self.target_name]].array)
+
         # If asked features is empty, load LAS Extra Dimensions
         if self.features is None:
             points_selected_dimensions = las.points[list(las.header.point_format.extra_dimension_names)]
@@ -742,11 +747,11 @@ class ClaspyTrainer:
         # Create DataFrame with np.float32 for features
         data = pd.DataFrame(points_selected_dimensions.array).astype(np.float32)
 
-        # Extract 'target' as dataframe
-        target = None
-        if self.has_target:
+        # Remove target field from data (if it exists and is in data)
+        try:
             data.drop(columns=self.target_name, inplace=True)  # Drop target field from data
-            target = pd.DataFrame(las.points[[self.target_name]].array)
+        except KeyError as ke:
+            pass  # Should print the final selected feature for used data !!
 
         return data, target
 
@@ -836,9 +841,9 @@ class ClaspyTrainer:
                              test_size=self.test_size,
                              stratify=self.target)
 
-        # Convert target_train and target_test column-vectors as 1d array
-        # self.target_train = self.target_train.reshape(self.train_size)
-        # self.target_test = self.target_test.reshape(self.test_size)
+        # Convert target_train and target_test column-vectors as 1d array, from (n_samples, 1) to (n_samples,)
+        self.target_train = self.target_train.values.ravel()
+        self.target_test = self.target_test.values.ravel()
 
         split_dataset_str += "\tNumber of used points: {:,} pts\n". \
             format(self.train_size + self.test_size).replace(',', ' ')
@@ -1070,8 +1075,12 @@ class ClaspyTrainer:
             # Write elapsed time
             if self.mode == 'training':
                 report.write('\n\nModel trained in {}'.format(self.elapsed_time))
-            else:
+            elif self.mode == 'predict':
                 report.write('\n\nPredictions done in {}'.format(self.elapsed_time))
+            elif self.mode == 'segment':
+                report.write('\n\nSegmentation done in {}'.format(self.elapsed_time))
+            else:
+                report.write('\n\nDone in {}'.format(self.elapsed_time))
 
         if verbose:
             if self.mode == 'training':
@@ -1080,6 +1089,8 @@ class ClaspyTrainer:
                 return "\nPredictions done in {}\n".format(self.elapsed_time)
             elif self.mode == 'segment':
                 return "\nSegmentation done in {}\n".format(self.elapsed_time)
+            else:
+                return "\nDone in {}\n".format(self.elapsed_time)
 
 
 class ClaspyPredicter(ClaspyTrainer):
