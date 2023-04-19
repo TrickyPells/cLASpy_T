@@ -21,6 +21,7 @@
 #        M2C laboratory (FRANCE)  -- https://m2c.cnrs.fr/ --          #
 #  #################################################################  #
 #  Description:                                                       #
+#     - 0.3.0 : laspy2 support                                        #
 #                                                                     #
 #######################################################################
 
@@ -50,40 +51,40 @@ from sklearn.metrics import confusion_matrix, classification_report
 # ------ VARIABLES --------
 # -------------------------
 # Version of cLASpy_Core
-cLASpy_Core_version = '0.2.0'  # 0.2.0 version with classes
+cLASpy_Core_version = '0.3.0'  # 0.3.0 version with laspy2 support
 
-# Define point_format dict for LAS files
-point_format = dict()
-
-gps_time = ['gps_time']
-nir = ['nir']
-rgb = ['red', 'green', 'blue']
-wavepacket = ['wavepacket_index', 'wavepacket_offset', 'wavepacket_size',
-              'return_point_wave_location', 'x_t', 'y_t', 'z_t']
-
-# Point formats for LAS 1.2 to 1.4
-point_format[0] = ['X', 'Y', 'Z', 'intensity', 'return_number', 'number_of_returns',
-                   'scan_direction_flag', 'edge_of_flight_line', 'classification',
-                   'raw_classification', 'flag_byte', 'synthetic', 'key_point',
-                   'withheld', 'scan_angle_rank', 'user_data', 'point_source_id', 'pt_src_id']
-point_format[1] = point_format[0] + gps_time
-point_format[2] = point_format[0] + rgb
-point_format[3] = point_format[0] + gps_time + rgb
-
-# Point formats for LAS 1.3 to 1.4
-point_format[4] = point_format[0] + gps_time + wavepacket
-point_format[5] = point_format[0] + gps_time + rgb + wavepacket
-
-# Point formats for LAS 1.4
-point_format[6] = ['X', 'Y', 'Z', 'intensity', 'return_number', 'number_of_returns',
-                   'synthetic', 'key_point', 'withheld', 'overlap', 'scanner_channel',
-                   'raw_classification', 'flag_byte', 'scan_direction_flag',
-                   'edge_of_flight_line', 'classification', 'user_data',
-                   'scan_angle_rank', 'point_source_id', 'pt_src_id', 'gps_time']
-point_format[7] = point_format[6] + rgb
-point_format[8] = point_format[6] + rgb + nir
-point_format[9] = point_format[6] + wavepacket
-point_format[10] = point_format[6] + rgb + nir + wavepacket
+# # Define point_format dict for LAS files
+# point_format = dict()
+#
+# gps_time = ['gps_time']
+# nir = ['nir']
+# rgb = ['red', 'green', 'blue']
+# wavepacket = ['wavepacket_index', 'wavepacket_offset', 'wavepacket_size',
+#               'return_point_wave_location', 'x_t', 'y_t', 'z_t']
+#
+# # Point formats for LAS 1.2 to 1.4
+# point_format[0] = ['X', 'Y', 'Z', 'intensity', 'return_number', 'number_of_returns',
+#                    'scan_direction_flag', 'edge_of_flight_line', 'classification',
+#                    'raw_classification', 'flag_byte', 'synthetic', 'key_point',
+#                    'withheld', 'scan_angle_rank', 'user_data', 'point_source_id', 'pt_src_id']
+# point_format[1] = point_format[0] + gps_time
+# point_format[2] = point_format[0] + rgb
+# point_format[3] = point_format[0] + gps_time + rgb
+#
+# # Point formats for LAS 1.3 to 1.4
+# point_format[4] = point_format[0] + gps_time + wavepacket
+# point_format[5] = point_format[0] + gps_time + rgb + wavepacket
+#
+# # Point formats for LAS 1.4
+# point_format[6] = ['X', 'Y', 'Z', 'intensity', 'return_number', 'number_of_returns',
+#                    'synthetic', 'key_point', 'withheld', 'overlap', 'scanner_channel',
+#                    'raw_classification', 'flag_byte', 'scan_direction_flag',
+#                    'edge_of_flight_line', 'classification', 'user_data',
+#                    'scan_angle_rank', 'point_source_id', 'pt_src_id', 'gps_time']
+# point_format[7] = point_format[6] + rgb
+# point_format[8] = point_format[6] + rgb + nir
+# point_format[9] = point_format[6] + wavepacket
+# point_format[10] = point_format[6] + rgb + nir + wavepacket
 
 
 # -------------------------
@@ -96,6 +97,7 @@ class ClaspyTrainer:
     ClaspyTrainer is basic class of cLASpy_T.
     Used to create object to train model according the selected algorithm.
     """
+
     def __init__(self, input_data, output_data=None, algo=None, algorithm=None,
                  parameters=None, features=None, grid_search=False, grid_param=None,
                  pca=None, n_jobs=-1, random_state=0, samples=None, scaler='Standard',
@@ -104,7 +106,9 @@ class ClaspyTrainer:
 
         # Set variables
         self.mode = 'training'
+        self.has_target = False  # Boolean True if target field exists in data file
         self.start_time = datetime.now()  # Set the start time
+        self.elapsed_time = None
         self.timestamp = self.start_time.strftime("%m%d_%H%M")  # Timestamp for file creation
 
         # Data
@@ -131,8 +135,33 @@ class ClaspyTrainer:
         self.grid_parameters = grid_param
         self.png_features = png_features
 
-        # Set some varaible members to None
-        self.model_to_load = None
+        # Set some variable members to None
+        self.magnitude = 1000000  # Magnitude for number_of_points() and format_nbr_pts()
+        self.classifier = None  # Classifier object
+        self.conf_matrix = None  # Confusion matrix
+        self.data = None  # All data except target values
+        self.data_features = None  # Feature names from data file
+        self.data_test = None  # Data to test model
+        self.data_train = None  # Data to train model
+        self.feat_importance = None  # Boolean to plot feature importance or not
+        self.frame = None  # Loaded data as pandas.DataFrame
+        self.model = None  # Model object
+        self.model_to_load = None  # Model to load (path file)
+        self.nbr_points = None  # Integer of number of points
+        self.pipeline = None  # Pipeline object
+        self.pipe_params = None  # Pipeline parameters
+        self.report_filename = None  # Filename for the classification report
+        self.results = None
+        self.scaler = None  # Scaler object
+        self.target = None  # Target values
+        self.target_name = None  # name of target field in data file
+        self.target_test = None  # Target to test model
+        self.target_test_pred = None  # Prediction results after testing
+        self.target_train = None  # Target to train model
+        self.test_ratio = None  # Ratio test_size / (test_size + train_size)
+        self.test_report = None
+        self.test_size = None  # Size of the test dataset
+        self.train_size = None  # Size of the train dataset
 
     def fullname_algo(self):
         """
@@ -162,35 +191,35 @@ class ClaspyTrainer:
         else:
             raise ValueError("Choose a valid machine learning algorithm ('--algo')!")
 
-    def number_of_points(self, magnitude=1000000):
+    def number_of_points(self):
         """
         Set the number of point according the magnitude.
         self.samples: float of the number of point for training.
         len(self.data): total number of points in data file.
-        :param magnitude: the order of magnitude.
+        self.magnitude: the order of magnitude.
         Set self.samples as an integer of the number samples used.
         """
         # Check if self.samples is float or integer
         if isinstance(self.samples, float):
-            if self.samples * magnitude >= len(self.data):
+            if self.samples * self.magnitude >= len(self.data):
                 self.samples = len(self.data)
             else:
-                self.samples = self.samples * magnitude
+                self.samples = self.samples * self.magnitude
         elif isinstance(self.samples, int):
             if self.samples >= len(self.data):
                 self.samples = len(self.data)
         else:  # if self.samples is not float or int
             self.samples = len(self.data)
 
-    def format_nbr_pts(self, magnitude=1000000):
+    def format_nbr_pts(self):
         """
         Format the nbr_pts as string for the filename.
         self.samples: Integer of the number of points used to format in string.
         :return: String of the point number write according the magnitude suffix.
         """
         # Format as Mpts or kpts according number of points
-        if self.samples >= magnitude:  # number of points > 1Mpts
-            str_nbr_pts = str(np.round(self.samples / magnitude, 1))
+        if self.samples >= self.magnitude:  # number of points > 1Mpts
+            str_nbr_pts = str(np.round(self.samples / self.magnitude, 1))
             if str_nbr_pts.split('.')[-1][0] == '0':  # round number if there is zero after point ('xxx.0x')
                 str_nbr_pts = str_nbr_pts.split('.')[0]
             else:
@@ -308,7 +337,7 @@ class ClaspyTrainer:
                 if key in param_names:
                     well_params[key] = self.grid_parameters[key]
                 else:
-                    check_grid_param_str += "GridSearchCV: Invalid parameter '{}' for {}, it was skipped!"\
+                    check_grid_param_str += "GridSearchCV: Invalid parameter '{}' for {}, it was skipped!" \
                         .format(str(key), self.algorithm)
 
         # Check if well_params is empty dict and set predefined parameters
@@ -329,41 +358,6 @@ class ClaspyTrainer:
             self.pipe_params[new_key] = well_params[key]
 
         return check_grid_param_str
-
-    def get_selected_features(self, data_features, verbose=True):
-        """
-        self.features: the wanted features (selected by user).
-        :param data_features: all features in input_data except ('x', 'y', 'z' and 'target').
-        :param verbose: Set verbose as True or False.
-        :return: the final selected features and string report
-        """
-        # Initialization
-        selected_feat_str = "\n"  # String to report info
-        selected_features = list()  # The final list of all features found in input data
-
-        # Check if features is a list()
-        if isinstance(self.features, list):
-            selected_feat_str += "\nGet selected features:"
-            for feature in self.features:
-                for dt_feature in data_features:
-                    if dt_feature.casefold() == feature.casefold():
-                        selected_features.append(dt_feature)
-                        selected_feat_str += " - {} asked --> {} found\n".format(feature, dt_feature)
-
-            selected_feat_str += "\nNumber of wanted features: {}\n".format(len(self.features))
-            selected_feat_str += "Number of final selected features: {}\n".format(len(selected_features))
-
-            if len(self.features) == len(selected_features):
-                self.features = selected_features
-                selected_feat_str += " --> All required features are present!\n"
-            else:
-                differences = list(set(self.features) - set(selected_features))
-                raise ValueError("{} features are missing in 'input_data'!".format(differences))
-        else:
-            raise TypeError("Selected features must be a list of string!")
-
-        if verbose:
-            return selected_feat_str
 
     def set_random_forest(self):
         """
@@ -607,6 +601,7 @@ class ClaspyTrainer:
         except (TypeError, FileExistsError):
             introduction += " Folder already exists.\n"
 
+        # Add info of point cloud from file
         introduction += self.point_cloud_info(verbose=True)
 
         if verbose:
@@ -614,111 +609,194 @@ class ClaspyTrainer:
 
     def point_cloud_info(self, verbose=True):
         """
-        Load data into dataframe and return the point cloud info
+        Return the point cloud info
         """
         # Point cloud info string
         point_cloud_info = "\n"
 
         # Load data into DataFrame
         if self.data_type == '.csv':
-            self.frame = pd.read_csv(self.data_path, sep=',', header='infer')
-            self.nbr_points = len(self.frame)
+            with open(self.data_path, 'r') as file:
+                self.nbr_points = sum(1 for line in file) - 1
             point_cloud_info += "Number of points: {:,}\n".format(self.nbr_points)
 
-            # Replace 'space' by '_' and clean up the header built by CloudCompare ('//X')
-            for field in self.frame.columns.values.tolist():
-                field_ = field.replace(' ', '_')
-                self.frame = self.frame.rename(columns={field: field_})
-                if field == '//X':
-                    self.frame = self.frame.rename(columns={"//X": "X"})
         elif self.data_type == '.las':
-            las = laspy.file.File(self.data_path, mode='r')
+            las = laspy.open(self.data_path, mode='r')
             point_cloud_info += "LAS Version: {}\n".format(las.header.version)
-            point_cloud_info += "LAS point format: {}\n".format(las.header.data_format_id)
-            self.nbr_points = las.header.records_count
+            point_cloud_info += "LAS point format: {}\n".format(las.header.point_format.id)
+            self.nbr_points = las.header.point_count
             point_cloud_info += "Number of points: {:,}\n".format(self.nbr_points)
-
-            # Get the data by dimensions
-            self.frame = pd.DataFrame()
-            for dim in las.point_format.specs:
-                self.frame[dim.name] = las.get_reader().get_dimension(dim.name)
             las.close()
+
         else:
             point_cloud_info += "Unknown Extension file!\n"
 
         if verbose:
             return point_cloud_info
 
+    def get_data_features(self):
+        """
+        Get all features (or field names) from data file.
+        """
+        # Get all features from header
+        if self.data_type == '.csv':
+            csv_frame = pd.read_csv(self.data_path, sep=',', header='infer', nrows=10)
+            # Clean up the header built by CloudCompare ('//X')
+            for field in csv_frame.columns.values.tolist():
+                if field == '//X':
+                    csv_frame = csv_frame.rename(columns={"//X": "X"})
+            data_features = csv_frame.columns.values.tolist()
+
+        elif self.data_type == '.las':
+            las = laspy.open(self.data_path, mode='r')
+            data_features = list(las.header.point_format.dimension_names)
+            las.close()
+
+        else:
+            raise TypeError("Unrecognized file extension!")
+            
+        return data_features
+
+    def get_selected_features(self, data_features, verbose=True):
+        """
+        self.features: the wanted features (selected by user).
+        :param data_features: all features in input_data.
+        :param verbose: Set verbose as True or False.
+        :return: the final selected features and string report
+        """
+        # Initialization
+        selected_feat_str = "\n"  # String to report info
+        selected_features = list()  # The final list of all features found in input data
+
+        # Check if features is a list()
+        if isinstance(self.features, list):
+            selected_feat_str += "\nGet selected features:\n"
+            for feature in self.features:
+                for dt_feature in data_features:
+                    # Compare data_feature with 'space' replaced by '_'
+                    if dt_feature.replace(' ', '_').casefold() == feature.replace(' ', '_').casefold():
+                        selected_features.append(dt_feature)  # Put feature with 'space'
+                        selected_feat_str += " - {} asked --> {} found\n".format(feature, dt_feature)
+
+            selected_feat_str += "\nNumber of selected features: {}\n".format(len(self.features))
+            selected_feat_str += "Number of final used features: {}\n".format(len(selected_features))
+
+            if len(self.features) == len(selected_features):
+                self.features = selected_features  # Selected feature with 'space', not '_'
+                selected_feat_str += " --> All required features are present!\n"
+            else:
+                differences = list(set(self.features) - set(selected_features))
+                raise ValueError("{} features are missing in 'input_data'!".format(differences))
+        else:
+            raise TypeError("Selected features must be a list of string!")
+
+        if verbose:
+            return selected_feat_str
+
+    def load_data_csv(self):
+        """
+        Load data from CSV file according asked features (self.features)
+        or all features as default features, except X, Y and Z.
+        Extracts target field if exists.
+        :return: data and target as pandas.DataFrame
+        """
+        # If asked features is empty, load default features (all except X, Y, Z)
+        if self.features is None:
+            self.features = list()
+            # Remove X, Y and Z fields from self.data_features
+            for field in self.data_features:
+                if field.casefold() not in ['x', 'y', 'z']:  # casefold() -> non case-sensitive
+                    self.features.append(field)  # if 'target' exists, will be in self.features
+
+        # Load data with pandas.read_csv()
+        data = pd.read_csv(self.data_path,
+                           sep=',',
+                           header='infer',
+                           usecols=self.features)  # dtype=feature_dtype dict like LAS
+
+        # Extract 'target' from data frame
+        target = None
+        if self.has_target:
+            target = pd.DataFrame.loc[:, self.target_name]  # use dtype uint8
+            data.drop(columns=self.target_name, inplace=True)
+
+        return data, target
+
+    def load_data_las(self):
+        """
+        Load data from LAS file according asked features (self.features)
+        or extra_dimensions as default features.
+        Extracts target field if exists.
+        :return: data and target pandas.DataFrames
+        """
+        # Read LAS file
+        las = laspy.read(self.data_path)
+
+        # Extract 'target' as dataframe
+        target = None
+        if self.has_target:
+            target = pd.DataFrame(las.points[[self.target_name]].array)
+
+        # If asked features is empty, load LAS Extra Dimensions
+        if self.features is None:
+            points_selected_dimensions = las.points[list(las.header.point_format.extra_dimension_names)]
+        else:
+            # Get LAS points from selected features
+            points_selected_dimensions = las.points[self.features]
+
+        # Create DataFrame with np.float32 for features
+        data = pd.DataFrame(points_selected_dimensions.array).astype(np.float32)
+
+        # Remove target field from data (if it exists and is in data)
+        try:
+            data.drop(columns=self.target_name, inplace=True)  # Drop target field from data
+        except KeyError as ke:
+            pass  # Should print the final selected feature for used data !!
+
+        return data, target
+
     def format_dataset(self, verbose=True):
         """
-        Format dataset as XY & Z & target Dataframe, remove raw_classification from file
-        and return point cloud informations and 'Done' when finished
+        Format dataset from CSV and LAS file as pandas Dataframe
         """
         # Report string
         format_data_str = "\n"
 
-        # Search X, Y, Z, target and raw_classif fields
-        field_x = None
-        field_y = None
-        field_z = None
-        field_t = None
+        # Get all feature names from data file
+        self.data_features = self.get_data_features()
 
-        for field in self.frame.columns.values.tolist():
-            if field.casefold() == 'x':  # casefold() -> non case-sensitive
-                field_x = field
-            elif field.casefold() == 'y':
-                field_y = field
-            elif field.casefold() == 'z':
-                field_z = field
-            elif field.casefold() == 'target':
-                field_t = field
+        # Get default features when asked features are empty (self.features)
+        if self.features is None:  # Use all features except LAS standard fields and X, Y, Z
+            format_data_str += "All features in input_data will be used!\n" \
+                               "Except X, Y, Z and LAS standard dimensions!\n"
 
-        # Create target varaible if exist
-        if field_t:
-            self.target = self.frame.loc[:, field_t]
-        else:
-            self.target = None
-
-        # Target is mandatory for training
-        if self.mode == "training" and self.target is None:
-            raise ValueError("A 'target' field is mandatory for training!")
-
-        # Create temp list of features
-        temp_features = self.frame.columns.values.tolist()
-
-        # Remove target field from self.frame if exist
-        if self.target is not None:
-            temp_features.remove(field_t)
-
-        # Get only the selected features among temp_features
-        if self.features is None:  # Use all features except standard LAS fields and X, Y, Z
-            format_data_str += "All features in input_data will be used!\n"
-            selected_features = temp_features
-            for field in [field_x, field_y, field_z]:  # remove X, Y, Z
-                selected_features.remove(field)
-            if self.data_type == '.las':
-                las = laspy.file.File(self.data_path, mode='r')
-                standard_dimensions = point_format[las.header.data_format_id]
-                for field in standard_dimensions:  # remove standard LAS dimensions
-                    if field in selected_features:
-                        selected_features.remove(field)
-            self.features = selected_features
-
+        # If asked features exists (self.features), check all are presents in self.data_features
         elif isinstance(self.features, str):
-            self.features = yaml.safe_load(self.features)
-            format_data_str += self.get_selected_features(temp_features)
+            self.features = yaml.safe_load(self.features)  # asked features from str to list
+            format_data_str += self.get_selected_features(self.data_features)
 
         elif isinstance(self.features, list):
-            format_data_str += self.get_selected_features(temp_features)
+            format_data_str += self.get_selected_features(self.data_features)
 
         else:
             raise TypeError("Selected features must be a list of string!")
 
-        # Sort data by field names
-        self.features.sort()  # Sort to be compatible between formats
+        # Check if 'target' field exists in self.data_features
+        for field in self.data_features:
+            if field.casefold() == 'target':
+                self.has_target = True
+                self.target_name = field
 
-        # data without target field
-        self.data = self.frame.filter(self.features, axis=1)
+        # Target is mandatory for training
+        if self.has_target is False and not isinstance(self, ClaspyPredicter) and not isinstance(self, ClaspySegmenter):
+            raise ValueError("A 'target' field is mandatory for training!")
+
+        # Load data according asked features from CSV or LAS
+        if self.data_type == '.csv':
+            self.data, self.target = self.load_data_csv()
+
+        if self.data_type == '.las':
+            self.data, self.target = self.load_data_las()
 
         # Replace NAN values by median
         self.data.fillna(value=self.data.median(0), inplace=True)  # .median(0) computes median by column
@@ -726,7 +804,8 @@ class ClaspyTrainer:
         # Set filename for output result files
         self.number_of_points()
         str_nbr_pts = self.format_nbr_pts()
-        self.report_filename = str(self.folder_path + '/' + self.mode[0:5] + '_' + self.algo + str_nbr_pts + str(self.timestamp))
+        self.report_filename = str(
+            self.folder_path + '/' + self.mode[0:5] + '_' + self.algo + str_nbr_pts + str(self.timestamp))
 
         if verbose:
             return format_data_str
@@ -762,13 +841,13 @@ class ClaspyTrainer:
                              test_size=self.test_size,
                              stratify=self.target)
 
-        # Convert target_train and target_test column-vectors as 1d array
-        #self.target_train = self.target_train.reshape(self.train_size)
-        #self.target_test = self.target_test.reshape(self.test_size)
+        # Convert target_train and target_test column-vectors as 1d array, from (n_samples, 1) to (n_samples,)
+        self.target_train = self.target_train.values.ravel()
+        self.target_test = self.target_test.values.ravel()
 
-        split_dataset_str += "\tNumber of used points: {:,} pts\n".\
+        split_dataset_str += "\tNumber of used points: {:,} pts\n". \
             format(self.train_size + self.test_size).replace(',', ' ')
-        split_dataset_str += "\tSize of train|test datasets: {:,} pts | {:,} pts\n".\
+        split_dataset_str += "\tSize of train|test datasets: {:,} pts | {:,} pts\n". \
             format(self.train_size, self.test_size).replace(',', ' ')
 
         if verbose:
@@ -975,7 +1054,7 @@ class ClaspyTrainer:
                     report.write('\n\n\nResults of the GridSearchCV:\n')
                     report.write(self.results.to_string(index=False))
 
-            # Write the Cross validation results
+                # Write the Cross validation results
                 else:
                     report.write('\n\n\nResults of the Cross-Validation:\n')
                     report.write(pd.DataFrame(self.results).to_string(index=False, header=False))
@@ -996,8 +1075,12 @@ class ClaspyTrainer:
             # Write elapsed time
             if self.mode == 'training':
                 report.write('\n\nModel trained in {}'.format(self.elapsed_time))
-            else:
+            elif self.mode == 'predict':
                 report.write('\n\nPredictions done in {}'.format(self.elapsed_time))
+            elif self.mode == 'segment':
+                report.write('\n\nSegmentation done in {}'.format(self.elapsed_time))
+            else:
+                report.write('\n\nDone in {}'.format(self.elapsed_time))
 
         if verbose:
             if self.mode == 'training':
@@ -1006,18 +1089,22 @@ class ClaspyTrainer:
                 return "\nPredictions done in {}\n".format(self.elapsed_time)
             elif self.mode == 'segment':
                 return "\nSegmentation done in {}\n".format(self.elapsed_time)
+            else:
+                return "\nDone in {}\n".format(self.elapsed_time)
 
 
 class ClaspyPredicter(ClaspyTrainer):
     """
     ClaspyPredicter create object to predict classes according the selected model.
     """
+
     def __init__(self, input_data, model, output_data=None, n_jobs=-1, samples=None):
         """Initialize the ClaspyPredicter"""
         ClaspyTrainer.__init__(self, input_data=input_data, output_data=output_data,
                                n_jobs=n_jobs, samples=samples)
 
         # Set specific variables for ClaspyPredicter
+        self.pca_compo = None
         self.mode = 'predict'
         self.model_to_load = model
         self.feat_importance = None
@@ -1080,7 +1167,6 @@ class ClaspyPredicter(ClaspyTrainer):
             self.pca_compo = np.array2string(self.pca.components_)
             scale_str += "Scale dataset with Scaler and PCA transforms\n"
         else:
-            self.pca_compo = None
             scale_str += "Scale dataset with Scaler transform\n"
 
         # return verbose
@@ -1130,39 +1216,37 @@ class ClaspyPredicter(ClaspyTrainer):
 
         predictions = pd.DataFrame(self.y_proba, columns=pred_header, dtype='float32').round(decimals=4)
 
-        if self.root_ext[1] == '.csv':
+        if self.data_type == '.csv':
             # Join predictions to self.frame (input_data)
             self.frame = self.frame.join(predictions)
             self.frame.to_csv(self.report_filename + '.csv', sep=',', header=True, index=False)
-        elif self.root_ext[1] == '.las':
+        elif self.data_type == '.las':
             # Reopen original las file
-            las = laspy.file.File(self.data_path, mode='r')
+            output_las = laspy.read(self.data_path)
 
-            # Create new output las file
-            output_las = laspy.file.File(self.report_filename + '.las', mode="w", header=las.header)
-            output_las.define_new_dimension(name='Prediction', data_type=5,
-                                            description='Prediction done by the model')
+            # Create ExtraBytesParams for additonnal dimensions
+            extrabytes_list = list()
+            extrabytes_list.append(laspy.ExtraBytesParams(name='Prediction',
+                                                          type=np.uint16,
+                                                          description="Prediction done by the model"))
 
-            # Create new dimension
-            dimensions = predictions.columns.values.tolist()
+            dimensions = predictions.columns.values.tolist()  # Get liste of dimensions
             if predictions.shape[1] > 1:
-                dimensions.remove('Prediction')
+                dimensions.remove('Prediction')  # Remove prediction dimension already added
                 for dim in dimensions:
-                    output_las.define_new_dimension(name=dim, data_type=9,
-                                                    description='Probability for this class')
+                    extrabytes_list.append(laspy.ExtraBytesParams(name=dim,
+                                                                  type=np.float32,
+                                                                  description='Probability for this class'))
 
-            # Fill output_las with original dimensions from self.las
-            for dim in las.point_format:
-                data = las.reader.get_dimension(dim.name)
-                output_las.writer.set_dimension(dim.name, data)
-            las.close()
+            # Add Extra dimensions at once
+            output_las.add_extra_dims(extrabytes_list)
 
             # Fill output_las with new data
-            output_las.Prediction = predictions['Prediction']
-            if predictions.shape[1] > 1:
-                for dim in dimensions:
-                    output_las.writer.set_dimension(dim, predictions[dim].values)
-            output_las.close()
+            for dim in predictions.columns.values.tolist():
+                output_las[dim] = predictions[dim].values
+
+            # Write output_las file
+            output_las.write(self.report_filename + '.las')
 
         if verbose:
             return save_pt_cloud_str
@@ -1172,6 +1256,7 @@ class ClaspySegmenter(ClaspyTrainer):
     """
     ClaspySegmenter create object to segment data into clusters according the selected algorithm.
     """
+
     def __init__(self, input_data, output_data=None, parameters=None, features=None,
                  pca=None, n_jobs=-1, random_state=0, samples=None, scaler='Standard'):
         """Initialize the ClaspySegmenter"""
@@ -1277,29 +1362,24 @@ class ClaspySegmenter(ClaspyTrainer):
         cluster_header = ['Cluster']
         clusters = pd.DataFrame(self.y_cluster, columns=cluster_header, dtype='float32').round(decimals=4)
 
-        if self.root_ext[1] == '.csv':
+        if self.data_type == '.csv':
             # Join predictions to self.frame (input_data)
             self.frame = self.frame.join(clusters)
             self.frame.to_csv(self.report_filename + '.csv', sep=',', header=True, index=False)
-        elif self.root_ext[1] == '.las':
+        elif self.data_type == '.las':
             # Reopen original las file
-            las = laspy.file.File(self.data_path, mode='r')
+            output_las = laspy.read(self.data_path)
 
-            # Create new output las file
-            output_las = laspy.file.File(self.report_filename + '.las', mode="w", header=las.header)
-            output_las.define_new_dimension(name='Cluster', data_type=5,
-                                            description='K-Means clustering segmentation')
-
-            # Fill output_las with original dimensions from self.las
-            for dim in las.point_format:
-                data = las.reader.get_dimension(dim.name)
-                output_las.writer.set_dimension(dim.name, data)
-            las.close()
+            # Create ExtraBytesParams for additonnal dimensions
+            output_las.add_extra_dim(laspy.ExtraBytesParams(name='Cluster',
+                                                            type=np.uint16,
+                                                            description="K-Means clustering segmentation"))
 
             # Fill output_las with new data
-            output_las.writer.set_dimension('Cluster', clusters['Cluster'].values)
-            output_las.close()
+            output_las['Cluster'] = clusters['Cluster'].values
+
+            # Write output_las file
+            output_las.write(self.report_filename + '.las')
 
         if verbose:
             return save_pt_cloud_str
-
