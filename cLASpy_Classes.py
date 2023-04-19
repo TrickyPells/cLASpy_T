@@ -654,7 +654,7 @@ class ClaspyTrainer:
 
         else:
             raise TypeError("Unrecognized file extension!")
-
+            
         return data_features
 
     def get_selected_features(self, data_features, verbose=True):
