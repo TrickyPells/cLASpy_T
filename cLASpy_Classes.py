@@ -668,24 +668,27 @@ class ClaspyTrainer:
         selected_feat_str = "\n"  # String to report info
         selected_features = list()  # The final list of all features found in input data
 
+        # Remove duplicate features
+        set_features = {feature.replace(' ', '_').casefold() for feature in self.features}
+
         # Check if features is a list()
         if isinstance(self.features, list):
             selected_feat_str += "\nGet selected features:\n"
-            for feature in self.features:
+            for feature in set_features:
                 for dt_feature in data_features:
                     # Compare data_feature with 'space' replaced by '_'
-                    if dt_feature.replace(' ', '_').casefold() == feature.replace(' ', '_').casefold():
+                    if dt_feature.replace(' ', '_').casefold() == feature:
                         selected_features.append(dt_feature)  # Put feature with 'space'
                         selected_feat_str += " - {} asked --> {} found\n".format(feature, dt_feature)
 
-            selected_feat_str += "\nNumber of selected features: {}\n".format(len(self.features))
+            selected_feat_str += "\nNumber of selected features: {}\n".format(len(set_features))
             selected_feat_str += "Number of final used features: {}\n".format(len(selected_features))
 
-            if len(self.features) == len(selected_features):
+            if len(set_features) == len(selected_features):
                 self.features = selected_features  # Selected feature with 'space', not '_'
                 selected_feat_str += " --> All required features are present!\n"
             else:
-                differences = list(set(self.features) - set(selected_features))
+                differences = list(set_features - set(selected_features))
                 raise ValueError("{} features are missing in 'input_data'!".format(differences))
         else:
             raise TypeError("Selected features must be a list of string!")
