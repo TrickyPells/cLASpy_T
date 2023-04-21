@@ -1998,6 +1998,16 @@ class ClaspyGui(QMainWindow):
                 algorithm = loaded_model['algorithm']
                 model = loaded_model['model']
 
+                # Check if model created by GridSearchCV or Pipeline
+                if isinstance(model, GridSearchCV):
+                    model = model.best_estimator_
+                elif isinstance(model, Pipeline):
+                    pass
+                else:
+                    self.statusBar.showMessage('Model load failed! Model must be GridSearchCV or Pipeline!')
+                    error_box('Model to load must be GridSearchCV or Pipeline!',
+                              title='Error: Model load failed!')
+
                 # Scaler
                 scaler = model['scaler']
 
