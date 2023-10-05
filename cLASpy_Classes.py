@@ -711,7 +711,15 @@ class ClaspyTrainer:
         Extracts target field if exists.
         :return: data and target as pandas.DataFrame
         """
-        # If asked features is empty, load default features (all except X, Y, Z)
+        # Extract 'target' from data frame
+        target = None
+        if self.has_target:
+            target = pd.read_csv(self.data_path,
+                                 sep=',',
+                                 header='infer',
+                                 usecols=[self.target_name])
+
+        # If asked features is empty, create list with default features (all except X, Y, Z)
         if self.features is None:
             self.features = list()
             # Remove X, Y and Z fields from self.data_features
@@ -725,11 +733,13 @@ class ClaspyTrainer:
                            header='infer',
                            usecols=self.features)  # dtype=feature_dtype dict like LAS
 
-        # Extract 'target' from data frame
-        target = None
         if self.has_target:
-            target = pd.DataFrame.loc[:, self.target_name]  # use dtype uint8
-            data.drop(columns=self.target_name, inplace=True)
+            try:
+                data.drop(columns=self.target_name, inplace=True)
+            except KeyError as ke:
+                pass
+            except ValueError as ve:
+                pass
 
         return data, target
 
@@ -759,10 +769,13 @@ class ClaspyTrainer:
         data = pd.DataFrame(points_selected_dimensions.array).astype(np.float32)
 
         # Remove target field from data (if it exists and is in data)
-        try:
-            data.drop(columns=self.target_name, inplace=True)  # Drop target field from data
-        except KeyError as ke:
-            pass  # Should print the final selected feature for used data !!
+        if self.has_target:
+            try:
+                data.drop(columns=self.target_name, inplace=True)  # Drop target field from data
+            except KeyError as ke:
+                pass  # Should print the final selected feature for used data !!
+            except ValueError as ve:
+                pass
 
         return data, target
 
@@ -1127,7 +1140,7 @@ class ClaspyPredicter(ClaspyTrainer):
         :param verbose: Set to True to get return string
         :return load_model_str: verbose return
         """
-        # Set vrebose return
+        # Set verbose return
         load_model_str = "\n"
 
         # Load model
@@ -1228,9 +1241,15 @@ class ClaspyPredicter(ClaspyTrainer):
         predictions = pd.DataFrame(self.y_proba, columns=pred_header, dtype='float32').round(decimals=4)
 
         if self.data_type == '.csv':
+            # Reopen original csv file
+            self.frame = pd.read_csv(self.data_path,
+                                     sep=',',
+                                     header='infer')
+
             # Join predictions to self.frame (input_data)
             self.frame = self.frame.join(predictions)
             self.frame.to_csv(self.report_filename + '.csv', sep=',', header=True, index=False)
+
         elif self.data_type == '.las':
             # Reopen original las file
             output_las = laspy.read(self.data_path)
