@@ -2046,7 +2046,7 @@ class ClaspyGui(QMainWindow):
         Check if all features in the model are in the input file.
         """
         # Reset the self.predict_features
-        self.predict_features = False  # Bool to lock prediction if a feaure is missing
+        self.predict_features = False  # Bool to lock prediction if a feature is missing
 
         # Try if the list of model feature is defined
         try:
@@ -2061,6 +2061,7 @@ class ClaspyGui(QMainWindow):
 
                 missing_features = list()
                 for m_feature in self.model_features:
+                    # Qt.MatchExactly doesn't work for 'space' and '_'
                     standard_feature = self.listStandardLAS.findItems(m_feature, Qt.MatchExactly)
                     extra_feature = self.listExtraFeatures.findItems(m_feature, Qt.MatchExactly)
 
