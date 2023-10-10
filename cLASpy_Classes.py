@@ -29,6 +29,7 @@
 # --- DEPENDENCIES ---
 # --------------------
 
+#import pdb
 import os
 import joblib
 import yaml
@@ -504,7 +505,7 @@ class ClaspyTrainer:
     def add_precision_recall(self):
         """
         Compute precision, recall and global accuracy from confusion matrix.
-        :self.conf_matrix: The confusion matrix as a numpy.array.
+        self.conf_matrix: The confusion matrix as a numpy.array.
         :return conf_mat_up: Confusion matrix wth precision, recall and global accuracy
         """
         # Change type array(int) as array(float)
@@ -693,7 +694,7 @@ class ClaspyTrainer:
             selected_feat_str += "Number of final used features: {}\n".format(len(selected_features))
 
             if len(set_features) == len(selected_features):
-                self.features = selected_features  # Selected feature with 'space', not '_'
+                self.features = selected_features  # .sort()  # Selected feature with 'space', not '_'
                 selected_feat_str += " --> All required features are present!\n"
             else:
                 differences = list(set_features - set(selected_features))
@@ -822,8 +823,14 @@ class ClaspyTrainer:
         if self.data_type == '.las':
             self.data, self.target = self.load_data_las()
 
+        format_data_str += "\nLIST OF THE FEATURES FROM DATA:\n"
+        format_data_str += str(self.data.columns.values.tolist()) + "\n"
+
         # Replace NAN values by median
         self.data.fillna(value=self.data.median(0), inplace=True)  # .median(0) computes median by column
+
+        # Sort dataset by columns
+        self.data.sort_index(axis=1, inplace=True)
 
         # Set filename for output result files
         self.number_of_points()
@@ -843,7 +850,7 @@ class ClaspyTrainer:
         self.train_ratio: Ratio of the size of training dataset.
         self.samples: Number of samples beyond which the dataset
         is split with two integers, for train_size and test_size.
-        The samples is paired with train_ratio and test_ratio.
+        The samples are paired with train_ratio and test_ratio.
         :return: data_train, data_test, target_train and target_test as np.ndarray,
         the string of the process.
         """
@@ -994,7 +1001,7 @@ class ClaspyTrainer:
         model_filename = self.report_filename + '.model'
         model_dict = dict()
         model_dict['algorithm'] = self.algorithm
-        model_dict['feature_names'] = self.data.columns.values.tolist()
+        model_dict['feature_names'] = sorted(self.data.columns.values.tolist())
         model_dict['model'] = self.model
 
         # Use joblib to save in model file
@@ -1128,6 +1135,7 @@ class ClaspyPredicter(ClaspyTrainer):
                                n_jobs=n_jobs, samples=samples)
 
         # Set specific variables for ClaspyPredicter
+        self.scaled_data = None
         self.pca_compo = None
         self.mode = 'predict'
         self.model_to_load = model
@@ -1181,13 +1189,13 @@ class ClaspyPredicter(ClaspyTrainer):
         scale_str = "\n"
 
         # Transform data according scaler
-        self.data = self.scaler.transform(self.data)
-        self.data = pd.DataFrame.from_records(self.data, columns=self.features)
+        self.scaled_data = self.scaler.transform(self.data)
+        self.data = pd.DataFrame.from_records(self.scaled_data, columns=sorted(self.features))
 
         # Transform data if PCA exist
         if self.pca is not None:
             self.data = self.pca.transform(self.data)
-            self.data = pd.DataFrame.from_records(self.data, columns=self.pca.components_)
+            self.data = pd.DataFrame.from_records(self.data, columns=self.pca.components_)  # PCA must be sorted too ?
             self.pca_compo = np.array2string(self.pca.components_)
             scale_str += "Scale dataset with Scaler and PCA transforms\n"
         else:
@@ -1209,7 +1217,7 @@ class ClaspyPredicter(ClaspyTrainer):
         y_best_proba = np.amax(self.y_proba, axis=1)
         y_best_class = np.argmax(self.y_proba, axis=1)
 
-        # Add best proba and bet class to probability per class
+        # Add best proba and best class to probability per class
         self.y_proba = np.insert(self.y_proba, 0, y_best_proba, axis=1)
         self.y_proba = np.insert(self.y_proba, 0, y_best_class, axis=1)
 
