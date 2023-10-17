@@ -14,13 +14,14 @@
 #  ########\/_/####\_\/######\_____\/######\/___________/###########  #
 #  ---------- REMOTE -------- SENSING --------- GROUP --------------  #
 #  #################################################################  #
-#           The run part of the GUI of cLASpy_T library               #
+#          The run part of the GUI for cLASpy_T library               #
 #                    By Xavier PELLERIN LE BAS                        #
 #                         February 2022                               #
 #         REMOTE SENSING GROUP  -- https://rsg.m2c.cnrs.fr/ --        #
 #        M2C laboratory (FRANCE)  -- https://m2c.cnrs.fr/ --          #
 #  #################################################################  #
 #  Description:                                                       #
+#     - 0.3.0 : Version of cLASpy_T with laspy2 support               #
 #                                                                     #
 #######################################################################
 
@@ -535,7 +536,7 @@ class ClaspyRun(QMainWindow):
             child.kill()
 
         self.buttonStop.setText("Stop")
-        self.buttonClose.setEnalbed(True)
+        self.buttonClose.setEnabled(True)
 
         self.plainTextCommand.appendPlainText("\n********************"
                                               "\nProcess stopped by user!"

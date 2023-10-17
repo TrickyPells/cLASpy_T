@@ -184,3 +184,4 @@ venv/
 
 # cLASpy_T files
 claspy_options.json
+temp_config.json

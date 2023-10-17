@@ -21,6 +21,7 @@
 #        M2C laboratory (FRANCE)  -- https://m2c.cnrs.fr/ --          #
 #  #################################################################  #
 #  Description:                                                       #
+#     - 0.3.0 : Version of cLASpy_T with laspy2 support               #
 #                                                                     #
 #######################################################################
 
@@ -45,6 +46,13 @@ from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 
 from cLASpy_Classes import *
+
+# -------------------------
+# ------ VARIABLES --------
+# -------------------------
+
+cLASpy_GUI_Version = '0.3.0'  # Version with laspy 2.2 support
+
 
 # -------------------------
 # ------ FUNCTIONS --------
@@ -267,9 +275,10 @@ class ClaspyGui(QMainWindow):
         self.mainWidget = QWidget()
 
         # Variable Initialization
+        self.welcome_window = None
         self.platform = get_platform()
         self.cLASpy_Core_version = cLASpy_Core_version
-        self.cLASpy_GUI_version = '0.1.1'
+        self.cLASpy_GUI_version = cLASpy_GUI_Version
         self.cLASpy_train_version = self.cLASpy_GUI_version + '_train'
         self.cLASpy_predi_version = self.cLASpy_GUI_version + '_predi'
         self.cLASpy_segme_version = self.cLASpy_GUI_version + '_segme'
@@ -765,23 +774,35 @@ class ClaspyGui(QMainWindow):
         else:
             file_path = os.path.normpath(self.lineFile.text())
 
-        root_ext = os.path.splitext(file_path)
-        if self.pushLocal.isChecked():
-            self.lineLocalFolder.setText(os.path.splitext(root_ext[0])[0])
+        # try to open input file
+        try:
+            open(file_path, 'r')
+        except FileNotFoundError as fe:
+            file_path = ''  # empty the file_path of non found file
+        except PermissionError as pe:
+            file_path = ''
 
-        if root_ext[1] == '.csv':
-            self.file_type = 'CSV'
-            feature_names = self.open_csv(file_path)
-        elif root_ext[1] == '.las':
-            self.file_type = 'LAS'
-            feature_names, standard_fields = self.open_las(file_path)
-            self.listStandardLAS.setEnabled(True)  # Enable List of standard LAS fields
-            self.listStandardLAS.clear()
-            for item in standard_fields:
-                self.listStandardLAS.addItem(str(item))
+        root, extension = os.path.splitext(file_path)
+        if self.pushLocal.isChecked():
+            self.lineLocalFolder.setText(root)
+
+        if root != '':
+            if extension == '.csv':
+                self.file_type = 'CSV'
+                feature_names = self.open_csv(file_path)
+            elif extension == '.las':
+                self.file_type = 'LAS'
+                feature_names, standard_fields = self.open_las(file_path)
+                self.listStandardLAS.setEnabled(True)  # Enable List of standard LAS fields
+                self.listStandardLAS.clear()
+                for item in standard_fields:
+                    self.listStandardLAS.addItem(str(item))
+            else:
+                feature_names = ["File error:", "Unknown extension file!"]
+                self.statusBar.showMessage("File error: Unknown extension file!", 3000)
         else:
-            feature_names = ["File error:", "Unknown extension file!"]
-            self.statusBar.showMessage("File error: Unknown extension file!", 3000)
+            feature_names = ["File error:", "Input file not found", self.lineLocalFile.text()]
+            self.statusBar.showMessage("File error: File not found!", 3000)
 
         # Check if the target field exist
         try:
@@ -792,9 +813,11 @@ class ClaspyGui(QMainWindow):
         if self.target:
             self.labelTarget.setText("Target field is available.")
             self.SeglabelTarget.setText("Will be discarded for segmentation.")
+            self.buttonRunTrain.setEnabled(True)
         else:
             self.labelTarget.setText("Not found!!")
             self.SeglabelTarget.setText("Not mandatory.")
+            self.buttonRunTrain.setDisabled(True)
 
         # Rewrite listExtraFeature
         self.listExtraFeatures.clear()
@@ -815,9 +838,9 @@ class ClaspyGui(QMainWindow):
         self.target = False
 
         # Infos about CSV file
-        frame = pd.read_csv(file_path, sep=',', header='infer')
+        with open(file_path, 'r') as file:
+            point_count = sum(1 for line in file) - 1
         version = 'CSV'
-        point_count = len(frame)
 
         # Set value of the train size
         number_mpts = float(point_count / 1000000.)  # Number of million points
@@ -828,13 +851,15 @@ class ClaspyGui(QMainWindow):
             self.spinSampleSize.setValue(number_mpts / 2.)
 
         # Show CSV and number of points in status bar
-        point_count = '{:,}'.format(point_count).replace(',', ' ')  # Format with thousand separator
+        point_count = '{:,}'.format(point_count).replace(',', ' ')  # Format with thousand separators
         self.labelPtCldFormat.setText("{}".format(version))
         self.labelPtCount.setText("{}".format(point_count))
         self.statusBar.showMessage("{} points on {} file".format(point_count, version), 5000)
 
         # Get the extra dimensions and coordinates (column names)
         extra_dimensions = list()
+        frame = pd.read_csv(file_path, sep=',', header='infer', nrows=10)
+
         self.checkX.setEnabled(False)
         self.checkY.setEnabled(False)
         self.checkZ.setEnabled(False)
@@ -851,11 +876,11 @@ class ClaspyGui(QMainWindow):
                 extra_dimensions.append(dim.replace(' ', '_'))  # Replace 'space' with '_'
 
         # Find 'target' dimension if exist
-        for trgt in ['target', 'Target', 'TARGET']:
-            if trgt in extra_dimensions:
+        for field in extra_dimensions:
+            if field.casefold() == 'target':
                 self.target = True
-                self.targetName = trgt
-                extra_dimensions.remove(trgt)
+                self.targetName = field
+                extra_dimensions.remove(field)
 
         return extra_dimensions
 
@@ -869,10 +894,10 @@ class ClaspyGui(QMainWindow):
         self.target = False
 
         # Infos about LAS file
-        las = laspy.file.File(file_path, mode='r')
+        las = laspy.open(file_path, mode='r')
         version = las.header.version
-        data_format = las.header.data_format_id
-        point_count = las.header.records_count
+        data_format = las.header.point_format.id
+        point_count = las.header.point_count
 
         # Set value of the train size
         number_mpts = float(point_count / 1000000.)  # Number of million points
@@ -889,34 +914,21 @@ class ClaspyGui(QMainWindow):
         self.statusBar.showMessage("{} points | LAS Version: {}".format(point_count, version),
                                    5000)
 
-        # List of the standard dimensions according the data_format of LAS (prefilled_dimensions)
-        prefilled_dimensions = point_format[data_format]
-
-        # Get the extra_dimensions
-        extra_dimensions = list()
-        for dim in las.point_format.specs:
-            extra_dimensions.append(str(dim.name))  # List of all dimension
-        for dim in prefilled_dimensions:  # Remove the pre-filled dimensions
-            if dim in extra_dimensions:
-                extra_dimensions.remove(dim)
-
         # Get the standard dimensions in LAS file (for real, not prefilled)
-        standard_dimensions = list()
-        for dim in las.point_format.specs:
-            standard_dimensions.append(str(dim.name))
-        for dim in extra_dimensions:  # Remove the extra_dimensions, so get only the standard_dimension
-            if dim in standard_dimensions:
-                standard_dimensions.remove(dim)
+        standard_dimensions = list(las.header.point_format.standard_dimension_names)
         for coord in ['X', 'Y', 'Z']:  # Remove X, Y, Z (already checkable in Advanced Features)
             if coord in standard_dimensions:
                 standard_dimensions.remove(coord)
 
+        # Get the extra_dimensions
+        extra_dimensions = list(las.header.point_format.extra_dimension_names)
+
         # Find 'target' dimension if exist
-        for trgt in ['target', 'Target', 'TARGET']:
-            if trgt in extra_dimensions:
+        for field in extra_dimensions:
+            if field.casefold() == 'target':
                 self.target = True
-                self.targetName = trgt
-                extra_dimensions.remove(trgt)
+                self.targetName = field
+                extra_dimensions.remove(field)
 
         return extra_dimensions, standard_dimensions
 
@@ -1986,6 +1998,16 @@ class ClaspyGui(QMainWindow):
                 algorithm = loaded_model['algorithm']
                 model = loaded_model['model']
 
+                # Check if model created by GridSearchCV or Pipeline
+                if isinstance(model, GridSearchCV):
+                    model = model.best_estimator_
+                elif isinstance(model, Pipeline):
+                    pass
+                else:
+                    self.statusBar.showMessage('Model load failed! Model must be GridSearchCV or Pipeline!')
+                    error_box('Model to load must be GridSearchCV or Pipeline!',
+                              title='Error: Model load failed!')
+
                 # Scaler
                 scaler = model['scaler']
 
@@ -2024,7 +2046,7 @@ class ClaspyGui(QMainWindow):
         Check if all features in the model are in the input file.
         """
         # Reset the self.predict_features
-        self.predict_features = False  # Bool to lock prediction if a feaure is missing
+        self.predict_features = False  # Bool to lock prediction if a feature is missing
 
         # Try if the list of model feature is defined
         try:
@@ -2039,6 +2061,7 @@ class ClaspyGui(QMainWindow):
 
                 missing_features = list()
                 for m_feature in self.model_features:
+                    # Qt.MatchExactly doesn't work for 'space' and '_'
                     standard_feature = self.listStandardLAS.findItems(m_feature, Qt.MatchExactly)
                     extra_feature = self.listExtraFeatures.findItems(m_feature, Qt.MatchExactly)
 
@@ -3591,7 +3614,7 @@ class ClaspyGui(QMainWindow):
         """
         Close the GUI with 'Close' button
         """
-        if self.welcome_window:
+        if self.welcome_window is not None:
             self.welcome_window.close()
         self.close()
 
@@ -3599,7 +3622,7 @@ class ClaspyGui(QMainWindow):
         """
         Close the GUI with cross button
         """
-        if self.welcome_window:
+        if self.welcome_window is not None:
             self.welcome_window.close()
         self.close()
         event.accept()

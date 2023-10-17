@@ -21,6 +21,7 @@
 #        M2C laboratory (FRANCE)  -- https://m2c.cnrs.fr/ --          #
 #  #################################################################  #
 #  Description:                                                       #
+#     - 0.3.0 : with laspy2 support                                   #
 #                                                                     #
 #######################################################################
 
@@ -42,7 +43,7 @@ from cLASpy_Classes import ClaspyTrainer, ClaspyPredicter, ClaspySegmenter
 # -------------------------
 
 # Define version of cLASpy_T
-cLASpy_T_version = '0.2.0'  # 0.2.0 : Version of cLASpy_T with classes
+cLASpy_T_version = '0.3.0'  # 0.3.0 : Version of cLASpy_T with laspy2 support
 
 # -------------------------
 # ---- ARGUMENT_PARSER ----
