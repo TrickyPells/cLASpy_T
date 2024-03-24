@@ -184,13 +184,13 @@ def format_layerlist(layer_str, as_type='str'):
     :param as_type: the type of the return (list or str).
     :return: formatted list or string of the hidden layers.
     """
-    layer_list_regex = re.compile("[\]]|[\[]")
 
     if isinstance(layer_str, str) is False:
         raise TypeError("format_layerlist() only accept string as input")
 
-    # Split at each '],[' or ']['
-    layer_list = layer_list_regex.split(layer_str)
+    # Replace each ']' by '[' and split at each '['
+    layer_list = re.sub("]", "[", layer_str)
+    layer_list = layer_list.split("[")
 
     # Remove empty item ('' or ',')
     for item in layer_list:
