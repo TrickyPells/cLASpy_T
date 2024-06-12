@@ -1173,10 +1173,10 @@ class ClaspyGui(QMainWindow):
                                          "have equal weight when sample_weight=0.")
         form_layout.addRow("min_weight_fraction_leaf:", self.RFspinWeightLeaf)
 
-        self.RFmaxFeatures = ["auto", "sqrt", "log2"]
+        self.RFmaxFeatures = ["sqrt", "log2", "None"]
         self.RFcomboMaxFeatures = QComboBox()
         self.RFcomboMaxFeatures.addItems(self.RFmaxFeatures)
-        self.RFcomboMaxFeatures.setCurrentText("auto")
+        self.RFcomboMaxFeatures.setCurrentText("sqrt")
         self.RFcomboMaxFeatures.setToolTip("The number of features to consider\n"
                                            "when looking for the best split.")
         form_layout.addRow("max_features:", self.RFcomboMaxFeatures)
@@ -1345,7 +1345,7 @@ class ClaspyGui(QMainWindow):
                                          "have equal weight when sample_weight=0.")
         form_layout.addRow("min_weight_fraction_leaf:", self.GBspinWeightLeaf)
 
-        self.GBmaxFeatures = ["None", "auto", "sqrt", "log2"]
+        self.GBmaxFeatures = ["None", "sqrt", "log2"]
         self.GBcomboMaxFeatures = QComboBox()
         self.GBcomboMaxFeatures.addItems(self.GBmaxFeatures)
         self.GBcomboMaxFeatures.setCurrentText("None")
@@ -1353,13 +1353,13 @@ class ClaspyGui(QMainWindow):
                                            "when looking for the best split.")
         form_layout.addRow("max_features:", self.GBcomboMaxFeatures)
 
-        self.loss = ["deviance", "exponential"]
+        self.loss = ["log_loss", "exponential"]
         self.GBcomboLoss = QComboBox()
         self.GBcomboLoss.addItems(self.loss)
-        self.GBcomboLoss.setCurrentText("deviance")
-        self.GBcomboLoss.setToolTip("The loss function to be optimized. ‘deviance’ refers to logistic\n"
-                                    "regression for classification with probabilistic outputs. For loss \n"
-                                    "‘exponential’ gradient boosting recovers the AdaBoost algorithm.")
+        self.GBcomboLoss.setCurrentText("log_loss")
+        self.GBcomboLoss.setToolTip("The loss function to be optimized. ‘log_loss’ refers to binomial and multinomial deviance,\n"
+                                    "the same as used in logistic regression. It is a good choice for classification with probabilistic outputs.\n"
+                                    "For loss ‘exponential’ gradient boosting recovers the AdaBoost algorithm.")
         form_layout.addRow("loss:", self.GBcomboLoss)
 
         self.GBspinLearningRate = QDoubleSpinBox()
@@ -1508,7 +1508,7 @@ class ClaspyGui(QMainWindow):
         self.NNspinRandomState.setValue(-1)
         self.NNspinRandomState.setToolTip("Determines random number generation for weights and\n"
                                           "bias initialization, train-test split if early stopping is used,\n"
-                                          "and batch sampling when solver=’sgd’or ‘adam’.")
+                                          "and batch sampling when solver=’sgd’ or ‘adam’.")
         self.NNpushRandomState = QPushButton('New Seed')
         self.NNpushRandomState.clicked.connect(lambda: new_seed(self.NNspinRandomState))
         h_layout_random = QHBoxLayout()
@@ -2203,10 +2203,10 @@ class ClaspyGui(QMainWindow):
                                   "consecutive iterations to declare convergence.")
 
         # algorithm
-        self.KMalgorithm = ["auto", "full", "elkan"]
+        self.KMalgorithm = ["lloyd", "elkan"]
         self.KMcomboAlgorithm = QComboBox()
         self.KMcomboAlgorithm.addItems(self.KMalgorithm)
-        self.KMcomboAlgorithm.setCurrentIndex(self.KMalgorithm.index("auto"))
+        self.KMcomboAlgorithm.setCurrentIndex(self.KMalgorithm.index("lloyd"))
         self.KMcomboAlgorithm.setToolTip("K-means algorithm to use.")
 
         # form layout for cluster parameters
