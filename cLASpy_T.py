@@ -21,6 +21,7 @@
 #        M2C laboratory (FRANCE)  -- https://m2c.cnrs.fr/ --          #
 #  #################################################################  #
 #  Description:                                                       #
+#     - 0.3.2 : update scikit-learn 0.24 > 1.5.0                      #
 #     - 0.3.0 : with laspy2 support                                   #
 #                                                                     #
 #######################################################################
@@ -43,7 +44,7 @@ from cLASpy_Classes import ClaspyTrainer, ClaspyPredicter, ClaspySegmenter
 # -------------------------
 
 # Define version of cLASpy_T
-cLASpy_T_version = '0.3.0'  # 0.3.0 : Version of cLASpy_T with laspy2 support
+cLASpy_T_version = '0.3.2'  # 0.3.0 : update scikit-learn 0.24 > 1.5.0
 
 # -------------------------
 # ---- ARGUMENT_PARSER ----
