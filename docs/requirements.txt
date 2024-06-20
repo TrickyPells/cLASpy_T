@@ -4,15 +4,15 @@ certifi==2023.7.22
 charset-normalizer==3.3.0
 colorama==0.4.6
 docutils==0.18.1
-idna==3.4
+idna==3.7
 imagesize==1.4.1
 importlib-metadata==6.8.0
-Jinja2==3.1.2
+Jinja2==3.1.4
 MarkupSafe==2.1.3
 packaging==23.2
 Pygments==2.16.1
 readthedocs-sphinx-ext==2.2.3
-requests==2.31.0
+requests==2.32.0
 snowballstemmer==2.2.0
 Sphinx==7.2.6
 sphinx-rtd-theme==1.3.0
@@ -23,5 +23,5 @@ sphinxcontrib-jquery==4.1
 sphinxcontrib-jsmath==1.0.1
 sphinxcontrib-qthelp==1.0.6
 sphinxcontrib-serializinghtml==1.1.9
-urllib3==2.0.6
+urllib3==2.2.2
 zipp==3.17.0

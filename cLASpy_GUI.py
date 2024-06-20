@@ -52,7 +52,7 @@ from cLASpy_Classes import *
 # ------ VARIABLES --------
 # -------------------------
 
-cLASpy_GUI_Version = '0.3.0'  # Version with laspy 2.2 support
+cLASpy_GUI_Version = '0.3.1'  # Scikit-learn 0.24 > 1.4
 
 
 # -------------------------
