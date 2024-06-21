@@ -9,8 +9,8 @@
 project = 'cLASpy_T'
 copyright = '2023, Xavier PELLERIN LE BAS'
 author = 'Xavier PELLERIN LE BAS'
-release = '0.2'
-version = '0.2.1'
+release = '0.3'
+version = '0.3.1'
 
 rst_epilog = """
 .. |claspyt| replace:: **cLASpy_T**
