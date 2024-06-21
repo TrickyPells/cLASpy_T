@@ -1,29 +1,3 @@
-Command line
-************
-
-Command line mode is the main and stablest way to use |claspyt|. Do not forget to activate your python virtual environment before calling |claspyt|.
-
-It uses the 3 main modules as subcommands of the main software, *i.e.* :command:`train`, :command:`predict` and :command:`segment`.
-
-For example, if you want to train model:
-
-.. code-block:: console
-
-  python cLASpy_T.py train -a=rf -i=/home/me/data/lidar_training_dataset.las
-
-To make predictions:
-
-.. code-block:: console
-
-  python cLASpy_T.py predict -m=/home/me/results/lidar_dataset.model -i=/home/me/data/lidar_survey.las
-
-And to segment a dataset:
-
-.. code-block:: console
-
-  python cLASpy_T.py segment -i=/home/me/data/lidar_survey.las
-
-
 *'train'* module
 ================
 
@@ -38,7 +12,7 @@ Currently, there 3 available supervised machine learning algorithms from `scikit
 
   * :command:`rf`: `RandomForestClassifier <https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.RandomForestClassifier.html#sklearn.ensemble.RandomForestClassifier>`_ for Random Forest algorithm
   * :command:`gb`: `GradientBoostingClassifier <https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.GradientBoostingClassifier.html#sklearn.ensemble.GradientBoostingClassifier>`_ for Gradient Boosting algorithm
-  * :command:`ann`: `MLPClassifier <https://scikit-learn.org/stable/modules/generated/sklearn.neural_network.MLPClassifier.html#sklearn.neural_network.MLPClassifier>`_ for Neural Network algorithm
+  * :command:`ann`: `MLPClassifier <https://scikit-learn.org/stable/modules/generated/sklearn.neural_network.MLPClassifier.html#sklearn.neural_network.MLPClassifier>`_ for Artificial Neural Network algorithm
 
 Format of data files
 --------------------
@@ -53,7 +27,7 @@ The input data must be in **LAS** or **CSV** (sep=',') formats.
   638.957,916.201,-2.953,1,39.0,104,133,113,0.11013,0.63586,0.00095...
 
 Data file must contain:
-^^^^^^^^^^^^^^^^^^^^^^^
+~~~~~~~~~~~~~~~~~~~~~~~
 
 * Target field named **'target'** (non case-sensitive): contains the labels for training as integer.
 * Fileds of the features that describe each point.
@@ -78,19 +52,19 @@ Arguments
 - :command:`-c, --config`
   *Give the configuration file with all parameters and selected scalar fields.*
 
-    * **On Windows**: C:\path\to\the\config.json
+    * **On Windows**: C:\\path\\to\\the\\config.json
     * **On Linux**: /path/to/the/config.json
 
 - :command:`-i, --input_data`
   *Set the input file of the dataset (LAS or CSV).*
 
-    * **On Windows**: C:\path\to\the\input_data.las
+    * **On Windows**: C:\\path\\to\\the\\input_data.las
     * **On Linux**: /path/to/the/input_data.las
 
 - :command:`-o, --output`
   *Set the output folder to save all results. Default: Create folder with the path of the input file.*
 
-    * **On Windows**: C:\path\to\the\output_folder
+    * **On Windows**: C:\\path\\to\\the\\output_folder
     * **On Linux**: /path/to/the/output_folder
 
 - :command:`-f, --features`
@@ -149,14 +123,3 @@ Arguments
 
 - :command:`--train_r`
   *Set the train ratio as float [0.0 - 1.0] to split data into train and test datasets. Default: 0.5.*
-
-
-*'predict'* module
-===================
-
-
-
-*'segment'* module
-===================
-
-
