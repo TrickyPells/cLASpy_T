@@ -24,7 +24,7 @@ Roughly, the software formats the input point clouds provided by LAS or CSV file
 .. _DataFrame: https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
    :caption: Install:
    
    install/install.rst

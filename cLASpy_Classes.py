@@ -21,6 +21,7 @@
 #        M2C laboratory (FRANCE)  -- https://m2c.cnrs.fr/ --          #
 #  #################################################################  #
 #  Description:                                                       #
+#     - 0.3.2 : Update algo parameters (scklearn 1.4.1 > 1.5.0)       #
 #     - 0.3.0 : laspy2 support                                        #
 #                                                                     #
 #######################################################################
@@ -52,7 +53,7 @@ from sklearn.metrics import confusion_matrix, classification_report
 # ------ VARIABLES --------
 # -------------------------
 # Version of cLASpy_Core
-cLASpy_Core_version = '0.3.0'  # 0.3.0 version with laspy2 support
+cLASpy_Core_version = '0.3.2'  # 0.3.2 version with scikit-learn 1.5 support
 
 # # Define point_format dict for LAS files
 # point_format = dict()
@@ -388,10 +389,10 @@ class ClaspyTrainer:
             self.classifier = GradientBoostingClassifier()
             self.check_parameters()  # Check and set parameters
         else:
-            self.classifier = GradientBoostingClassifier(loss='deviance',
+            self.classifier = GradientBoostingClassifier(loss='log_loss',
                                                          n_estimators=100,
                                                          max_depth=3,
-                                                         min_samples_leaf=1000,
+                                                         min_samples_leaf=100,
                                                          random_state=0)
 
     def set_mlp_classifier(self):
@@ -409,7 +410,7 @@ class ClaspyTrainer:
                                             activation='relu',
                                             solver='adam',
                                             alpha=0.0001,
-                                            max_iter=10000,
+                                            max_iter=1000,
                                             random_state=0)
 
     def training_gridsearch(self, verbose=True):
