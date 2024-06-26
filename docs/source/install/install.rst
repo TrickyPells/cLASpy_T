@@ -1,7 +1,7 @@
 Install 
-=================
+=======
 
-This section describes how to get and install |claspyt|.
+This section describes how to install |claspyt|.
 
 .. toctree::
    :maxdepth: 2

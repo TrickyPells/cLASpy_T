@@ -10,9 +10,9 @@ Available supervised algorithms
 
 Currently, there 3 available supervised machine learning algorithms from `scikit-learn`_:
 
-  * :command:`rf`: `RandomForestClassifier <https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.RandomForestClassifier.html#sklearn.ensemble.RandomForestClassifier>`_ for Random Forest algorithm
-  * :command:`gb`: `GradientBoostingClassifier <https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.GradientBoostingClassifier.html#sklearn.ensemble.GradientBoostingClassifier>`_ for Gradient Boosting algorithm
-  * :command:`ann`: `MLPClassifier <https://scikit-learn.org/stable/modules/generated/sklearn.neural_network.MLPClassifier.html#sklearn.neural_network.MLPClassifier>`_ for Artificial Neural Network algorithm
+  * :command:`rf`: for Random Forest algorithm (`RandomForestClassifier <https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.RandomForestClassifier.html#sklearn.ensemble.RandomForestClassifier>`_)
+  * :command:`gb`:  for Gradient Boosting algorithm (`GradientBoostingClassifier <https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.GradientBoostingClassifier.html#sklearn.ensemble.GradientBoostingClassifier>`_)
+  * :command:`ann`: for Artificial Neural Network algorithm (`MLPClassifier <https://scikit-learn.org/stable/modules/generated/sklearn.neural_network.MLPClassifier.html#sklearn.neural_network.MLPClassifier>`_)
 
 Format of data files
 --------------------
@@ -30,7 +30,7 @@ Data file must contain:
 ~~~~~~~~~~~~~~~~~~~~~~~
 
 * Target field named **'target'** (non case-sensitive): contains the labels for training as integer.
-* Fileds of the features that describe each point.
+* Features that describe each point.
 
 If X, Y and/or Z fields provided, **they are discard for training**, but re-used to write the output file.
 
@@ -52,20 +52,20 @@ Arguments
 - :command:`-c, --config`
   *Give the configuration file with all parameters and selected scalar fields.*
 
-    * **On Windows**: C:\\path\\to\\the\\config.json
-    * **On Linux**: /path/to/the/config.json
+    * **on Windows**: C:\\path\\to\\the\\config.json
+    * **on Linux**: /path/to/the/config.json
 
 - :command:`-i, --input_data`
   *Set the input file of the dataset (LAS or CSV).*
 
-    * **On Windows**: C:\\path\\to\\the\\input_data.las
-    * **On Linux**: /path/to/the/input_data.las
+    * **on Windows**: C:\\path\\to\\the\\input_data.las
+    * **on Linux**: /path/to/the/input_data.las
 
 - :command:`-o, --output`
   *Set the output folder to save all results. Default: Create folder with the path of the input file.*
 
-    * **On Windows**: C:\\path\\to\\the\\output_folder
-    * **On Linux**: /path/to/the/output_folder
+    * **on Windows**: C:\\path\\to\\the\\output_folder
+    * **on Linux**: /path/to/the/output_folder
 
 - :command:`-f, --features`
   *Select the features to used to train the model. Give a list of feature names. Caution: Replace whitespaces by underscores '_'.*
