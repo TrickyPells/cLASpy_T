@@ -150,6 +150,12 @@ parser_train.add_argument("-f", "--features",
                                "    -f=['Anisotropy_5m', 'R', 'G', 'B', ...]\n\n",
                           type=str, default=None, metavar='')
 
+parser_train.add_argument("--fillnan",
+                          help="set the value to fill NaN for feature values.\n"
+                               "    Could be 'median', 'mean', int or float.\n"
+                               "    Default: '--fillnan='median'\n\n",
+                          type=str, metavar='', default='median')
+
 parser_train.add_argument("-g", "--grid_search",
                           help="perform the training with GridSearchCV.\n\n",
                           action="store_true")
@@ -265,6 +271,12 @@ parser_predict.add_argument("-m", "--model",
                                  "    '/path/to/the/training/file.model'\n\n",
                             type=str, metavar='')
 
+parser_predict.add_argument("--fillnan",
+                            help="set the value to fill NaN for feature values.\n"
+                                 "    Could be 'median', 'mean', int or float.\n"
+                                 "    Default: '--fillnan='median'\n\n",
+                            type=str, metavar='', default='median')
+
 # parser_predict.add_argument("-s", "--samples",
 #                             help="set the number of samples for large dataset.\n"
 #                                  "    (float number in million points)\n"
@@ -305,6 +317,12 @@ parser_segment.add_argument("-f", "--features",
                                  "    Example:\n"
                                  "    -f=['Anisotropy_5m', 'R', 'G', 'B', ...]\n\n",
                             type=str, default=None, metavar='')
+
+parser_segment.add_argument("--fillnan",
+                            help="set the value to fill NaN for feature values.\n"
+                                 "    Could be 'median', 'mean', int or float.\n"
+                                 "    Default: '--fillnan='median'\n\n",
+                            type=str, metavar='', default='median')
 
 parser_segment.add_argument("-p", "--parameters",
                             help="set the parameters to pass to the classifier\n"

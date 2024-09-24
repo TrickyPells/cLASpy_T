@@ -312,7 +312,7 @@ class ClaspyGui(QMainWindow):
         # Left part of GUI
         self.parameter_part()
 
-        # Central part of GUI
+        # Right part of GUI
         self.feature_part()
         self.groupCoordinates.setEnabled(False)
         self.groupCoordinates.setVisible(False)
@@ -2253,6 +2253,28 @@ class ClaspyGui(QMainWindow):
         # Global Feature Group
         self.groupFeatures = QGroupBox("Features")
 
+        # Fill NaN value
+        self.fillnanMethods = ['median', 'mean', 'float']
+        self.comboFillnan = QComboBox()
+        self.comboFillnan.addItems(self.fillnanMethods)
+        self.comboFillnan.setCurrentText('median')
+        self.comboFillnan.setToolTip("Set the value to fill NaN values for features.")
+        self.comboFillnan.currentIndexChanged.connect(self.enable_float_nan)
+
+        self.spinFillnan = QDoubleSpinBox()
+        self.spinFillnan.setDecimals(6)
+        self.spinFillnan.setMinimum(-9999.999)
+        self.spinFillnan.setMaximum(9999999.999)
+        self.spinFillnan.setValue(-1.)
+        self.spinFillnan.setToolTip("Set float or integer value to replace NaN values of features.")
+        self.spinFillnan.setEnabled(False)
+        self.groupFillnan = QGroupBox()
+        h_layout_fillnan = QHBoxLayout()
+        h_layout_fillnan.addWidget(self.comboFillnan)
+        h_layout_fillnan.addWidget(self.spinFillnan)
+        self.groupFillnan.setLayout(h_layout_fillnan)
+
+
         # Advanced features
         self.checkAdvancedFeat = QCheckBox("Enable advanced features")
         self.checkAdvancedFeat.stateChanged.connect(self.enable_advanced_features)
@@ -2313,6 +2335,7 @@ class ClaspyGui(QMainWindow):
 
         # Fill the feature groupBox with layout
         self.vLayoutCentral = QVBoxLayout()
+        self.vLayoutCentral.addWidget(self.groupFillnan)
         self.vLayoutCentral.addWidget(self.checkAdvancedFeat)
         self.vLayoutCentral.addWidget(self.groupCoordinates)
         self.vLayoutCentral.addWidget(self.groupStandardLAS)
@@ -2325,6 +2348,12 @@ class ClaspyGui(QMainWindow):
         # Fill Feature group
         self.groupFeatures.setLayout(self.vLayoutCentral)
 
+    def enable_float_nan(self):
+        if self.comboFillnan.currentText() == 'float':
+            self.spinFillnan.setEnabled(True)
+        else:
+            self.spinFillnan.setEnabled(False)
+    
     def enable_advanced_features(self):
         if self.checkAdvancedFeat.isChecked():
             self.groupCoordinates.setVisible(True)
@@ -2452,14 +2481,27 @@ class ClaspyGui(QMainWindow):
                 self.config_version = self.config_v_m.split('_')[0]
                 self.config_mode = self.config_v_m.split('_')[-1]
 
-                if self.config_mode == 'train':
-                    self.open_train_config(config_dict)
-                elif self.config_mode == 'predi':
-                    self.open_predict_config(config_dict)
-                elif self.config_mode == 'segme':
-                    self.open_segment_config(config_dict)
-                else:
-                    error_box("No valid mode found on config file!", "No valid mode")
+                # Set Fill NaN value according config file
+                if self.config_version.split('.')[0] >= 0:  # Major version
+
+                    # Set the parameters according opened config file
+                    if self.config_mode == 'train':
+                        self.open_train_config(config_dict)
+                    elif self.config_mode == 'predi':
+                        self.open_predict_config(config_dict)
+                    elif self.config_mode == 'segme':
+                        self.open_segment_config(config_dict)
+                    else:
+                        error_box("No valid mode found on config file!", "No valid mode")
+
+                    if self.config_version.split('.')[1] >= 3:  # Middle version
+
+                        if self.config_version.split('.')[2] >= 3:  # Minor version
+
+                            
+
+    def major_version
+
 
     def open_train_config(self, config_dict):
         """

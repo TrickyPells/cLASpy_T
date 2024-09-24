@@ -101,8 +101,9 @@ class ClaspyTrainer:
     """
 
     def __init__(self, input_data, output_data=None, algo=None, algorithm=None,
-                 parameters=None, features=None, grid_search=False, grid_param=None,
-                 pca=None, n_jobs=-1, random_state=0, samples=None, scaler='Standard',
+                 parameters=None, features=None, feature_nan='median',
+                 grid_search=False, grid_param=None, pca=None, n_jobs=-1,
+                 random_state=0, samples=None, scaler='Standard',
                  scoring='accuracy', train_ratio=0.5, png_features=False):
         """Initialize cLASpy_Trainer object"""
 
@@ -124,6 +125,7 @@ class ClaspyTrainer:
         self.algorithm = algorithm
         self.parameters = parameters
         self.features = features
+        self.feature_nan = feature_nan  # To replace NaN values for features
         self.pca = pca
         self.samples = samples
         self.scaler_method = scaler
@@ -844,11 +846,26 @@ class ClaspyTrainer:
 
         # Print label list from the dataset
         if self.has_target and not isinstance(self, ClaspyPredicter) and not isinstance(self, ClaspySegmenter):
-            print('LABELS FROM DATASET:')
-            print(self.labels)
+            format_data_str += '\nLABELS FROM DATASET:\n'
+            format_data_str += self.labels
 
-        # Replace NAN values by median
-        self.data.fillna(value=self.data.median(0), inplace=True)  # .median(0) computes median by column
+        # Replace NAN values for features
+        try:
+            self.feature_nan = float(self.feature_nan)
+        except ValueError as ve:  # self.feature_nan is not float or int
+            pass
+
+        if isinstance(self.feature_nan, str):
+            if self.feature_nan == 'median':
+                self.data.fillna(value=self.data.median(0), inplace=True)  # .median(0) computes median by column (not clear in the doc, test it)
+            elif self.feature_nan == 'mean':
+                self.data.fillna(value=self.data.mean(0), inplace=True)  # .mean(0) computes mean by column (not clear in the doc, test it)
+            else:
+                format_data_str += '\nNo valid method to replace NaN values, use median instead!\n'
+                self.data.fillna(value=self.data.median(0), inplace=True)  # .median(0)
+        
+        if isinstance(self.feature_nan, float):
+            self.data.fillna(value=self.feature_nan, inplace=True)  # replace NaN values with value given by user
 
         # Sort dataset by columns
         self.data.sort_index(axis=1, inplace=True)
@@ -1162,10 +1179,10 @@ class ClaspyPredicter(ClaspyTrainer):
     ClaspyPredicter create object to predict classes according the selected model.
     """
 
-    def __init__(self, input_data, model, output_data=None, n_jobs=-1, samples=None):
+    def __init__(self, input_data, model, output_data=None, feature_nan='median', n_jobs=-1, samples=None):
         """Initialize the ClaspyPredicter"""
         ClaspyTrainer.__init__(self, input_data=input_data, output_data=output_data,
-                               n_jobs=n_jobs, samples=samples)
+                               feature_nan=feature_nan, n_jobs=n_jobs, samples=samples)
 
         # Set specific variables for ClaspyPredicter
         self.scaled_data = None
@@ -1337,12 +1354,12 @@ class ClaspySegmenter(ClaspyTrainer):
     ClaspySegmenter create object to segment data into clusters according the selected algorithm.
     """
 
-    def __init__(self, input_data, output_data=None, parameters=None, features=None,
+    def __init__(self, input_data, output_data=None, parameters=None, features=None, feature_nan='median',
                  pca=None, n_jobs=-1, random_state=0, samples=None, scaler='Standard'):
         """Initialize the ClaspySegmenter"""
         ClaspyTrainer.__init__(self, input_data=input_data, output_data=output_data,
-                               parameters=parameters, features=features, pca=pca, n_jobs=n_jobs,
-                               random_state=random_state, samples=samples, scaler=scaler)
+                               parameters=parameters, features=features, feature_nan=feature_nan,
+                               pca=pca, n_jobs=n_jobs, random_state=random_state, samples=samples, scaler=scaler)
 
         # Set specific varaibles for ClaspySegmenter
         self.mode = 'segment'
