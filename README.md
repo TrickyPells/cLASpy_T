@@ -7,7 +7,22 @@ such as LiDAR or Photogrammetric point clouds.
 Data must be provided in LAS ou CSV files. Other formats should be supported
 later (GEOTIFF or PLY), and other machine learning project too (TensorFlow).
 
-### **Scikit-learn classifiers used in cLASpy_T**
+## cLASpy_T paper
+ cLASpy_T is the subject of a scientific article in a special issue of Remote Sensing. Here you'll find a detailed presentation of the software and some practical examples: https://doi.org/10.3390/rs16162891
+
+### Citation
+If you use cLASpy_T, for scientific, educational, commercial or other purposes, please cite the article as follows:
+
+Pellerin Le Bas, X.; Froideval, L.; Mouko, A.; Conessa, C.; Benoit, L.; Perez, L. A New Open-Source Software to Help Design Models for Automatic 3D Point Cloud Classification in Coastal Studies. Remote Sens. 2024, 16, 2891. https://doi.org/10.3390/rs16162891
+
+## Limitations
+
+**cLASpy_T** *is in progress: results obtained by or with this software must be analyzed by experts in the field for which the software is used. The same experts must also have a minimum knowledge of automatic classification using machine learning.*
+
+**Results cannot stand alone! They need to be interpreted!**
+
+
+## **cLASpy_T uses Scikit-learn classifiers**
 **Supervised learning**
 * **Randomized Decision Trees** : *RandomForestClassifier* and *GradientBoostingClassifier*\
   https://scikit-learn.org/stable/modules/ensemble.html
@@ -142,126 +157,7 @@ cLASpy_T is divided into 3 main modules: *train*, *predict* and *segment*.
 * **segment:** performs cluster segmentation of dataset according KMeans 
   algorithm (see scikit-learn documentation).
 
-Use *train, predict* or *segment* with *--help* argument for more details.
-
-## 'train' module
-```bash
-python cLASpy_T.py train [arguments] -a=algorithm -i=/path/to/the/data.file
-```
-
-### **Available algorithms**
-Refer to scikit-learn documentation (https://scikit-learn.org/stable/user_guide.html)
-
-* **rf** : *RandomForestClassifier* > Random forest algorithm
-* **gb** : *GradientBoostingClassifier* > Random forest with gradient boosting
-* **ann** : *MLPClassifier* > Artificial Neural Network algorithm
-
-### **Format of data files**
-
-The input data must be in **LAS** or **CSV** (sep=',') formats.
-
-*Example of CSV file:*
-```txt
-X,Y,Z,Target,Intensity,Red,Green,Blue,Roughness (5),Omnivariance (5),Sphericity (5)...
-638.957,916.201,-2.953,1,39.0,104,133,113,0.11013,0.63586,0.00095...
-```
-
-**Data file must contain:**
-
-* Target field named **'target'** (not case-sensitive), contains
-  the labels as integer.
-* Fields of the data features that describe each point.
-
-If X, Y and/or Z fields provided, **they are excluded for training**,
-but re-used to write the output file.
-
-To use **'Intensity'** field from LAS file, rename it as, for example,
-**'Original_Intensity'** or **'Amplitude'**.
-
-### **Arguments**
-
-**-h, --help**\
-*Show this help message and exit*
-
-**-a, --algo**\
-*Set the algorithm:  'rf', 'gb' or 'ann'*
-* *rf > **RandomForestClassifier***
-* *gb > **GradientBoostingClassifier***
-* *ann > **MLPClassifier***
-
-**-c, --config**\
-*Give the configuration file with all parameters and selected scalar fields.*
-* ***On Windows:** C:/path/to/the/config.json*
-* ***On Unix:** /path/to/the/config.json*
-
-**-i, --input_data**\
-*Set the input file of the point cloud.*
-* ***On Windows:** C:/path/to/the/input_data.file*
-* ***On Linux:** /path/to/the/input_data.file*
-
-**-o, --output**\
-*Set the output folder to save all results.*\
-*Default: Create folder with the path of input data.*
-* ***On Windows:** C:/path/to/the/output/folder*
-* ***On Linux:** /path/to/the/output/folder*
-
-**-f, --features**\
-*Select the features to used to train the model. Give a list of feature names.\
-Caution: Replace whitespaces by underscores '_'.*
-```bash
--f=['Anisotropy_5m', 'R', 'G', 'B', ...]
-```
-
-**-g, --grid_search**\
-*Perform the training with GridSearchCV.*
-
-**-k, --param_grid**\
-*Set the parameters to pass to the GridSearch as list in dictionary.
-If empty, GridSearchCV uses presets. Wrong parameters will be ignored.\
-Caution: Replace whitespaces by underscores '_'.*
-```bash
--k="{'n_estimators':[50,100,500],'loss':['deviance', 'exponential'],'hidden_layer_sizes':[[100,100],[50,100,50]]}"
-```
-
-**-n, --n_jobs**\
-*Set the number of processors used, '-1' means all available processors.\
-Default: -1.*
-
-**-p, --parameters**\
-*Set the parameters to pass to the classifier for training, as dictionary.\
-Caution: Replace whitespaces by underscores '_'.*
-```bash
--p="{'n_estimators':50,'max_depth':5,'max_iter':500}"
-```
-
-**--pca**\
-*Set the Principal Component Analysis and the number of principal components.*
-
-**--png_features**\
-*Export the feature importance from RandomForest and GradientBoosting algorithms
-as a PNG image.*
-
-**--random_state**\
-*Set the random_state for data split in the GridSearchCV or cross-validation.*
-
-**-s, --samples**\
-*Set the number of samples for large dataset (float number in millions points)*\
-*samples = train set + test set*
-
-**--scaler**\
-*Set method to scale the data before training ['Standard', 'Robust', 'MinMax']*\
-*See the preprocessing documentation of scikit-learn.\
-Default: 'Standard'.*
-
-**--scoring**\
-*Set scorer for GridSearchCV or cross_val_score
-['accuracy', 'balanced_accuracy', 'precision', 'recall', ...]\
-See the scikit-learn documentation.\
-Default: 'accuracy'*
-
-**--train_r**\
-*Set the train ratio as float [0.0 - 1.0] to split into train and test data\
-Default: 0.5.*
+Use *train, predict* or *segment* with *--help* argument for more details, or see the documentation : https://claspy-t-project.readthedocs.io
 
 ## **Contributing**
 Pull requests are welcome.\
