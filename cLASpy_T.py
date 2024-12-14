@@ -21,6 +21,7 @@
 #        M2C laboratory (FRANCE)  -- https://m2c.cnrs.fr/ --          #
 #  #################################################################  #
 #  Description:                                                       #
+#     - 0.3.3 : add several methods to replace NaN values of features #
 #     - 0.3.2 : update scikit-learn 0.24 > 1.5.0                      #
 #     - 0.3.0 : with laspy2 support                                   #
 #                                                                     #
@@ -44,7 +45,7 @@ from cLASpy_Classes import ClaspyTrainer, ClaspyPredicter, ClaspySegmenter
 # -------------------------
 
 # Define version of cLASpy_T
-cLASpy_T_version = '0.3.2'  # 0.3.0 : update scikit-learn 0.24 > 1.5.0
+cLASpy_T_version = '0.3.3'
 
 # -------------------------
 # ---- ARGUMENT_PARSER ----
@@ -379,7 +380,7 @@ def arguments_from_config():
         config = json.load(config_file)
 
     # Get the version and mode of config_file
-    # version = config['version'].split('_')[0]
+    version = int(config['version'].split('_')[0].replace('.', ''))
     mode = config['version'].split('_')[-1]
 
     # Global arguments (all modes)
@@ -387,6 +388,8 @@ def arguments_from_config():
         args.input_data = os.path.normpath(config['input_file'])
     if args.output is None:
         args.output = os.path.normpath(config['output_folder'])
+    if args.fillnan is None and version >= 33:
+        args.fillnan = config['fillnan']
 
     # Arguments for training or segment mode
     if mode == 'train' or mode == 'segme':

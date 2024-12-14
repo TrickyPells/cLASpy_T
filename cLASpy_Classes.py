@@ -686,7 +686,7 @@ class ClaspyTrainer:
         selected_feat_str = "\n"  # String to report info
         selected_features = list()  # The final list of all features found in input data
 
-        # Remove duplicate features
+        # Remove duplicate features and replace ' ' with '_'
         set_features = {feature.replace(' ', '_').casefold() for feature in self.features}
 
         # Check if features is a list()
@@ -776,19 +776,20 @@ class ClaspyTrainer:
             target = pd.DataFrame(las.points[[self.target_name]].array)
             # Get the list of labels, except if labels from model already loaded
             if self.labels is None:
-                self.labels = np.array(sorted(pd.unique(target[self.target_name])),
-                                       dtype='int32')  # get unique as int, not float
+                self.labels = np.array(sorted(pd.unique(target[self.target_name])), dtype='int32')  # get unique as int, not float
                 self.labels = self.labels.tolist()
 
-        # If asked features is empty, load LAS Extra Dimensions
-        if self.features is None:
-            points_selected_dimensions = las.points[list(las.header.point_format.extra_dimension_names)]
-        else:
-            # Get LAS points from selected features
-            points_selected_dimensions = las.points[self.features]
+        # Load feature from dimension
+        if self.features is None:  # If asked features is empty, load all LAS Extra Dimensions
+            self.features = list(las.header.point_format.extra_dimension_names)
 
-        # Create DataFrame with np.float32 for features
-        data = pd.DataFrame(points_selected_dimensions.array).astype(np.float32)
+        # Create DataFrame of features, each at once to avoid laspy KeyError (with 'return_number' for example)
+        data = pd.DataFrame()
+        for feature in self.features:
+            if isinstance(las.points[feature], np.ndarray):
+                data[feature] = las.points[feature]
+            elif isinstance(las.points[feature], laspy.point.dims.SubFieldView):
+                data[feature] = np.transpose(las.points[feature])
 
         # Remove target field from data (if it exists and is in data)
         if self.has_target:
