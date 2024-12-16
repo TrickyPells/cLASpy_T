@@ -4,7 +4,7 @@ Install |claspyt| on Windows
 Get |claspyt| source code
 -------------------------
 
-First, open the Command Prompt ``cmd.exe``. You can easily open it by clicking :menuselection:`&Start`, then search `cmd`.
+First, open the Command Prompt :command:`cmd.exe`. You can easily open it by clicking :menuselection:`&Start`, then search :command:`cmd`.
 
 Once the Command Prompt open, move to the directory in which the |claspyt| source code will be clone. For example, 'Me' user moves to his :file:`Code` directory and gets the |claspyt| source code with the :command:`git` command to clone 'cLASpy_T.git':
 
@@ -73,3 +73,43 @@ Once donce, install all dependencies:
 
   (claspy_venv) C:\Users\Me\Code\cLASpy_T>python -m pip install -r requirements.txt
 
+Now, with :command:`pip list` command, you should see all packages installed in this *venv*. It should look something like this:
+
+.. code-block:: doscon
+
+  (claspy_venv) C:\Users\Me\Code\cLASpy_T>pip list
+  Package                       Version
+    ----------------------------- -----------
+    colorclass                    2.2.2
+    contourpy                     1.2.0
+    cycler                        0.12.1
+    fonttools                     4.50.0
+    joblib                        1.3.2
+    kiwisolver                    1.4.5
+    laspy                         2.5.3
+    matplotlib                    3.8.3
+    numpy                         1.26.4
+    packaging                     24.0
+    pandas                        2.2.1
+    pillow                        10.3.0
+    pip                           24.3.1
+    psutil                        5.9.8
+    pyparsing                     3.1.2
+    PyQt5                         5.15.10
+    PyQt5-Qt                      5.15.2
+    PyQt5-Qt5                     5.15.2
+    PyQt5-sip                     12.13.0
+    PyQt5-stubs                   5.15.6.0
+    python-dateutil               2.9.0.post0
+    pytz                          2024.1
+    PyYAML                        6.0.1
+    requests                      2.31.0
+    scikit-learn                  1.5.0
+    scipy                         1.12.0
+    six                           1.16.0
+    threadpoolctl                 3.4.0
+    tzdata                        2024.1
+
+**Well done ! Your installation of** |claspyt| **is now clomplete !**
+
+You can start by following :doc:`/tutorials/tutorial1` to quickly discover |claspyt| and test its installation. You can also visit the :doc:`/usage/usage` to find out more about |claspyt| commands and usages.
