@@ -15,9 +15,11 @@ Once the Command Prompt open, move to the directory in which the |claspyt| sourc
 
 .. note::
 
-  If you do not know what :command:`git` is, you can download |claspyt| source code on the `github page <https://github.com/TrickyPells/cLASpy_T>`_. Choose the branch you want to download and click :guilabel:`&Code` on the right, then :guilabel:`&Download ZIP`. Once downloaded, decompress the ZIP file in the directory you want.
+  If you do not know what :command:`git` is, you can download |claspyt| source code on the `github page <https://github.com/TrickyPells/cLASpy_T>`_.
+  Choose the branch you want to download and click :guilabel:`&Code` on the right, then :guilabel:`&Download ZIP`.
+  Once downloaded, decompress the ZIP file in the directory you want.
 
-Once you cone or download/decompress source code, move to the :file:`cLASpy_T` directory:
+Once you clone or download/decompress source code, move to the :file:`cLASpy_T` directory:
 
 .. code-block:: doscon
 
