@@ -1,25 +1,29 @@
 Tutorial 1: Basic test
 =======================
 
-This first tutorial will guide you through testing the correct installation of |claspyt|. The tutorial assumes that the installation is clomplete and that the *venv* is operational. If this is not the case, see :doc:`/install/install`. 
+This first tutorial will guide you through testing the correct installation of |claspyt|.
+The tutorial assumes that the installation is clomplete and that the *venv* is operational.
+If this is not the case, see :doc:`/install/install`. 
 
 
 Explore Dataset
 ---------------
-Using point cloud visualization software such as `CloudCompare`_, open the :file:`Test/Orne_20130525.las` file in the |claspyt| root directory. You should see something like this:
+Using point cloud visualization software such as `CloudCompare`_, open the :file:`Test/Orne_20130525.las` file in the |claspyt| root directory.
+You should see something like this:
 
 .. image:: CC_Orne_20130525.png
     :width: 600
 
 .. note:: 
 
-  This point cloud is too light (only 50,000 points) to correspond to a real use case, but it's still useful for quickly testing that |claspyt| works.
+  This point cloud is too light (only 50,000 points) to correspond to a real use case, but it's useful to test that |claspyt| works.
 
 To create an automatic classification model, different types of data are required. These are **labels**, which identify the class to which each point belongs, and **features**, which describe each point.
 
 Labels
 ~~~~~~
-Labels are contained in the **'Target'** scalar field. You can view these labels by selecting the point cloud :file:`Orne_20130525.las`, then in :command:`Scalar Fields`, scroll down and select **'Target'**.
+Labels are contained in the **'Target'** scalar field.
+You can view these labels by selecting the point cloud :file:`Orne_20130525.las`, then in :command:`Scalar Fields`, scroll down and select **'Target'**.
 You see 9 classes, from 0 to 8 as follow:
 
 1. Water
@@ -43,13 +47,14 @@ Features are all other scalar fields such as **'Roughness (5)'**, **'Omnivarianc
 .. image:: CC_Orne_20130525_feature.png
     :width: 600
 
-The goal of a supervised machine learning algorithms is to model the membership of points to their **class**, or their **label/target**, based on input **features**. The choice of these **features** is therefore essential for a consistent and robust **model**.
+The goal of a supervised machine learning algorithms is to model the membership of points to their **class**, or their **label/target**, based on input **features**.
+The choice of these **features** is therefore essential for a consistent and robust **model**.
 
 Test command-line
 -----------------
 The first step is to test |claspyt| command line, to ensure all library dependencies are properly installed.
 
-You will create a classification model by running a training session using a very light point cloud in the :file:`Test` folder of the |claspyt| sources.
+You will create a classification model by running a training session using the light point cloud in the :file:`Test` folder of the |claspyt| sources.
 This point cloud, :file:`Orne_20130525.las`, contains the **'Target'** scalar field and the **features** needed for training.
 
 Then, you will use the model you created to make predictions on the same point cloud, to ensure that the **'predict'** module is also fully operational.
@@ -59,7 +64,7 @@ If all goes well, you should obtain a folder containing **4 files**: a model, a 
 
 First run
 ~~~~~~~~~~
-Activate the Python virtual environment (*venv*) created earlier, from the :file:`cLASpy_T` folder.
+Activate the Python virtual environment (*venv*) created during installation process, from the :file:`cLASpy_T` folder.
 
 On Windows:
 
@@ -163,11 +168,11 @@ The first part of the terminal output shows the |claspyt| mode, the algorithm us
 
   Create a new folder to store the result files... Done.
 
-Once the file has been loaded, the output shows the format and the total number of points. 
+Once the file has been loaded, the output shows the LAS format and the total number of points. 
 Then, the |claspyt| pipeline starts, with the input data formatted in pandas.DataFrame (see `10 minutes to pandas`_).
 
 If no list of selected features is provided with :command:`--features (-f)` argument, the default behavior of |claspyt| is to retrieve all extra dimensions from the LAS file as selected features.
-The standard LAS file dimensions are discarded.
+The standard LAS file dimensions are discarded by default.
 
 The **'train'** module also search the **'Target'** field in the data and shows the labels used.
 Here, there are 9 labels, from 0 to 8 as already seen with `CloudCompare`_.
@@ -188,7 +193,8 @@ Here, there are 9 labels, from 0 to 8 as already seen with `CloudCompare`_.
   [0, 1, 2, 3, 4, 5, 6, 7, 8]
 
 
-The second step of the |claspyt| pipeline is the split of the dataset, as train and test sets, according the :command:`--train_r`: the training ratio.
+The second step of the |claspyt| pipeline is the split of the dataset, as train and test sets, according to the :command:`--train_r`: the training ratio.
+Here, the train and test sets are 25,000 points each, according the default :command:`--train_r` =0.5.
 
 The third step scales the dataset according the :command:`--scaler` selected: *StandardScaler, MinMaxScaler or RobustScaler* (see `scalers`_).
 
@@ -204,7 +210,7 @@ The third step scales the dataset according the :command:`--scaler` selected: *S
 
 .. warning:: 
 
-  This step consumes a lot of RAM and can take a long time if memory is saturated.
+  With large dataset, this step consumes a lot of RAM and can take a long time if memory is saturated.
   If |claspyt| stops at this stage with saturated RAM, reduce the size of the point cloud, 
   or increase the computer's RAM capacity.
 
@@ -212,7 +218,14 @@ Step 4/7 is the actual training of the model.
 Depending on the size of the point cloud, the algorithm used and the number of features and classes, this step is normally the longest.
 It can last from a few minutes to several hours.
 
+The training uses the cross-validation method (CV for short) to ensure robust models.
+So, 5 training are performed simultaneously on 5 subsets of trainset (see `cross-validation`_).
+Here, the training set is composed of 25,000 points, so 5 subsets of 5,000 points are created.
+Each subset (called a fold) is used once to test the model trained with the other 4 folds.
 
+Once done, |claspyt| returns the global accuracy of the 5 sub-models.
+To verify that the model is consistent and robust, check that the 5 scores are close to each other.
+If one or more scores are several units (%) apart, there is a problem with the classes, features, model or training parameters.
 
 .. code-block:: console
 
@@ -229,6 +242,16 @@ It can last from a few minutes to several hours.
 
   Check CPUs are working to make sure that |claspyt| isn't freezing.
   The number of CPUs used by |claspyt| can be set with :command:`--n_jobs` argument.
+
+After model trained, |claspyt| test it by making predictions on the test set of 25,000 points, created during step 2/7.
+The results are presented in the form of a `confusion matrix`_ and a `classification report`_.
+
+The `confusion matrix`_ allows to explore in detail the predictions made by the model for each of the expected classes.
+The columns present the predictions made by the model, while the rows correspond to the expected classes for each point.
+The end of each column corresponds to the **precision** of each class, while the end of each row corresponds to the **recall** of each class.
+The **global accuracy** is the end of the last line, here: **69.6%**.
+
+The `classification report`_ exposes the same results by classes, with the number of points for each class (support).
 
 
 .. code-block:: console
@@ -267,6 +290,11 @@ It can last from a few minutes to several hours.
   weighted avg       0.69      0.70      0.66     25000
 
 
+The step 6/7 save the model, and all other needed parameters such as scaler, in a binary file with a :file:`.model` extension.
+*This binary file is created with joblib python library.*
+
+The last step writes all relevant training parameters to a report file.
+
 
 .. code-block:: console
 
@@ -286,11 +314,15 @@ Prediction
 
 
 
-Test Graphical User Interface (GUI)
------------------------------------
+Test Graphical User Interface (|gui|)
+-------------------------------------
+
 
 
 
 .. _CloudCompare: https://www.cloudcompare.org/
 .. _10 minutes to pandas: https://pandas.pydata.org/docs/user_guide/10min.html#min
 .. _scalers: https://scikit-learn.org/stable/auto_examples/preprocessing/plot_all_scaling.html
+.. _cross-validation: https://scikit-learn.org/stable/modules/cross_validation.html
+.. _confusion matrix: https://scikit-learn.org/stable/modules/model_evaluation.html#confusion-matrix
+.. _classification report: https://scikit-learn.org/stable/modules/model_evaluation.html#classification-report
