@@ -21,6 +21,7 @@
 #        M2C laboratory (FRANCE)  -- https://m2c.cnrs.fr/ --          #
 #  #################################################################  #
 #  Description:                                                       #
+#     - 0.3.3 : add several methods to replace NaN values of features #
 #     - 0.3.2 : Update algo parameters (scklearn 1.4.1 > 1.5.0)       #
 #     - 0.3.0 : laspy2 support                                        #
 #                                                                     #
@@ -53,7 +54,7 @@ from sklearn.metrics import confusion_matrix, classification_report
 # ------ VARIABLES --------
 # -------------------------
 # Version of cLASpy_Core
-cLASpy_Core_version = '0.3.2'  # 0.3.2 version with scikit-learn 1.5 support
+cLASpy_Core_version = '0.3.3'  # add several methods to replace NaN values of features
 
 # # Define point_format dict for LAS files
 # point_format = dict()
@@ -848,7 +849,7 @@ class ClaspyTrainer:
         # Print label list from the dataset
         if self.has_target and not isinstance(self, ClaspyPredicter) and not isinstance(self, ClaspySegmenter):
             format_data_str += '\nLABELS FROM DATASET:\n'
-            format_data_str += self.labels
+            format_data_str += str(self.labels)
 
         # Replace NAN values for features
         try:
