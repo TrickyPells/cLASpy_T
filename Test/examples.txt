@@ -1,7 +1,0 @@
-python cLASpy_T.py train -a=rf -i=./Test/Orne_20130525.csv -p={'n_estimators':500,'max_depth':10,'min_samples_leaf':100}
-
-python cLASpy_T.py predict -i=./Test/Orne_20130525.csv -m=./Test/Orne_20130525/training_rf50kpts_csv.model 
-
-python cLASpy_T.py train -a=rf -i=./Test/Orne_20130525.las -p={'n_estimators':500,'max_depth':10,'min_samples_leaf':100}
-
-python cLASpy_T.py predict -i=./Test/Orne_20130525.las -m=./Test/Orne_20130525/train_rf50kpts_las.model
