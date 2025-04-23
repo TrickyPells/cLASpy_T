@@ -7,7 +7,7 @@
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
 project = 'cLASpy_T'
-copyright = '2024, Xavier PELLERIN LE BAS'
+copyright = '2025, Xavier PELLERIN LE BAS'
 author = 'Xavier PELLERIN LE BAS'
 release = '0.3'
 version = '0.3.3'

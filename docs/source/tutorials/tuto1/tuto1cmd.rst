@@ -1,13 +1,10 @@
-Tutorial 1: Basic test
-=======================
-
 This first tutorial will guide you through testing the correct installation of |claspyt|.
 The tutorial assumes that the installation is clomplete and that the *venv* is operational.
-If this is not the case, see :doc:`/install/install`. 
+If this is not the case, see :doc:`/install`. 
 
 
 Explore Dataset
----------------
+*****************
 Using point cloud visualization software such as `CloudCompare`_, open the :file:`Test/Orne_20130525.las` file in the |claspyt| root directory.
 You should see something like this:
 
@@ -21,12 +18,12 @@ You should see something like this:
 To create an automatic classification model, different types of data are required. These are **labels**, which identify the class to which each point belongs, and **features**, which describe each point.
 
 Labels
-~~~~~~
+=======
 Labels are contained in the **'Target'** scalar field.
 You can view these labels by selecting the point cloud :file:`Orne_20130525.las`, then in :command:`Scalar Fields`, scroll down and select **'Target'**.
 You see 9 classes, from 0 to 8 as follow:
 
-1. Water
+0. Water
 #. Wet sand
 #. Dry sand
 #. Mix (sand + mud)
@@ -41,7 +38,7 @@ You see 9 classes, from 0 to 8 as follow:
 
 
 Features
-~~~~~~~~
+==========
 Features are all other scalar fields such as **'Roughness (5)'**, **'Omnivariance (10)'**, **'R'**, **'G'**, **'B'** or **'Return Number'**. 
 
 .. image:: CC_Orne_20130525_feature.png
@@ -51,11 +48,11 @@ The goal of a supervised machine learning algorithms is to model the membership 
 The choice of these **features** is therefore essential for a consistent and robust **model**.
 
 Test command-line
------------------
+*******************
 The first step is to test |claspyt| command line, to ensure all library dependencies are properly installed.
 
-You will create a classification model by running a training session using the light point cloud in the :file:`Test` folder of the |claspyt| sources.
-This point cloud, :file:`Orne_20130525.las`, contains the **'Target'** scalar field and the **features** needed for training.
+You will create a classification model by running a training session with the **'train'** module and the very light point cloud :file:`Orne_20130525.las` in the :file:`Test` folder of the |claspyt| sources.
+This point cloud contains the **'Target'** scalar field and the **features** needed for training.
 
 Then, you will use the model you created to make predictions on the same point cloud, to ensure that the **'predict'** module is also fully operational.
 
@@ -63,7 +60,7 @@ If all goes well, you should obtain a folder containing **4 files**: a model, a 
 
 
 First run
-~~~~~~~~~~
+==========
 Activate the Python virtual environment (*venv*) created during installation process, from the :file:`cLASpy_T` folder.
 
 On Windows:
@@ -136,13 +133,13 @@ Example: help for **'predict'** module
 
 .. note::
 
-  If it doesn't work, check the |claspyt| dependencies are installed, as explained in the :doc:`/install/install` section.
+  If it doesn't work, check the |claspyt| dependencies are installed, as explained in the :doc:`/install` section.
 
 
 Training
-~~~~~~~~
+=========
 To train your first model with the **'train'** module, you need to set the algorithm and the input file.
-All other arguments of **'train'** module are not mandatory. 
+All other arguments of **'train'** module are optional. 
 
 Run the following command to train a basic *RandomForestClassifier* model.
 
@@ -153,7 +150,8 @@ Run the following command to train a basic *RandomForestClassifier* model.
 * **-a**: set the supervised algorithm, here *rf* refers to *RandomForestClassifier*
 * **-i**: set the point cloud file, here :file:`Orne_20130525.las`
 
-**Training Ouput**
+Training Ouput
+---------------
 
 The first part of the terminal output shows the |claspyt| mode, the algorithm used and the input data file.
 
@@ -193,7 +191,7 @@ Here, there are 9 labels, from 0 to 8 as already seen with `CloudCompare`_.
   [0, 1, 2, 3, 4, 5, 6, 7, 8]
 
 
-The second step of the |claspyt| pipeline is the split of the dataset, as train and test sets, according to the :command:`--train_r`: the training ratio.
+The second step of the |claspyt| pipeline is to split dataset into train and test sets, according to the :command:`--train_r`: the training ratio.
 Here, the train and test sets are 25,000 points each, according the default :command:`--train_r` =0.5.
 
 The third step scales the dataset according the :command:`--scaler` selected: *StandardScaler, MinMaxScaler or RobustScaler* (see `scalers`_).
@@ -210,21 +208,21 @@ The third step scales the dataset according the :command:`--scaler` selected: *S
 
 .. warning:: 
 
-  With large dataset, this step consumes a lot of RAM and can take a long time if memory is saturated.
-  If |claspyt| stops at this stage with saturated RAM, reduce the size of the point cloud, 
+  With large dataset, this step consumes a lot of RAM and can take a long time if memory is full.
+  If |claspyt| stops at this stage with RAM full, reduce the size of the point cloud, 
   or increase the computer's RAM capacity.
 
-Step 4/7 is the actual training of the model.
-Depending on the size of the point cloud, the algorithm used and the number of features and classes, this step is normally the longest.
+Step 4/7 is the actual model training.
+Depending on the point cloud size, the algorithm used and the number of features and classes, this step is often the longest.
 It can last from a few minutes to several hours.
 
 The training uses the cross-validation method (CV for short) to ensure robust models.
 So, 5 training are performed simultaneously on 5 subsets of trainset (see `cross-validation`_).
 Here, the training set is composed of 25,000 points, so 5 subsets of 5,000 points are created.
-Each subset (called a fold) is used once to test the model trained with the other 4 folds.
+Each subset, or fold, is used once to test the model trained with the other 4 folds.
 
 Once done, |claspyt| returns the global accuracy of the 5 sub-models.
-To verify that the model is consistent and robust, check that the 5 scores are close to each other.
+To check that the model is consistent and robust, the 5 scores must be close to each other.
 If one or more scores are several units (%) apart, there is a problem with the classes, features, model or training parameters.
 
 .. code-block:: console
@@ -243,10 +241,10 @@ If one or more scores are several units (%) apart, there is a problem with the c
   Check CPUs are working to make sure that |claspyt| isn't freezing.
   The number of CPUs used by |claspyt| can be set with :command:`--n_jobs` argument.
 
-After model trained, |claspyt| test it by making predictions on the test set of 25,000 points, created during step 2/7.
+After training, |claspyt| tests the model by making predictions on the 25,000 points of the test set, created during step 2/7.
 The results are presented in the form of a `confusion matrix`_ and a `classification report`_.
 
-The `confusion matrix`_ allows to explore in detail the predictions made by the model for each of the expected classes.
+The `confusion matrix`_ allows to explore in detail the predictions made by the model for each point.
 The columns present the predictions made by the model, while the rows correspond to the expected classes for each point.
 The end of each column corresponds to the **precision** of each class, while the end of each row corresponds to the **recall** of each class.
 The **global accuracy** is the end of the last line, here: **69.6%**.
@@ -308,16 +306,83 @@ The last step writes all relevant training parameters to a report file.
 
   Training done in 0:00:03.095406
 
+.. note:: 
+  Bravo ! You trained your first machine learning model with |claspyt|.
+
 Prediction
-~~~~~~~~~~
+===========
+You now have a trained machine learning model.
+We'll use it on the same dataset with the **'predict'** module to make predictions and check that this module is working properly.
 
+To use your first model with the **'predict'** module, you must pass the :file:`.model` file with the **-m** argument and set the input file.
+All other arguments of **'predict'** module are optional. 
 
+Run the following command to make prediction with your model.
 
+.. code-block:: console
 
-Test Graphical User Interface (|gui|)
--------------------------------------
+  python cLASpy_T.py predict -m=Test/Orne_20130525/train_gb50kpts_mmjj_HHMM.model -i=Test/Orne_20130525.las
 
+* **-m**: set the model to make predictions, change :file:`train_gb50kpts_mmjj_HHMM.model` with your model file.
+* **-i**: set the point cloud file, here :file:`Orne_20130525.las`
 
+Prediction Ouput
+------------------
+
+The first part of the terminal output shows the |claspyt| mode.
+
+At the first step, |claspyt| loads the model and gives the labels, the original algorithm and the input data file.
+Once the file has been loaded, the output shows the LAS format and the total number of points. 
+
+.. code-block:: console
+
+  # # # # # # # # # #  cLASpy_T  # # # # # # # # # # # #
+  - - - - - - - -    PREDICT MODE    - - - - - - - - - -
+  * * * * *    Point Cloud Classification    * * * * * *
+  
+  Step 1/6: Loading model...
+  LABELS FROM MODEL:
+  [0, 1, 2, 3, 4, 5, 6, 7, 8]
+  
+        Any PCA data to load from model.
+
+  Algorithm used: RandomForestClassifier
+  Path to LAS file: Test\Orne_20130525.las
+
+  Create a new folder to store the result files... Folder already exists.
+
+  LAS Version: 1.2
+  LAS point format: 1
+  Number of points: 50,000
+
+The second step, the **'predict'** module format data as pandas.DataFrame and check that all features used by the model are in the input data.
+At this point, the **'Target'** field is discarded if present.
+
+.. code-block:: console
+
+  Step 2/6: Formatting data as pandas.DataFrame...
+
+  Get selected features:
+  - roughness_(2) asked --> Roughness (2) found
+  - surface_variation_(10) asked --> Surface variation (10) found
+  - eigenentropy_(10) asked --> Eigenentropy (10) found
+  - anisotropy_(2) asked --> Anisotropy (2) found
+  - g asked --> G found
+  ...
+  ...
+  ...
+  - omnivariance_(5) asked --> Omnivariance (5) found
+  - saturation asked --> Saturation found
+  - anisotropy_(10) asked --> Anisotropy (10) found
+  - omnivariance_(2) asked --> Omnivariance (2) found
+  - calibintensity_(5) asked --> CalibIntensity (5) found
+  - original_intensity asked --> Original_Intensity found
+  - sphericity_(10) asked --> Sphericity (10) found
+  - surface_variation_(5) asked --> Surface variation (5) found
+
+  Number of selected features: 32
+  Number of final used features: 32
+  --> All required features are present!
 
 
 .. _CloudCompare: https://www.cloudcompare.org/
