@@ -21,6 +21,7 @@
 #        M2C laboratory (FRANCE)  -- https://m2c.cnrs.fr/ --          #
 #  #################################################################  #
 #  Description:                                                       #
+#     - 0.3.3 : add several methods to replace NaN values of features #
 #     - 0.3.2 : update scikit-learn 0.24 > 1.5.0                      #
 #     - 0.3.0 : with laspy2 support                                   #
 #                                                                     #
@@ -44,7 +45,7 @@ from cLASpy_Classes import ClaspyTrainer, ClaspyPredicter, ClaspySegmenter
 # -------------------------
 
 # Define version of cLASpy_T
-cLASpy_T_version = '0.3.2'  # 0.3.0 : update scikit-learn 0.24 > 1.5.0
+cLASpy_T_version = '0.3.3'
 
 # -------------------------
 # ---- ARGUMENT_PARSER ----
@@ -149,6 +150,12 @@ parser_train.add_argument("-f", "--features",
                                "    Example:\n"
                                "    -f=['Anisotropy_5m', 'R', 'G', 'B', ...]\n\n",
                           type=str, default=None, metavar='')
+
+parser_train.add_argument("--fillnan",
+                          help="set the value to fill NaN for feature values.\n"
+                               "    Could be 'median', 'mean', int or float.\n"
+                               "    Default: '--fillnan='median'\n\n",
+                          type=str, metavar='', default='median')
 
 parser_train.add_argument("-g", "--grid_search",
                           help="perform the training with GridSearchCV.\n\n",
@@ -265,6 +272,12 @@ parser_predict.add_argument("-m", "--model",
                                  "    '/path/to/the/training/file.model'\n\n",
                             type=str, metavar='')
 
+parser_predict.add_argument("--fillnan",
+                            help="set the value to fill NaN for feature values.\n"
+                                 "    Could be 'median', 'mean', int or float.\n"
+                                 "    Default: '--fillnan='median'\n\n",
+                            type=str, metavar='', default='median')
+
 # parser_predict.add_argument("-s", "--samples",
 #                             help="set the number of samples for large dataset.\n"
 #                                  "    (float number in million points)\n"
@@ -305,6 +318,12 @@ parser_segment.add_argument("-f", "--features",
                                  "    Example:\n"
                                  "    -f=['Anisotropy_5m', 'R', 'G', 'B', ...]\n\n",
                             type=str, default=None, metavar='')
+
+parser_segment.add_argument("--fillnan",
+                            help="set the value to fill NaN for feature values.\n"
+                                 "    Could be 'median', 'mean', int or float.\n"
+                                 "    Default: '--fillnan='median'\n\n",
+                            type=str, metavar='', default='median')
 
 parser_segment.add_argument("-p", "--parameters",
                             help="set the parameters to pass to the classifier\n"
@@ -361,7 +380,7 @@ def arguments_from_config():
         config = json.load(config_file)
 
     # Get the version and mode of config_file
-    # version = config['version'].split('_')[0]
+    version = int(config['version'].split('_')[0].replace('.', ''))
     mode = config['version'].split('_')[-1]
 
     # Global arguments (all modes)
@@ -369,6 +388,8 @@ def arguments_from_config():
         args.input_data = os.path.normpath(config['input_file'])
     if args.output is None:
         args.output = os.path.normpath(config['output_folder'])
+    if args.fillnan is None and version >= 33:
+        args.fillnan = config['fillnan']
 
     # Arguments for training or segment mode
     if mode == 'train' or mode == 'segme':

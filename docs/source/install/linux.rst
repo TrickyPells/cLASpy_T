@@ -13,7 +13,9 @@ First, open a terminal and move to the directory in which cLASpy_T source code w
 
 .. note::
 
-  If you do not know what :command:`git` is, you can download |claspyt| source code on the `github page <https://github.com/TrickyPells/cLASpy_T>`_. Choose the branch you want to download and click :guilabel:`&Code` on the right, then :guilabel:`&Download ZIP`. Once downloaded, decompress the ZIP file in the directory you want.
+  If you do not know what :command:`git` is, you can download |claspyt| source code on the `github page <https://github.com/TrickyPells/cLASpy_T>`_.
+  Choose the branch you want to download and click :guilabel:`&Code` on the right, then :guilabel:`&Download ZIP`.
+  Once downloaded, decompress the ZIP file in the directory you want.
 
 Once you clone or download/decompress source code, move to the :file:`cLASpy_T` directory:
 
@@ -69,3 +71,45 @@ Once done, install all dependencies:
 .. code-block:: console
 
   (claspy_venv) me@pc:~/Code/cLASpy_T$ python -m pip install -r requirements.txt
+
+
+Now, with :command:`pip list` command, you should see all packages installed in this *venv*. It should look something like this:
+
+.. code-block:: console
+
+  (claspy_venv) me@pc:~/Code/cLASpy_T$ pip list
+  Package                       Version
+    ----------------------------- -----------
+    colorclass                    2.2.2
+    contourpy                     1.2.0
+    cycler                        0.12.1
+    fonttools                     4.50.0
+    joblib                        1.3.2
+    kiwisolver                    1.4.5
+    laspy                         2.5.3
+    matplotlib                    3.8.3
+    numpy                         1.26.4
+    packaging                     24.0
+    pandas                        2.2.1
+    pillow                        10.3.0
+    pip                           24.3.1
+    psutil                        5.9.8
+    pyparsing                     3.1.2
+    PyQt5                         5.15.10
+    PyQt5-Qt                      5.15.2
+    PyQt5-Qt5                     5.15.2
+    PyQt5-sip                     12.13.0
+    PyQt5-stubs                   5.15.6.0
+    python-dateutil               2.9.0.post0
+    pytz                          2024.1
+    PyYAML                        6.0.1
+    requests                      2.31.0
+    scikit-learn                  1.5.0
+    scipy                         1.12.0
+    six                           1.16.0
+    threadpoolctl                 3.4.0
+    tzdata                        2024.1
+
+**Well done ! Your installation of** |claspyt| **is now clomplete !**
+
+You can start by following :doc:`/tutorials/tutorial1` to quickly discover |claspyt| and test its installation. You can also visit the :doc:`/usage/usage` to find out more about |claspyt| commands and usages.

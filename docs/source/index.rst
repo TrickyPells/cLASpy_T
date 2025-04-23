@@ -39,7 +39,7 @@ Roughly, the software formats the input point clouds provided by LAS or CSV file
    :maxdepth: 1
    :caption: Tutorials:
 
-   tutorials/tutorials.rst
+   tutorials/tutorial1.rst
 
 
 **CeCILL FREE SOFTWARE LICENSE AGREEMENT**

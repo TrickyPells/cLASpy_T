@@ -21,6 +21,7 @@
 #        M2C laboratory (FRANCE)  -- https://m2c.cnrs.fr/ --          #
 #  #################################################################  #
 #  Description:                                                       #
+#     - 0.3.3 : add several methods to replace NaN values of features #
 #     - 0.3.2 : Update algo parameters (scklearn 1.4.1 > 1.5.0)       #
 #     - 0.3.0 : Version of cLASpy_T with laspy2.2 support             #
 #                                                                     #
@@ -52,7 +53,7 @@ from cLASpy_Classes import *
 # ------ VARIABLES --------
 # -------------------------
 
-cLASpy_GUI_Version = '0.3.2'  # Scikit-learn 1.4.1 > 1.5.0
+cLASpy_GUI_Version = '0.3.3'
 
 
 # -------------------------
@@ -312,7 +313,7 @@ class ClaspyGui(QMainWindow):
         # Left part of GUI
         self.parameter_part()
 
-        # Central part of GUI
+        # Right part of GUI
         self.feature_part()
         self.groupCoordinates.setEnabled(False)
         self.groupCoordinates.setVisible(False)
@@ -2253,6 +2254,27 @@ class ClaspyGui(QMainWindow):
         # Global Feature Group
         self.groupFeatures = QGroupBox("Features")
 
+        # Fill NaN value
+        self.fillnanMethods = ['median', 'mean', 'float']
+        self.comboFillnan = QComboBox()
+        self.comboFillnan.addItems(self.fillnanMethods)
+        self.comboFillnan.setCurrentText('median')
+        self.comboFillnan.setToolTip("Set the method to repalce NaN values of features.")
+        self.comboFillnan.currentIndexChanged.connect(self.enable_float_nan)
+
+        self.spinFillnan = QDoubleSpinBox()
+        self.spinFillnan.setDecimals(3)
+        self.spinFillnan.setMinimum(-9999.999)
+        self.spinFillnan.setMaximum(9999999.999)
+        self.spinFillnan.setValue(-1.)
+        self.spinFillnan.setToolTip("Set the default value to replace NaN values of features.")
+        self.spinFillnan.setEnabled(False)
+        self.groupFillnan = QGroupBox("NaN values")
+        h_layout_fillnan = QHBoxLayout()
+        h_layout_fillnan.addWidget(self.comboFillnan)
+        h_layout_fillnan.addWidget(self.spinFillnan)
+        self.groupFillnan.setLayout(h_layout_fillnan)
+
         # Advanced features
         self.checkAdvancedFeat = QCheckBox("Enable advanced features")
         self.checkAdvancedFeat.stateChanged.connect(self.enable_advanced_features)
@@ -2313,6 +2335,7 @@ class ClaspyGui(QMainWindow):
 
         # Fill the feature groupBox with layout
         self.vLayoutCentral = QVBoxLayout()
+        self.vLayoutCentral.addWidget(self.groupFillnan)
         self.vLayoutCentral.addWidget(self.checkAdvancedFeat)
         self.vLayoutCentral.addWidget(self.groupCoordinates)
         self.vLayoutCentral.addWidget(self.groupStandardLAS)
@@ -2322,9 +2345,16 @@ class ClaspyGui(QMainWindow):
         self.vLayoutCentral.addWidget(self.pushResetSelection)
         self.vLayoutCentral.addWidget(self.labelNbrSelFeatures)
 
+
         # Fill Feature group
         self.groupFeatures.setLayout(self.vLayoutCentral)
 
+    def enable_float_nan(self):
+        if self.comboFillnan.currentText() == 'float':
+            self.spinFillnan.setEnabled(True)
+        else:
+            self.spinFillnan.setEnabled(False)
+    
     def enable_advanced_features(self):
         if self.checkAdvancedFeat.isChecked():
             self.groupCoordinates.setVisible(True)
@@ -2443,6 +2473,25 @@ class ClaspyGui(QMainWindow):
                 self.lineServerFile.setText(config_dict['input_file'])
                 self.lineServerFolder.setText(config_dict['output_folder'])
 
+            # Get the fillnan method
+            if config_dict['fillnan']:
+                if isinstance(config_dict['fillnan'], float):
+                    self.comboFillnan.setCurrentText('float')
+                    self.spinFillnan.setValue(config_dict['fillnan'])
+                else:
+                    try:
+                        self.comboFillnan.setCurrentText(config_dict['fillnan'])
+                    except ValueError as ve:
+                        self.comboFillnan.setCurrentText('median')
+
+        # Save fillnan value
+        if self.comboFillnan.currentText() == 'float':
+            self.train_config['fillnan'] = self.spinFillnan.value()
+        else:
+            self.train_config['fillnan'] = self.comboFillnan.currentText()
+
+
+
             # Config version and mode
             try:
                 self.config_v_m = config_dict['version']
@@ -2452,6 +2501,7 @@ class ClaspyGui(QMainWindow):
                 self.config_version = self.config_v_m.split('_')[0]
                 self.config_mode = self.config_v_m.split('_')[-1]
 
+                # Set the parameters according opened config file
                 if self.config_mode == 'train':
                     self.open_train_config(config_dict)
                 elif self.config_mode == 'predi':
@@ -3333,6 +3383,12 @@ class ClaspyGui(QMainWindow):
         self.selectedFeatures = self.get_selected_features()
         self.train_config['feature_names'] = self.selectedFeatures
 
+        # Save fillnan value
+        if self.comboFillnan.currentText() == 'float':
+            self.train_config['fillnan'] = self.spinFillnan.value()
+        else:
+            self.train_config['fillnan'] = self.comboFillnan.currentText()
+
     def update_predict_config(self):
         """
         Update the dictionary of the prediction configuration
@@ -3356,6 +3412,12 @@ class ClaspyGui(QMainWindow):
             self.predict_config['output_folder'] = self.lineServerFolder.text()
             self.predict_config['local_model'] = self.lineModelFile.text()
             self.predict_config['model'] = self.lineServerModel.text()
+
+        # Save fillnan value
+        if self.comboFillnan.currentText() == 'float':
+            self.predict_config['fillnan'] = self.spinFillnan.value()
+        else:
+            self.predict_config['fillnan'] = self.comboFillnan.currentText()
 
     def update_segment_config(self):
         """
@@ -3413,6 +3475,12 @@ class ClaspyGui(QMainWindow):
         # Get the selected features
         self.SegSelectedFeatures = self.get_selected_features()
         self.segment_config['feature_names'] = self.SegSelectedFeatures
+
+        # Save fillnan value
+        if self.comboFillnan.currentText() == 'float':
+            self.segment_config['fillnan'] = self.spinFillnan.value()
+        else:
+            self.segment_config['fillnan'] = self.comboFillnan.currentText()
 
     def save_config(self):
         """
