@@ -21,7 +21,8 @@
 #        M2C laboratory (FRANCE)  -- https://m2c.cnrs.fr/ --          #
 #  #################################################################  #
 #  Description:                                                       #
-#     - 0.3.0 : Version of cLASpy_T with laspy2 support               #
+#     - 0.3.2 : update scikit-learn 0.24 > 1.5.0                      #
+#     - 0.3.0 : with laspy2 support                                   #
 #                                                                     #
 #######################################################################
 

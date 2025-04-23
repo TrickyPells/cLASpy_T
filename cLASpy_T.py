@@ -21,6 +21,7 @@
 #        M2C laboratory (FRANCE)  -- https://m2c.cnrs.fr/ --          #
 #  #################################################################  #
 #  Description:                                                       #
+#     - 0.3.2 : update scikit-learn 0.24 > 1.5.0                      #
 #     - 0.3.0 : with laspy2 support                                   #
 #                                                                     #
 #######################################################################
@@ -43,7 +44,7 @@ from cLASpy_Classes import ClaspyTrainer, ClaspyPredicter, ClaspySegmenter
 # -------------------------
 
 # Define version of cLASpy_T
-cLASpy_T_version = '0.3.0'  # 0.3.0 : Version of cLASpy_T with laspy2 support
+cLASpy_T_version = '0.3.2'  # 0.3.0 : update scikit-learn 0.24 > 1.5.0
 
 # -------------------------
 # ---- ARGUMENT_PARSER ----
@@ -86,15 +87,17 @@ subparsers = parser.add_subparsers(help="cLASpy_T modes:\n\n", metavar='')
 parser_train = subparsers.add_parser('train', help="training mode",
                                      description=textwrap.dedent('''\
                                      -------------------------------------------------------------------------------
-                                                             cLASpy_T
-                                                        train sub-command
-                                                     ------------------------
-                                     'train' allows to perform training according the selected supervised algorithm,
+                                                                 
+                                                                cLASpy_T
+                                                            train sub-command
+                                                        =======================
+                                     
+                                    'train' allows to perform training according the selected supervised algorithm,
                                      among Random Forest ('rf'), Gradient Boosting ('gb') and Neural Network ('ann').
                                  
                                      For training, input_data file must contain:
-                                        --> target field named 'target'
-                                        --> data fields
+                                        --> the target field named 'target'.
+                                        --> the features that describe each point of the point cloud.
                                      
                                      For CSV files:
                                         If X, Y and/or Z fields are present, they are excluded.
@@ -219,6 +222,22 @@ parser_train.set_defaults(func='train')  # Use training function
 
 # Create sub-command for predictions
 parser_predict = subparsers.add_parser('predict', help="prediction mode",
+                                     description=textwrap.dedent('''\
+                                     -------------------------------------------------------------------------------
+                                                                 
+                                                                cLASpy_T
+                                                            predict sub-command
+                                                        =========================
+                                                                 
+                                     'predict' makes predictions on the input point cloud according the selected model. 
+                                 
+                                     For predictions, two files are required:
+                                        --> the input_data file with the same features used to create the model.
+                                        --> the '*.model' file created during the training phase.
+
+                                     -------------------------------------------------------------------------------
+                                         
+                                     '''),
                                        formatter_class=argparse.RawTextHelpFormatter)
 
 parser_predict.add_argument("-c", "--config",

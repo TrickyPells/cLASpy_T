@@ -21,6 +21,7 @@
 #        M2C laboratory (FRANCE)  -- https://m2c.cnrs.fr/ --          #
 #  #################################################################  #
 #  Description:                                                       #
+#     - 0.3.2 : Update algo parameters (scklearn 1.4.1 > 1.5.0)       #
 #     - 0.3.0 : laspy2 support                                        #
 #                                                                     #
 #######################################################################
@@ -52,7 +53,7 @@ from sklearn.metrics import confusion_matrix, classification_report
 # ------ VARIABLES --------
 # -------------------------
 # Version of cLASpy_Core
-cLASpy_Core_version = '0.3.0'  # 0.3.0 version with laspy2 support
+cLASpy_Core_version = '0.3.2'  # 0.3.2 version with scikit-learn 1.5 support
 
 # # Define point_format dict for LAS files
 # point_format = dict()
@@ -146,6 +147,7 @@ class ClaspyTrainer:
         self.data_train = None  # Data to train model
         self.feat_importance = None  # Boolean to plot feature importance or not
         self.frame = None  # Loaded data as pandas.DataFrame
+        self.labels = None  # List of all labels from target field
         self.model = None  # Model object
         self.model_to_load = None  # Model to load (path file)
         self.nbr_points = None  # Integer of number of points
@@ -387,10 +389,10 @@ class ClaspyTrainer:
             self.classifier = GradientBoostingClassifier()
             self.check_parameters()  # Check and set parameters
         else:
-            self.classifier = GradientBoostingClassifier(loss='deviance',
+            self.classifier = GradientBoostingClassifier(loss='log_loss',
                                                          n_estimators=100,
                                                          max_depth=3,
-                                                         min_samples_leaf=1000,
+                                                         min_samples_leaf=100,
                                                          random_state=0)
 
     def set_mlp_classifier(self):
@@ -408,7 +410,7 @@ class ClaspyTrainer:
                                             activation='relu',
                                             solver='adam',
                                             alpha=0.0001,
-                                            max_iter=10000,
+                                            max_iter=1000,
                                             random_state=0)
 
     def training_gridsearch(self, verbose=True):
@@ -541,7 +543,12 @@ class ClaspyTrainer:
         self.conf_matrix = np.insert(self.conf_matrix, n_rows_cols, precisions, axis=0)
 
         # Return the new confusion matrix
-        self.conf_matrix = pd.DataFrame(self.conf_matrix).round(decimals=3)
+        conf_index = pd.Index(self.labels + ['Precision'], name='True')  # Create index for confusion matrix
+        conf_colnames = pd.Index(self.labels + ['Recall'], name='Predicted')  # Create column names for confusion matrix
+        self.conf_matrix = pd.DataFrame(self.conf_matrix,
+                                        index=conf_index,
+                                        columns=conf_colnames).round(decimals=3)
+
         return self.conf_matrix
 
     def save_feature_importance(self):
@@ -715,10 +722,16 @@ class ClaspyTrainer:
         # Extract 'target' from data frame
         target = None
         if self.has_target:
+            # Get targets from dataset
             target = pd.read_csv(self.data_path,
                                  sep=',',
                                  header='infer',
                                  usecols=[self.target_name])
+            # Get the list of labels, except if labels from model already loaded
+            if self.labels is None:
+                self.labels = np.array(sorted(pd.unique(target[self.target_name])),
+                                       dtype='int32')  # get unique as int, not float
+                self.labels = self.labels.tolist()
 
         # If asked features is empty, create list with default features (all except X, Y, Z)
         if self.features is None:
@@ -757,7 +770,13 @@ class ClaspyTrainer:
         # Extract 'target' as dataframe
         target = None
         if self.has_target:
+            # Get targets from dataset
             target = pd.DataFrame(las.points[[self.target_name]].array)
+            # Get the list of labels, except if labels from model already loaded
+            if self.labels is None:
+                self.labels = np.array(sorted(pd.unique(target[self.target_name])),
+                                       dtype='int32')  # get unique as int, not float
+                self.labels = self.labels.tolist()
 
         # If asked features is empty, load LAS Extra Dimensions
         if self.features is None:
@@ -823,8 +842,10 @@ class ClaspyTrainer:
         if self.data_type == '.las':
             self.data, self.target = self.load_data_las()
 
-        format_data_str += "\nLIST OF THE FEATURES FROM DATA:\n"
-        format_data_str += str(self.data.columns.values.tolist()) + "\n"
+        # Print label list from the dataset
+        if self.has_target and not isinstance(self, ClaspyPredicter) and not isinstance(self, ClaspySegmenter):
+            print('LABELS FROM DATASET:')
+            print(self.labels)
 
         # Replace NAN values by median
         self.data.fillna(value=self.data.median(0), inplace=True)  # .median(0) computes median by column
@@ -975,17 +996,28 @@ class ClaspyTrainer:
         confusion_str = "\n"
 
         if isinstance(self, ClaspyPredicter):
-            self.conf_matrix = confusion_matrix(self.target.values, self.y_proba.transpose()[0])
+            self.conf_matrix = confusion_matrix(self.target.values,
+                                                self.y_proba.transpose()[0],
+                                                labels=self.labels)
             self.conf_matrix = self.add_precision_recall()  # add statistics to confusion matrix report
-            self.test_report = classification_report(self.target.values, self.y_proba.transpose()[0], zero_division=0)
+            self.test_report = classification_report(self.target.values,
+                                                     self.y_proba.transpose()[0],
+                                                     labels=self.labels,
+                                                     zero_division=0)
         else:
             # Make prediction over test first
             self.target_test_pred = self.model.predict(self.data_test)
-            self.conf_matrix = confusion_matrix(self.target_test, self.target_test_pred)
+            self.conf_matrix = confusion_matrix(self.target_test,
+                                                self.target_test_pred,
+                                                labels=self.labels)
             self.conf_matrix = self.add_precision_recall()  # add statistics to confusion matrix report
-            self.test_report = classification_report(self.target_test, self.target_test_pred, zero_division=0)
+            self.test_report = classification_report(self.target_test,
+                                                     self.target_test_pred,
+                                                     labels=self.labels,
+                                                     zero_division=0)
 
-        confusion_str += self.test_report
+        confusion_str += '\nCONFUSION MATRIX:\n' + self.conf_matrix.to_string() + '\n'
+        confusion_str += '\nTEST REPORT:\n ' + self.test_report + '\n'
 
         if verbose:
             return confusion_str
@@ -997,11 +1029,12 @@ class ClaspyTrainer:
         # String report for saving model
         save_model_str = "\n"
 
-        # Model_dilename and model_dict
+        # Model_filename and model_dict
         model_filename = self.report_filename + '.model'
         model_dict = dict()
         model_dict['algorithm'] = self.algorithm
         model_dict['feature_names'] = sorted(self.data.columns.values.tolist())
+        model_dict['labels'] = self.labels
         model_dict['model'] = self.model
 
         # Use joblib to save in model file
@@ -1141,6 +1174,7 @@ class ClaspyPredicter(ClaspyTrainer):
         self.model_to_load = model
         self.feat_importance = None
         self.results = None
+        self.y_proba = None
 
     def load_model(self, verbose=True):
         """
@@ -1160,8 +1194,13 @@ class ClaspyPredicter(ClaspyTrainer):
         # Retrieve algorithm name, features names and model
         self.algorithm = self.model['algorithm']
         self.algo = self.shortname_algo()
+        self.labels = self.model['labels']
         self.features = self.model['feature_names']
         self.model = self.model['model']
+
+        # Print label list from the model
+        print('LABELS FROM MODEL:')
+        print(self.labels)
 
         # Check if model created by GridSearchCV or Pipeline
         if isinstance(self.model, GridSearchCV):
@@ -1217,9 +1256,13 @@ class ClaspyPredicter(ClaspyTrainer):
         y_best_proba = np.amax(self.y_proba, axis=1)
         y_best_class = np.argmax(self.y_proba, axis=1)
 
+        # Get correspondences between predicted classes and labels
+        array_labels = np.array(self.labels, dtype='int32')  # Create label array from label list
+        y_best_label = array_labels[y_best_class]  # Get correspondences
+
         # Add best proba and best class to probability per class
         self.y_proba = np.insert(self.y_proba, 0, y_best_proba, axis=1)
-        self.y_proba = np.insert(self.y_proba, 0, y_best_class, axis=1)
+        self.y_proba = np.insert(self.y_proba, 0, y_best_label, axis=1)
 
         # If target is present, get the confusion matrix
         if self.target is not None:
@@ -1241,8 +1284,7 @@ class ClaspyPredicter(ClaspyTrainer):
         # Set header for the predictions
         if len(self.y_proba.shape) > 1 and self.y_proba.shape[1] > 2:
             # Get number of class in prediction array (number of column - 2)
-            numb_class = self.y_proba.shape[1] - 2
-            pred_header = ['Prediction', 'BestProba'] + ['ProbaClass_' + str(cla) for cla in range(0, numb_class)]
+            pred_header = ['Prediction', 'BestProba'] + ['ProbaClass_' + str(cla) for cla in self.labels]
         else:
             pred_header = ['Prediction']
 
